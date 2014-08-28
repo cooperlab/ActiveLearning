@@ -189,8 +189,11 @@ bool Learner::StartSession(const int sock, json_t *obj)
 
 	// Send result back to client
 	//
-	::write(sock, (result) ? passResp : failResp ,
-			((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
+								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+
+	if( bytesWritten != sizeof(failResp) - 1 )
+		result = false;
 
 	return result;
 }
@@ -268,7 +271,10 @@ bool Learner::Select(const int sock, json_t *obj)
 		json_decref(sampleArray);
 
 		char *jsonObj = json_dumps(root, 0);
-		::write(sock, jsonObj, strlen(jsonObj));
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
 
 		json_decref(root);
 		free(jsonObj);
@@ -449,7 +455,10 @@ bool Learner::Prime(const int sock, json_t *obj)
 		json_decref(sampleArray);
 
 		char *jsonObj = json_dumps(root, 0);
-		::write(sock, jsonObj, strlen(jsonObj));
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
 
 		json_decref(root);
 		free(jsonObj);
@@ -551,8 +560,10 @@ bool Learner::Submit(const int sock, json_t *obj)
 
 	// Send result back to client
 	//
-	::write(sock, (result) ? passResp : failResp ,
-			((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
+								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	if( bytesWritten != sizeof(failResp) )
+		result = false;
 
 	// If all's well, train the classifier with the updated training set
 	//
@@ -633,8 +644,10 @@ bool Learner::CancelSession(const int sock, json_t *obj)
 
 	Cleanup();
 
-	::write(sock, (result) ? passResp : failResp ,
-			((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
+							((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	if( bytesWritten != sizeof(failResp) - 1 )
+		result = false;
 
 	return result;
 }

@@ -18,9 +18,8 @@ include_directories(${HDF5_INCLUDE_DIRS})
 set(LIBRARIES ${LIBRARIES} ${HDF5_LIBRARIES})
 set(LIBRARIES ${LIBRARIES} ${HDF5_HL_LIBRARIES})
 
-
-
-
+message(STATUS "HDF5: " ${HDF5_LIBRARIES})
+message(STATUS "HDF5: " ${HDF5_HL_LIBRARIES})
 
 #
 ### OpenCV
