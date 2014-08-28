@@ -223,17 +223,17 @@ else()
                 # See http://www.cmake.org/Bug/view.php?id=1643.  We search
                 # first for the full static library name, but fall back to a
                 # generic search on the name if the static search fails.
-                set( THIS_LIBRARY_SEARCH_DEBUG lib${LIB}d.a ${LIB}d )
+                # set( THIS_LIBRARY_SEARCH_DEBUG lib${LIB}d.a ${LIB}d )
                 set( THIS_LIBRARY_SEARCH_RELEASE lib${LIB}.a ${LIB} )
             else()
-                set( THIS_LIBRARY_SEARCH_DEBUG ${LIB}d )
+               # set( THIS_LIBRARY_SEARCH_DEBUG ${LIB}d )
                 set( THIS_LIBRARY_SEARCH_RELEASE ${LIB} )
             endif()
-            find_library( HDF5_${LIB}_LIBRARY_DEBUG 
-                NAMES ${THIS_LIBRARY_SEARCH_DEBUG} 
-                HINTS ${HDF5_${LANGUAGE}_LIBRARY_DIRS} 
-                ENV HDF5_ROOT 
-                PATH_SUFFIXES lib Lib )
+            #find_library( HDF5_${LIB}_LIBRARY_DEBUG 
+            #    NAMES ${THIS_LIBRARY_SEARCH_DEBUG} 
+            #    HINTS ${HDF5_${LANGUAGE}_LIBRARY_DIRS} 
+            #    ENV HDF5_ROOT 
+            #    PATH_SUFFIXES lib Lib )
             find_library( HDF5_${LIB}_LIBRARY_RELEASE
                 NAMES ${THIS_LIBRARY_SEARCH_RELEASE} 
                 HINTS ${HDF5_${LANGUAGE}_LIBRARY_DIRS} 
@@ -248,8 +248,8 @@ else()
             # up by the selection macro above) because it may specify debug and
             # optimized variants for a particular library, but a list of
             # libraries is allowed to specify debug and optimized only once.
-            list( APPEND HDF5_${LANGUAGE}_LIBRARIES_DEBUG 
-                ${HDF5_${LIB}_LIBRARY_DEBUG} )
+            #list( APPEND HDF5_${LANGUAGE}_LIBRARIES_DEBUG 
+            #    ${HDF5_${LIB}_LIBRARY_DEBUG} )
             list( APPEND HDF5_${LANGUAGE}_LIBRARIES_RELEASE 
                 ${HDF5_${LIB}_LIBRARY_RELEASE} )
         endforeach()
@@ -257,8 +257,8 @@ else()
         
         # Append the libraries for this language binding to the list of all
         # required libraries.
-        list( APPEND HDF5_LIBRARIES_DEBUG 
-            ${HDF5_${LANGUAGE}_LIBRARIES_DEBUG} )
+        #list( APPEND HDF5_LIBRARIES_DEBUG 
+        #    ${HDF5_${LANGUAGE}_LIBRARIES_DEBUG} )
         list( APPEND HDF5_LIBRARIES_RELEASE
             ${HDF5_${LANGUAGE}_LIBRARIES_RELEASE} )
     endforeach()
@@ -269,9 +269,9 @@ else()
     if( HDF5_INCLUDE_DIRS )
         list( REMOVE_DUPLICATES HDF5_INCLUDE_DIRS )
     endif()
-    if( HDF5_LIBRARIES_DEBUG )
-        list( REMOVE_DUPLICATES HDF5_LIBRARIES_DEBUG )
-    endif()
+    #if( HDF5_LIBRARIES_DEBUG )
+    #    list( REMOVE_DUPLICATES HDF5_LIBRARIES_DEBUG )
+    #endif()
     if( HDF5_LIBRARIES_RELEASE )
         list( REMOVE_DUPLICATES HDF5_LIBRARIES_RELEASE )
     endif()
@@ -283,7 +283,7 @@ else()
     # variants when the generator supports them.
     if( CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE )
         set( HDF5_LIBRARIES
-            debug ${HDF5_LIBRARIES_DEBUG}
+            #debug ${HDF5_LIBRARIES_DEBUG}
             optimized ${HDF5_LIBRARIES_RELEASE} )
     else()
         set( HDF5_LIBRARIES ${HDF5_LIBRARIES_RELEASE} )

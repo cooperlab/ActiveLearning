@@ -26,6 +26,7 @@ find_library(CBLAS_LIBRARY
     PATHS
     /usr/lib64/atlas
     /usr/lib/atlas
+	/usr/lib/atlas-base
     /usr/local/lib64/atlas
     /usr/local/lib/atlas
     /usr/lib64
