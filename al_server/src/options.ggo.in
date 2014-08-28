@@ -1,0 +1,7 @@
+package "al_serverd"
+version "@AL_SERVER_VERSION_MAJOR@.@AL_SERVER_VERSION_MINOR@"
+
+description "Activer learning server daemon"
+
+option "port"		p	"Port to listen on" int default="5000" optional
+
