@@ -25,6 +25,8 @@ using namespace std;
 
 bool	gDone = false;		// Sig handler will set this to true
 
+#define RX_BUFFER_SIZE		(100 * 1024)
+static char *gBuffer = NULL;
 
 
 //
@@ -47,12 +49,12 @@ bool Daemonize(void)
 
 // Create the needed objects
 //
-Learner* Initialize(void)
+Learner* Initialize(string path)
 {
 	bool	result = true;
 	Learner	*learner = NULL;
 
-	learner = new Learner();
+	learner = new Learner(path);
 	if( learner == NULL ) {
 		cerr << "Unable to create learner object" << endl;
 	}
@@ -68,13 +70,13 @@ Learner* Initialize(void)
 bool HandleRequest(const int fd, Learner *learner)
 {
 	bool	result = true;
-	char 	buffer[8192];
 	int		bytesRx;
 
 
-	bytesRx = recv(fd, buffer, 8192, 0);
+	bytesRx = recv(fd, gBuffer, RX_BUFFER_SIZE, 0);
+	cout << "Read " << bytesRx << " bytes" << endl;
 	if( bytesRx > 0 ) {
-		result = learner->ParseCommand(fd, buffer, bytesRx);
+		result = learner->ParseCommand(fd, gBuffer, bytesRx);
 
 	} else {
 		cout << "Invalid request" << endl;
@@ -95,14 +97,25 @@ int main(int argc, char *argv[])
 
 
 	status = cmdline_parser(argc, argv, &args);
+	string  path = args.data_path_arg;
 
 	if( status == 0 ) {
 
 		// Daemonize the process
 		Daemonize();
+	}
 
+	if( status == 0 ) {
+		gBuffer = (char*)malloc(RX_BUFFER_SIZE);
+		if( gBuffer == NULL ) {
+			cerr << "Unable to allocate RX buffer" << endl;
+			status = -1;
+		}
+	}
+
+	if( status == 0 ) {
 		// Setup Active learning objects
-		learner = Initialize();
+		learner = Initialize(path);
 		if( learner == NULL ) {
 			cerr << "Unable to initialize server" << endl;
 			status = -1;
@@ -140,6 +153,8 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		if( gBuffer )
+			free(gBuffer);
 		if( learner )
 			delete learner;
 	}

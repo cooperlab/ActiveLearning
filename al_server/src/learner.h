@@ -17,7 +17,7 @@
 class Learner
 {
 public:
-			Learner(void);
+			Learner(string dataPath = "./");
 			~Learner(void);
 
 	bool	ParseCommand(const int sock, char *data, int size);
@@ -28,6 +28,7 @@ protected:
 
 	char	m_UID[UID_LENGTH + 1];
 	MData	*m_dataset;
+	string	m_dataPath;
 
 	vector<int> m_samples;
 	int			*m_labels;

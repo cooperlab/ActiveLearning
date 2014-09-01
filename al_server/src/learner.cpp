@@ -19,13 +19,14 @@ const char failResp[] = "FAIL";
 
 
 
-Learner::Learner(void) :
+Learner::Learner(string dataPath) :
 m_dataset(NULL),
 m_labels(NULL),
 m_ids(NULL),
 m_trainSet(NULL),
 m_classifier(NULL),
-m_sampler(NULL)
+m_sampler(NULL),
+m_dataPath(dataPath)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -171,7 +172,8 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		result = m_dataset->Load(fileName);
+		string fqFileName = m_dataPath + string(fileName);
+		result = m_dataset->Load(fqFileName);
 	}
 
 	// Create sampling objects
@@ -252,7 +254,7 @@ bool Learner::Select(const int sock, json_t *obj)
 
 				// Get new sample
 				idx = m_sampler->Select(&score);
-
+				cout << "Selected " << idx << endl;
 				json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
 				json_object_set(sample, "id", json_integer(0));
 				json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
