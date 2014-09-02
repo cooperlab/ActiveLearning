@@ -564,7 +564,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 	//
 	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
 								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
-	if( bytesWritten != sizeof(failResp) )
+	if( bytesWritten != (sizeof(failResp) - 1) )
 		result = false;
 
 	// If all's well, train the classifier with the updated training set
