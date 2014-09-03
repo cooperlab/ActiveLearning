@@ -378,7 +378,7 @@ function cancelSession() {
 	console.log("Canceling");
 	
 	$.ajax({
-		url: "php/finishSession.php",
+		url: "php/cancelSession.php",
 		data: "",
 		success: function() {
 			window.location = "index.html";
