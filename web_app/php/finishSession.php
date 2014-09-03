@@ -26,11 +26,35 @@
 	$response = socket_read($socket, 8192);
 	socket_close($socket);
 
+	$response = json_decode($response, true);
+
 
 	// Add classifier to database
 	//
+	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
+	if( !$dbConn ) {
+		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
+		exit();
+	}
+	
+	// Get dataset ID
+	if( $result = mysqli_query($dbConn, 'SELECT id from datasets where name="'.$_SESSION['dataset'].'"') ) {
+
+		$array = mysqli_fetch_row($result);
+		$datasetId = $array[0];
+		
+		mysqli_free_result($result);
+	}
+
+	$sql = 'INSERT INTO training_sets (name, type, dataset_id, iterations)';
+	$sql = $sql.' VALUES("'.$_SESSION['dataset'].'", "binary", '.$datasetId.', '.$response['iterations'].')';
+	mysqli_query($dbConn, $sql);
+	
+	mysqli_close($dbConn);
 	
 	
+	// Add classes to the database
+	//
 	// Add samples to the database
 	//
 

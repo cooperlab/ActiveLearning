@@ -118,7 +118,7 @@
 				<div class="col-sm-6 col-md-6 col-lg-6">
 					<input type="button" id="updateBtn" value="Update" class="btn btn-primary" onClick="submitLabels()">
 					<input type="button" id="finishBtn" value="Cancel" class="btn btn-danger" onClick="cancelSession()">
-					<input type="button" id="finalizeBtn" value="Finalize" class="btn btn-success" onClick="saveSession()">
+					<input type="button" id="finalizeBtn" value="Finalize" class="btn btn-success" onClick="saveSession()" disabled>
 				</div>
 				<div class="col-sm-6 col-md-6 col-lg-6">
 					<input type="button" id="toggleBtn" value="Hide Segmentation" 
@@ -135,7 +135,23 @@
 			<script src="js/grid.js"></script>
 
 		</div>
+
 		
+		<div class="modal fade" id="progDiag" tabindex="-1" role="dialog"
+			aria-labelledby="myModalLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h4 class="modal-title" id="myModalLabel">
+							Updating samples
+						</h4>
+					</div>
+					<div class="modal-body">
+						Please wait while new samples are selected
+					</div>
+				</div>
+			</div>
+		</div>
 			
 	</body>
 </html>

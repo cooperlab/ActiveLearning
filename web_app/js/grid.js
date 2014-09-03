@@ -343,6 +343,9 @@ function updateSamples() {
 				$(thumbTag).attr("src", thumbNail);
 				
 				updateClassStatus(sample);
+
+				// Hide progress dialog
+				$('#progDiag').modal('hide');
 			}
 		},
 		error: function() {
@@ -392,6 +395,9 @@ function submitLabels() {
 
 	console.log("Submitting samples");
 	
+	// Display the progress dialog...
+	$('#progDiag').modal('show');
+	
 	// No need to send boundaries to the server
 	for( i = 0; i < sampleDataJson['samples'].length; i++ ) {
 		sampleDataJson['samples'][i]['boundary'] = "";
@@ -406,7 +412,7 @@ function submitLabels() {
 			console.log("Samples submitted");
 			
 			// Get a new set of samples
-			updateSamples();
+			updateSamples();	
 		}
 	});
 }
