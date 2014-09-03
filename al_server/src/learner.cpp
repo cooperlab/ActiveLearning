@@ -114,6 +114,8 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 		} else {
 			const char	*command = json_string_value(cmdObj);
 
+			// TODO - Get rid of hard-coded commands
+			//
 			if( strncmp(command, "init", 4) == 0 ) {
 				result = StartSession(sock, root);
 			} else if( strncmp(command, "select", 6) == 0 ) {
@@ -212,6 +214,12 @@ bool Learner::StartSession(const int sock, json_t *obj)
 bool Learner::Select(const int sock, json_t *obj)
 {
 	bool	result = true;
+	json_t 	*value = NULL;
+	int		reqIteration;
+
+
+	value = json_object_get(obj, "iteration");
+	reqIteration = json_integer_value(value);
 
 	if( m_samples.empty() ) {
 		// TEMPORARY!!!!
@@ -224,8 +232,6 @@ bool Learner::Select(const int sock, json_t *obj)
 		int		idx;
 		float	score;
 
-
-		cout << "Iteration " << m_iteration << endl;
 		if( root == NULL ) {
 			cerr << "Error creating JSON array" << endl;
 			result = false;
@@ -252,9 +258,19 @@ bool Learner::Select(const int sock, json_t *obj)
 					break;
 				}
 
-				// Get new sample
-				idx = m_sampler->Select(&score);
-				cout << "Selected " << idx << endl;
+				if( m_iteration != reqIteration ) {
+					// Get new sample
+					idx = m_sampler->Select(&score);
+					cout << "Selected " << idx << endl;
+					m_curSet.push_back(idx);
+					m_curScores.push_back(score);
+				} else {
+					// Haven't submitted that last group of selections. Send
+					// them again
+					score = m_curScores[i];
+					idx = m_curSet[i];
+				}
+
 				json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
 				json_object_set(sample, "id", json_integer(0));
 				json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
@@ -482,10 +498,8 @@ bool Learner::Submit(const int sock, json_t *obj)
 	json_t	*sampleArray, *value, *jsonObj;
 	int		iter;
 
-
 	value = json_object_get(obj, "iteration");
 	iter = json_integer_value(value);
-	cout << "Iteration: " << iter << ", m_iteration: " << m_iteration << endl;
 
 	// Check iteration to make sure we're in sync
 	//
@@ -572,6 +586,8 @@ bool Learner::Submit(const int sock, json_t *obj)
 	if( result ) {
 		m_iteration++;
 		result = m_classifier->Train(m_trainSet, m_labels, m_samples.size(), m_dataset->GetDims());
+		// Need to select new samples.
+		m_curSet.clear();
 	}
 	return result;
 }
@@ -584,7 +600,64 @@ bool Learner::Submit(const int sock, json_t *obj)
 bool Learner::FinalizeSession(const int sock, json_t *obj)
 {
 	bool	result = true;
+	json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
+	int		idx;
+	float	score;
 
+	if( root == NULL ) {
+		cerr << "Error creating JSON array" << endl;
+		result = false;
+	}
+
+	if( result ) {
+		sampleArray = json_array();
+		if( sampleArray == NULL ) {
+			cerr << "Unable to create sample JSON Array" << endl;
+			result = false;
+		}
+	}
+
+	if( result ) {
+
+		json_object_set(root, "iterations", json_integer(m_iteration));
+
+		// We just return an array of the nuclei database id's
+		//
+		for(int i = 0; i < m_samples.size(); i++) {
+
+			sample = json_object();
+			if( sample == NULL ) {
+				cerr << "Unable to create sample JSON object" << endl;
+				result = false;
+				break;
+			}
+
+			int idx = m_samples[i];
+			json_object_set(sample, "id", json_integer(0));
+
+			json_array_append(sampleArray, sample);
+			json_decref(sample);
+		}
+	}
+
+	json_object_set(root, "samples", sampleArray);
+	json_decref(sampleArray);
+
+	char *jsonObj = json_dumps(root, 0);
+	size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+	if( bytesWritten != strlen(jsonObj) )
+		result = false;
+
+	json_decref(root);
+	free(jsonObj);
+
+
+	// This session is done, clear the UID and cleanup associated
+	// data
+	//
+	memset(m_UID, 0, UID_LENGTH + 1);
+	Cleanup();
 
 	return result;
 }

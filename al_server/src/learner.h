@@ -31,6 +31,10 @@ protected:
 	string	m_dataPath;
 
 	vector<int> m_samples;
+	vector<int>	m_curSet;
+	vector<float> m_curScores;
+
+
 	int			*m_labels;
 	int			*m_ids;
 	float		*m_trainSet;
