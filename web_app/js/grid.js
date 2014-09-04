@@ -427,9 +427,11 @@ function saveSession() {
 	$.ajax({
 		url: "php/finishSession.php",
 		data: "",
-		success: function() {
+		success: function(data) {
+		
+			console.log("Finish result: "+data);
 			window.location = "index.html";
-		}
+		},
 	});
 }
 
