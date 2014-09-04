@@ -38,6 +38,7 @@ protected:
 	int			*m_labels;
 	int			*m_ids;
 	float		*m_trainSet;
+	int			*m_sampleIter;	// Iteration sample was added
 	int			m_iteration;
 
 	Classifier 	*m_classifier;

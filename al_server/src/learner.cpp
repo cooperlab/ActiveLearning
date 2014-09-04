@@ -26,7 +26,8 @@ m_ids(NULL),
 m_trainSet(NULL),
 m_classifier(NULL),
 m_sampler(NULL),
-m_dataPath(dataPath)
+m_dataPath(dataPath),
+m_sampleIter(NULL)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -82,6 +83,11 @@ void Learner::Cleanup(void)
 	if( m_trainSet ) {
 		free(m_trainSet);
 		m_trainSet = NULL;
+	}
+
+	if( m_sampleIter ) {
+		free(m_sampleIter);
+		m_sampleIter = NULL;
 	}
 }
 
@@ -561,6 +567,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			if( idx != -1 ) {
 				m_labels[pos] = label;
 				m_ids[pos] = id;
+				m_sampleIter[pos] = m_iteration;
 				result = m_dataset->GetSample(idx, &m_trainSet[pos * dims]);
 				m_samples.push_back(idx);
 			} else {
@@ -618,10 +625,10 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	}
 
 	if( result ) {
+		// The current iteration has not been submitted, hence the -1.
+		json_object_set(root, "iterations", json_integer(m_iteration - 1));
 
-		json_object_set(root, "iterations", json_integer(m_iteration));
-
-		// We just return an array of the nuclei database id's
+		// We just return an array of the nuclei database id's, label and iteration when added
 		//
 		for(int i = 0; i < m_samples.size(); i++) {
 
@@ -633,7 +640,10 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 			}
 
 			int idx = m_samples[i];
-			json_object_set(sample, "id", json_integer(0));
+			json_object_set(sample, "id", json_integer(m_ids[i]));
+			json_object_set(sample, "label", json_integer(m_labels[i]));
+			json_object_set(sample, "iteration", json_integer(m_sampleIter[i]));
+			// TODO - Add training set filename
 
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
@@ -687,13 +697,22 @@ bool Learner::UpdateBuffers(int updateSize)
 			result = false;
 	}
 
-	int 	dims = m_dataset->GetDims();
-	float *newFeatBuff = (float*)realloc(m_trainSet, newSize * dims * sizeof(float));
-	if( newFeatBuff != NULL )
-		m_trainSet = newFeatBuff;
-	else
-		result = false;
+	if( result ) {
+		newBuff = (int*)realloc(m_sampleIter, newSize * sizeof(int));
+		if( newBuff != NULL )
+			m_sampleIter = newBuff;
+		else
+			result = false;
+	}
 
+	if( result ) {
+		int 	dims = m_dataset->GetDims();
+		float *newFeatBuff = (float*)realloc(m_trainSet, newSize * dims * sizeof(float));
+		if( newFeatBuff != NULL )
+			m_trainSet = newFeatBuff;
+		else
+			result = false;
+	}
 	return result;
 }
 
