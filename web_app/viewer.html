@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html> 
+	<head>
+		<title>Slide viewer</title>
+		
+		<script src="js/jquery-1.9.0.min.js"></script>
+	 	<script src="js/openseadragon.min.js"></script>
+		<script src="js/openseadragon-imaginghelper.min.js"></script>
+		<script src="js/openseadragon-viewerinputhook.min.js"></script>
+		<script src="js/knockout-3.1.0.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		
+
+		<link rel="stylesheet" media="screen" href="css/bootstrap.min.css"/>
+		<link rel="stylesheet" media="screen" href="css/style.css"/>
+	</head>
+
+
+	<body>
+
+		<nav class="navbar navbar-default" role="navigation">
+			<div class="navbar-header">
+				<a class="navbar-brand" href="index.html">VALS</a>
+			</div>
+			
+			<div>
+				<ul class="nav navbar-nav">
+					<li><a href="index.html">Home</a></li>
+					<li class="active"><a href="#">Viewer</a></li>
+				</ul>
+			</div>
+		</nav>
+
+		<div class="container">
+
+			<div class="row">
+				<div id="SelPatient" class="col-sm-6 col-md-4 col-lg-6">
+					<div id="SelDataset">
+						<h4>Select Dataset: </h4>
+						<select id="dataset_sel"></select>
+					</div>
+					
+					<h4>Select Slide: </h4>
+					<select id="slide_sel"></select>
+					<p>
+					<br />
+						Available Slides: <span id="count_patient"></span>
+					<br />
+					</p>
+				</div>
+
+				<div class="col-sm-6 col-md-3 col-lg-6" data-bind="with: statusObj">
+
+					<div id="DebugData">
+						<div>
+							<span>Mouse X:  </span>
+							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgX().toFixed(0) : '-'"></span>
+						</div>
+						<div>
+							<span>Mouse Y:  </span>
+							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgY().toFixed(0) : '-'"></span>
+						</div>
+						<div>
+							<span>Viewport left:  </span>
+							<span data-bind="text: haveImage() ? dataportLeft().toFixed(0) : '-'"></span>
+						</div>
+						<div>
+							<span>Viewport top:  </span>
+							<span data-bind="text: haveImage() ? dataportTop().toFixed(0) : '-'"></span>
+						</div>
+						<div>
+							<span>Viewport right:  </span>
+							<span data-bind="text: haveImage() ? dataportRight().toFixed(0) : '-'"></span>
+						</div>
+						<div>
+							<span>Viewport bottom:  </span>
+							<span data-bind="text: haveImage() ? dataportBottom().toFixed(0) : '-'"></span>
+						</div>
+						<div>
+							<span>Zoom factor:  </span>
+							<span data-bind="text: haveImage() ? scaleFactor().toFixed(4) : '-'"></span>
+						</div>
+					</div>
+					
+					<div id="PrimeData" style="display: none;">
+						<span>Selected items</span>	
+					</div>
+						
+				</div>
+			</div>  <!-- First row -->
+
+
+
+			<!-- Slide view (second row) -->
+			<div class="row">
+				<!-- Buttons along top of zoomer -->
+				<input type="button" id="btn_1" value="Show Segmentation" class="btn btn-default btn-sm" onClick="viewSegmentation()">
+				<input type="button" id="btn_2" value="Select Nuclei" class="btn" onClick="setSelectMode()">
+			</div>	
+			
+			<div class="row">
+				<div id="image_zoomer" class="zoomView"></div>
+			</div>
+
+		</div>	<!-- Container -->		
+
+		<script src="js/viewer.js"></script>
+	</body>
+</html>

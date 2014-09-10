@@ -1,0 +1,31 @@
+cmake_minimum_required(VERSION 2.8)
+project(al_server)
+
+if( CMAKE_COMPILER_IS_GNUCC ) 
+	message(STATUS "Checking compiler version...")
+	EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
+
+	if( GCC_VERSION VERSION_LESS "4.6" )
+		message(FATAL_ERROR "gcc version 4.6 or greater required")
+	else( GCC_VERSION VERSION_LESS "4.6" )
+		message(STATUS "Compiler Ok") 
+	endif( GCC_VERSION VERSION_LESS "4.6" )
+endif( CMAKE_COMPILER_IS_GNUCC )
+
+
+set(CMAKE_DEBUG_POSTFIX "_d")
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fopenmp")
+
+
+
+if( CMAKE_BUILD_TYPE STREQUAL Debug ) 
+	set(BUILD_POSTFIX "_d")
+	set(AL_SERVER_DEBUG 1)
+else( CMAKE_BUILD_TYPE STREQUAL Debug)
+	set(BUILD_POSTFIX "")
+	set(AL_SERVER_DEBUG 0)
+	set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-O3")
+endif( CMAKE_BUILD_TYPE STREQUAL Debug )
+
+
+add_subdirectory(src)
