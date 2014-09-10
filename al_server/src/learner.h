@@ -29,6 +29,7 @@ protected:
 	char	m_UID[UID_LENGTH + 1];
 	MData	*m_dataset;
 	string	m_dataPath;
+	string	m_classifierName;
 
 	vector<int> m_samples;
 	vector<int>	m_curSet;
@@ -53,6 +54,9 @@ protected:
 
 	bool 	UpdateBuffers(int updateSize);
 	void	Cleanup(void);
+
+	bool	SaveTrainingSet(string filename);
+
 };
 
 

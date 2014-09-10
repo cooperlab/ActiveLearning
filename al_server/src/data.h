@@ -20,9 +20,14 @@ public:
 
 
 		bool	Load(string fileName);
+		bool	Create(float *dataSet, int numObjs, int numDims, int *labels,
+						int *ids, char **slides, int *slideIdx, int slideCnt);
+		bool	SaveAs(string filename);
 
 		float	**GetData(void) { return m_objects; }
 		int		*GetLabels(void) { return m_haveLabels ? m_labels : NULL;  }
+		char	**GetSlideNames(void)  { return m_slides; }
+		int		*GetSlideIndices(void) { return m_slideIdx; }
 
 		int		GetNumObjs(void) { return m_numObjs; }
 		int		GetDims(void) { return m_numDim; }
@@ -49,10 +54,14 @@ protected:
 		int		m_numDim;
 		int		m_numSlides;
 
+		bool	m_haveDbIds;
+		int		*m_dbIds;
+
 		hid_t	m_space;			// For cleaning up slide names
 		hid_t	m_memType;
 
 		void 	Cleanup(void);
+		bool	SaveProvenance(hid_t fileId);
 };
 
 

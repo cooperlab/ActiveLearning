@@ -1,6 +1,11 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <set>
+#include <sys/utsname.h>
+#include <ctime>
+
+#include "base_config.h"
 #include "data.h"
 
 
@@ -16,7 +21,9 @@ m_labels(NULL),
 m_xCentroid(NULL),
 m_yCentroid(NULL),
 m_slideIdx(NULL),
-m_slides(NULL)
+m_slides(NULL),
+m_haveDbIds(false),
+m_dbIds(NULL)
 {
 
 }
@@ -328,4 +335,170 @@ float MData::GetYCentroid(int index)
 		yCent = m_yCentroid[index];
 	}
 	return yCent;
+}
+
+
+
+
+
+bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
+					int *ids, char **slides, int *slideIdx, int slideCnt)
+{
+	bool 	result = true;
+	float	**dataSetIdx = NULL;
+
+	// Make sure all resources have been released
+	Cleanup();
+
+	m_numObjs = numObjs;
+	m_numDim = numDims;
+
+	// Allocate buffer for objects
+	m_objects = (float**)malloc(numObjs * sizeof(float*));
+	if( m_objects != NULL ) {
+		m_objects[0] = (float*)malloc(numObjs * numDims * sizeof(float));
+
+		if( m_objects[0] != NULL ) {
+			memcpy(m_objects[0], dataSet, numObjs * numDims * sizeof(float));
+
+			for(int i = 1; i < numObjs; i++) {
+				m_objects[i] = m_objects[i - 1] + numDims;
+			}
+		} else {
+			result = false;
+		}
+	} else {
+		result = false;
+	}
+
+	if( result && labels != NULL ) {
+		m_labels = (int*)malloc(numObjs * sizeof(int));
+		if( m_labels != NULL ) {
+			m_haveLabels = true;
+			memcpy(m_labels, labels, numObjs * sizeof(int));
+		} else {
+			result = true;
+		}
+	}
+
+	if( result && ids != NULL ) {
+
+		m_dbIds = (int*)malloc(numObjs * sizeof(int));
+		if( m_dbIds != NULL ) {
+			m_haveDbIds = true;
+			memcpy(m_dbIds, ids, numObjs * sizeof(int));
+		}
+	}
+	// TODO - Save slide names and slide indices
+
+	return result;
+}
+
+
+
+
+
+bool MData::SaveAs(string filename)
+{
+	bool	result = true;
+	hid_t	fileId;
+	hsize_t	dims[2];
+	herr_t	status;
+
+	cout << "Saving " << filename << endl;
+
+	fileId = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+	if( fileId < 0 ) {
+		cerr << "Unable to create training set file" << endl;
+		result = false;
+	}
+
+	if( result ) {
+		dims[0] = m_numObjs;
+		dims[1] = m_numDim;
+		status = H5LTmake_dataset(fileId, "/features", 2, dims, H5T_NATIVE_FLOAT, m_objects[0]);
+		if( status < 0 ) {
+			cerr << "Unable to create features dataset" << endl;
+			result = false;
+		}
+	}
+
+	if( result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/labels", 2, dims, H5T_NATIVE_INT, m_labels);
+		if( status < 0 ) {
+			cerr << "Unable to create labels dataset" << endl;
+			result = false;
+		}
+	}
+
+	if( result )
+		result = SaveProvenance(fileId);
+
+	if( fileId >= 0 ) {
+		H5Fclose(fileId);
+	}
+	return result;
+}
+
+
+
+
+
+
+bool MData::SaveProvenance(hid_t fileId)
+{
+	bool	result = true;
+	hsize_t	dims[2];
+	herr_t	status;
+
+	struct utsname	hostInfo;
+	if( uname(&hostInfo) ) {
+		cerr << "uname failed" << endl;
+		result = false;
+	}
+
+	if( result ) {
+		string sysInfo = hostInfo.nodename;
+		sysInfo += ", ";
+		sysInfo += hostInfo.sysname;
+		sysInfo += " (";
+		sysInfo += hostInfo.release;
+		sysInfo += " ";
+		sysInfo += hostInfo.machine;
+		sysInfo += ")";
+
+		status = H5LTset_attribute_string(fileId, "/", "host info", sysInfo.c_str());
+		if( status < 0 ) {
+			cerr << "Unable to write system info attribute" << endl;
+			result = false;
+		}
+	}
+
+	if( result ) {
+		int ver[2] = {AL_SERVER_VERSION_MAJOR, AL_SERVER_VERSION_MINOR};
+
+		status = H5LTset_attribute_int(fileId, "/", "version", ver, 2);
+		if( status < 0 ) {
+			cerr << "Unable to write version attribute" << endl;
+			result = false;
+		}
+	}
+
+	if( result ) {
+		time_t t = time(0);
+		struct tm *now = localtime(&t);
+		char curTime[100];
+
+		sprintf(curTime, "%2d-%2d-%4d, %2d:%2d",
+	    		now->tm_mon + 1, now->tm_mday, now->tm_year + 1900,
+	    		now->tm_hour, now->tm_min);
+
+		status = H5LTset_attribute_string(fileId, "/", "creation date", curTime);
+		if( status < 0 ) {
+			cerr << "Unable to write creation time" << endl;
+			result = false;
+		}
+	}
+	return result;
 }

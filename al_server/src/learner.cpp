@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <iostream>
-
 #include <jansson.h>
 
 #include "learner.h"
@@ -176,25 +175,38 @@ bool Learner::StartSession(const int sock, json_t *obj)
 			cerr << "Unable to create dataset object" << endl;
 			result = false;
 		}
+	}
 
+	if( result ) {
+		jsonObj = json_object_get(obj, "name");
+		classifierName = json_string_value(jsonObj);
+		if( classifierName != NULL ) {
+			m_classifierName = classifierName;
+		} else {
+			result = false;
+		}
 	}
 
 	if( result ) {
 		string fqFileName = m_dataPath + string(fileName);
+		cout << "Loading " << fqFileName << endl;
+
 		result = m_dataset->Load(fqFileName);
 	}
 
 	// Create sampling objects
 	if( result ) {
 		m_classifier = new OCVBinarySVM();
-		if( m_classifier == NULL )
+		if( m_classifier == NULL ) {
 			result = false;
+		}
 	}
 
 	if( result ) {
 		m_sampler = new UncertainSample(m_classifier, m_dataset);
-		if( m_sampler == NULL )
+		if( m_sampler == NULL ) {
 			result = false;
+		}
 	}
 
 	// Send result back to client
@@ -610,6 +622,8 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
 	int		idx;
 	float	score;
+	string 	tag = &m_UID[UID_LENGTH - 3];
+	string 	fileName = m_classifierName + "_" + tag + ".h5";
 
 	if( root == NULL ) {
 		cerr << "Error creating JSON array" << endl;
@@ -627,6 +641,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	if( result ) {
 		// The current iteration has not been submitted, hence the -1.
 		json_object_set(root, "iterations", json_integer(m_iteration - 1));
+		json_object_set(root, "filename", json_string(fileName.c_str()));
 
 		// We just return an array of the nuclei database id's, label and iteration when added
 		//
@@ -643,7 +658,6 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 			json_object_set(sample, "id", json_integer(m_ids[i]));
 			json_object_set(sample, "label", json_integer(m_labels[i]));
 			json_object_set(sample, "iteration", json_integer(m_sampleIter[i]));
-			// TODO - Add training set filename
 
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
@@ -662,6 +676,9 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	json_decref(root);
 	free(jsonObj);
 
+	// Save the training set
+	//
+	result = SaveTrainingSet(fileName);
 
 	// This session is done, clear the UID and cleanup associated
 	// data
@@ -745,4 +762,28 @@ bool Learner::CancelSession(const int sock, json_t *obj)
 
 	return result;
 }
+
+
+
+
+
+
+bool Learner::SaveTrainingSet(string fileName)
+{
+	bool	result = false;;
+	MData 	*trainingSet = new MData();
+
+	if( trainingSet != NULL ) {
+
+		result = trainingSet->Create(m_trainSet, m_samples.size(), m_dataset->GetDims(),
+							m_labels, m_ids, NULL, NULL, 0);
+	}
+
+	if( result ) {
+		trainingSet->SaveAs(m_dataPath + fileName);
+	}
+
+	return result;
+}
+
 
