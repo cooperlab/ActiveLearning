@@ -46,6 +46,19 @@
 			<br />
 			
 			<div class="row">
+				<div class="col-sm-6 col-md-6 col-lg-6">
+					<h2>Start a session</h2>
+				</div>
+				
+				<div class="col-sm-6 col-md-6 col-lg-6">
+					<h2>Download a training set</h2>
+				</div>
+				
+			</div>
+			
+			<br />
+			
+			<div class="row">
 			
 				<div class="col-sm-4 col-md-4 col-lg-4">
 					<form role="form" id="classifier_form" method="POST" action="php/initSession.php">
@@ -84,12 +97,24 @@
 									name="negName" placeholder="Enter negative class name">					
 						</div>
 						
-						<button type="submit" name="submit" class="btn btn-default" value="submitted" >Begin</button>
+						<button id="beginSession" type="submit" name="submit" class="btn btn-default" value="submitted" >Begin</button>
 					</form>
 				</div>
 				
-				<div class="col-sm-8 col-md-8 col-lg-8">
-					
+				<div class="col-sm-2 col-md-2 col-lg-2">
+				</div>
+				
+				<div class="col-sm-6 col-md-6 col-lg-6">
+					<form role="form" id="trainingset_form" method="POST" action="php/getTrainingSet.php">
+						<div class="form-group">
+							<label for="datasetSel">Dataset</label>
+							<select class="form-control" id="datasetSel" name="dataset"> 
+							</select>
+						</div>
+												
+						<button type="submit" name="submit-file" class="btn btn-default" value="submitted" disabled >Download</button>
+					</form>
+	
 				</div>					
 			</div>
 		</div>

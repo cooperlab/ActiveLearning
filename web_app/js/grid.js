@@ -325,6 +325,7 @@ function updateSamples() {
 			var sampleArray = data['samples'];
 			
 			statusObj.iteration(data['iteration']);
+			statusObj.accuracy(data['accuracy']);
 			
 			for( sample in sampleArray ) {
 			
@@ -581,7 +582,7 @@ var statusObj = {
 	dataportRight: ko.observable(0),
 	dataportBottom: ko.observable(0),
 	iteration:	ko.observable(0),
-	accuracy:	ko.observable(0),
+	accuracy:	ko.observable(0.0),
 	imgReady: ko.observable(false)
 };
 

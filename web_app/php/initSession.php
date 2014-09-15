@@ -62,12 +62,11 @@
 			 	   "uid" => $UID);
 
 	$init_data = json_encode($init_data);
-		
-	# !!!!!
-	# !!!!! The one and ONLY place the active learning server is defined for now
-	# !!!!!
-	$port = 15000;
-	$host = "dhcp061131.psy.emory.edu";
+
+	require 'hostspecs.php';
+	//
+	//	$host and $port are defined in hostspecs.php
+	//			
 	$addr = gethostbyname($host);
 	set_time_limit(0);
 	
