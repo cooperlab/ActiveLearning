@@ -1,7 +1,10 @@
 #include <cstdlib>
+#include <ctime>
+#include <cstring>
 #include <unistd.h>
 #include <iostream>
 #include <jansson.h>
+
 
 #include "learner.h"
 
@@ -26,10 +29,13 @@ m_trainSet(NULL),
 m_classifier(NULL),
 m_sampler(NULL),
 m_dataPath(dataPath),
-m_sampleIter(NULL)
+m_sampleIter(NULL),
+m_curAccuracy(0.0f)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
+
+	srand(time(NULL));
 }
 
 
@@ -266,6 +272,7 @@ bool Learner::Select(const int sock, json_t *obj)
 		if( result ) {
 
 			json_object_set(root, "iteration", json_integer(m_iteration));
+			json_object_set(root, "accuracy", json_real(m_curAccuracy));
 
 			for(int i = 0; i < 8; i++) {
 
@@ -338,9 +345,6 @@ bool Learner::Prime(const int sock, json_t *obj)
 	// This is the first time through
 	m_iteration = 1;
 
-	cout << "!!!!!! Sending initial set !!!!!" << endl;
-
-
 	// Root array contains the iteration and the sample array
 	if( root == NULL ) {
 		cerr << "Error creating root JSON object" << endl;
@@ -357,6 +361,7 @@ bool Learner::Prime(const int sock, json_t *obj)
 
 	if( result ) {
 		json_object_set(root, "iteration", json_integer(m_iteration));
+		json_object_set(root, "accuracy", json_real(m_curAccuracy));
 	}
 
 	// First sample object
@@ -549,7 +554,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			value = json_object_get(jsonObj, "id");
 			id = json_integer_value(value);
 
-			// The dynamic typing in PHP & javascript can make a float
+			// The dynamic typing in PHP or javascript can make a float
 			// an int if it has no decimal portion. Since the centroids can
 			// be whole numbers, we need to check if they are real, if not
 			// we just assume they are integer
@@ -605,6 +610,10 @@ bool Learner::Submit(const int sock, json_t *obj)
 	if( result ) {
 		m_iteration++;
 		result = m_classifier->Train(m_trainSet, m_labels, m_samples.size(), m_dataset->GetDims());
+
+		if( result ) {
+			m_curAccuracy = CalcAccuracy();
+		}
 		// Need to select new samples.
 		m_curSet.clear();
 	}
@@ -783,7 +792,158 @@ bool Learner::SaveTrainingSet(string fileName)
 		trainingSet->SaveAs(m_dataPath + fileName);
 	}
 
+	if( trainingSet != NULL )
+		delete trainingSet;
+
 	return result;
 }
 
 
+
+
+
+#define FOLDS	5
+
+//
+//	Calculate the in-sample accuracy using the current
+//	training set.
+//
+float Learner::CalcAccuracy(void)
+{
+	float		result = -1.0f;
+	set<int>	parts[FOLDS];
+	int			sampleCnt = m_samples.size(), *items = (int*)malloc(sampleCnt * sizeof(int)),
+				foldCnt = sampleCnt / FOLDS, remain = sampleCnt % FOLDS, remainSamples;
+	bool		status = true;
+	Classifier	*classifier = new OCVBinarySVM();
+
+	// Setup folds by randomly selecting samples for each
+	//
+	if( items && classifier ) {
+		for(int i = 0; i < sampleCnt; i++)
+			items[i] = i;
+
+		remainSamples = sampleCnt;
+
+		for(int fold = 0; fold < FOLDS; fold++) {
+			int pick, cnt = foldCnt;
+
+			if( fold < remain )
+				cnt++;
+			for(int i = 0; i < cnt; i++) {
+				pick = (int)(rand() % remainSamples);
+				parts[fold].insert(items[pick]);
+
+				remainSamples--;
+				items[pick] = items[remainSamples];
+			}
+		}
+		status = true;
+	}
+
+	if( status ) {
+		result = 0.0f;
+		set<int>	trainIdx, testIdx;
+		float		*train = NULL, *test = NULL;
+		int			*trainLabels = NULL, *testLabels = NULL, *results = NULL;
+
+		for(int fold = 0; fold < FOLDS; fold++) {
+
+			trainIdx.clear();
+			testIdx.clear();
+
+			for(int i = 0; i < FOLDS; i++) {
+				if( i != fold ) {
+					trainIdx.insert(parts[i].begin(), parts[i].end());
+				} else {
+					testIdx.insert(parts[i].begin(), parts[i].end());
+				}
+			}
+
+			status  = CreateSet(trainIdx, train, trainLabels);
+			if( status )
+				status = CreateSet(testIdx, test, testLabels);
+			if( status ) {
+				results = (int*)malloc(testIdx.size() * sizeof(int));
+				if( results == NULL ) {
+					cerr << "Unable to allocate results buffer" << endl;
+					status = false;
+				}
+			}
+			if( status )
+				status = classifier->Train(train, trainLabels, trainIdx.size(), m_dataset->GetDims());
+
+			if( status )
+				status = classifier->ClassifyBatch(test, testIdx.size(), m_dataset->GetDims(), results);
+
+			if( status ) {
+				float	foldAcc = 0.0f;
+				for(int i = 0; i < testIdx.size(); i++) {
+					if( results[i] == testLabels[i] )
+						foldAcc += 1.0f;
+				}
+				result += (foldAcc / (float)testIdx.size());
+			}
+
+			if( train )
+				free(train);
+			if( test )
+				free(test);
+			if( trainLabels )
+				free(trainLabels);
+			if( testLabels )
+				free(testLabels);
+
+			if( !status )
+				break;
+ 		}
+	}
+
+	if( !status )
+		result = -1.0;		// Indicate failure with -1.0
+	else
+		result /= (float)FOLDS;
+
+	if( items )
+		free(items);
+	if( classifier )
+		delete classifier;
+
+	return result;
+}
+
+
+
+
+
+
+
+bool Learner::CreateSet(set<int> dataItems, float *&data, int *&labels)
+{
+	bool	result = true;
+	set<int>::iterator it;
+	int		cnt = dataItems.size(), dims = m_dataset->GetDims();
+
+	data = (float*)malloc(cnt * dims * sizeof(float));
+	if( data == NULL ) {
+		cerr << "[CreateSet] Unable to allocate data buffer" << endl;
+		result = false;
+	}
+
+	if( result ) {
+		labels = (int*)malloc(cnt * sizeof(int));
+		if( labels == NULL ) {
+			cerr << "[CreateSet] Unable to allocate label buffer" << endl;
+			result = false;
+		}
+	}
+	if( result ) {
+		int		offset = 0;
+
+		for(it = dataItems.begin(); it != dataItems.end(); it++) {
+			memcpy(&data[offset * dims], &m_trainSet[*it * dims], dims * sizeof(float));
+			labels[offset] = m_labels[*it];
+		}
+	}
+	return result;
+}

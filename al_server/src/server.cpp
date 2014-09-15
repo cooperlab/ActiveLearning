@@ -141,11 +141,16 @@ int main(int argc, char *argv[])
 			bind(listenFD, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr_in));
 			listen(listenFD, 10);
 
+			struct sockaddr_in	peer;
+			int	len = sizeof(peer);
+
 			// Event loop...
 			while( !gDone ) {
 
 				// Get a connection
-				connFD = accept(listenFD, (struct sockaddr*)NULL, NULL);
+				connFD = accept(listenFD, (struct sockaddr*)&peer, (socklen_t*)&len);
+
+				cout << "Request from " << inet_ntoa(peer.sin_addr) << endl;
 
 				HandleRequest(connFD, learner);
 				close(connFD);

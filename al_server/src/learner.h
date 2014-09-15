@@ -2,6 +2,7 @@
 #define _LEARNER_H_
 
 #include <vector>
+#include <set>
 #include <jansson.h>
 
 #include "data.h"
@@ -22,7 +23,6 @@ public:
 
 	bool	ParseCommand(const int sock, char *data, int size);
 
-	// TODO - Add method for in-sample error
 
 protected:
 
@@ -41,6 +41,7 @@ protected:
 	float		*m_trainSet;
 	int			*m_sampleIter;	// Iteration sample was added
 	int			m_iteration;
+	float		m_curAccuracy;
 
 	Classifier 	*m_classifier;
 	Sampler		*m_sampler;
@@ -56,6 +57,9 @@ protected:
 	void	Cleanup(void);
 
 	bool	SaveTrainingSet(string filename);
+
+	float	CalcAccuracy(void);
+	bool	CreateSet(set<int> dataItems, float *&data, int *&labels);
 
 };
 
