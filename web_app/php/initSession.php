@@ -94,7 +94,7 @@
 		$_SESSION['al_server_port'] = $port;
 		$_SESSION['iteration'] = 0;
 		$_SESSION['dataset'] = $_POST["dataset"];
-		header("Location: ../grid.html");
+		header("Location: ../prime.html");
 	} else {
 	
 		echo "Unable to init session<br>";

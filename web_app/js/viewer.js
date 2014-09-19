@@ -10,6 +10,11 @@ var olDiv = null;
 var lastScaleFactor = 0;
 
 var debugMode = 1;
+
+//
+// TODO - Remove modes from the viewer
+//
+
 var viewMode = 'view';		// Default to regular viewer mode
 							// Viewer modes are:
 							//	'view'  - Normal view (display boundaries, select slides)
@@ -189,8 +194,9 @@ function updateSlideList() {
 	
 	// Get the list of slides for the current dataset
 	$.ajax({
+		type: "POST",
 		url: "db/getslides.php",
-		data: "",
+		data: { dataset: curDataset },
 		dataType: "json",
 		success: function(data) {
 
@@ -510,11 +516,6 @@ function selectCell(cellX, cellY) {
 
 
 
-//
-//	TODO This function just gets the cells within the current view, we need to use a data
-//  structure that represents 9 viewport sized areas that will hold "pointers" to the SVG
-//  objects representing the cells in a 3x3 grid centered around the current viewport
-//
 function updateSeg() {
 
 
@@ -589,7 +590,12 @@ function onImageViewChanged(event) {
 	statusObj.dataportBottom(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y + boundsRect.height))* imgHelper.imgAspectRatio);
 	statusObj.scaleFactor(imgHelper.getZoomFactor());
 	
-
+	// TODO - Add an animation-finish event handler to the viewer and do the segmentation update
+	//	there. This will make scrolling and zooming the slide much smoother. See prime.js for an
+	//	example.
+	//
+	
+	
 	// Update the segmentation and select displays only if they are on.	
 	if( segDisplayOn ) {
 		var annoGrp = document.getElementById('anno');

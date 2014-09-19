@@ -5,7 +5,7 @@
 	*/
 
 	/* 
-		Get the bounding box and slide name passed by the ajax call
+		Get the bounding box centroid and slide name passed by the ajax call
 	*/
 	$cellX = intval($_POST['cellX']);
 	$cellY = intval($_POST['cellY']);
@@ -23,7 +23,8 @@
 		exit();
 	}
 
-	$sql = 'SELECT boundary, id, (pow(centroid_x -'.$cellX.',2) + pow(centroid_y -'.$cellY.',2)) AS dist '.
+	$sql = 'SELECT boundary, id, centroid_x, centroid_y, '.
+		   '(pow(centroid_x -'.$cellX.',2) + pow(centroid_y -'.$cellY.',2)) AS dist '.
 		   'FROM boundaries '.
 		   'WHERE slide="'.$slide.'" AND centroid_x BETWEEN '.$boxLeft.' AND '.$boxRight.
 		   ' AND centroid_y BETWEEN '.$boxTop.' AND '.$boxBottom.
@@ -31,15 +32,20 @@
 
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
-//		$jsonData = array();
-//		while( $array = mysqli_fetch_row($result) ) {
-//			$jsonData[] = $array;
-//		}
 		$jsonData = mysqli_fetch_row($result);	
 		mysqli_free_result($result);
-		echo json_encode($jsonData);
-	}
+	}		
+	
+	$sql = 'SELECT x_size, y_size FROM slides WHERE name="'.$slide.'"';
+	if( $result = mysqli_query($dbConn, $sql) ) {
+		$sizes = mysqli_fetch_row($result);
+		mysqli_free_result($result);
+	}	
 	mysqli_close($dbConn);
+
+	array_push($jsonData, $sizes[0], $sizes[1]);
+	 
+	echo json_encode($jsonData);
 
 ?>
 

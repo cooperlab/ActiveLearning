@@ -14,7 +14,8 @@ $(function() {
 
 	var	datasetSel = $("#datasetSel");
 
-	// get session vars
+	// get session vars 
+	//
 	$.ajax({
 		url: "php/getSession.php",
 		data: "",
@@ -27,8 +28,6 @@ $(function() {
 				posClass = data[2];
 				negClass = data[3];
 			}
-
-			console.log("UID: "+uid);
 
 			if( uid == "" ) {
 				$('#nav_grid').hide();
@@ -44,6 +43,8 @@ $(function() {
 	});
 
 
+	// Populate Dataset dropdown
+	//
 	$.ajax({
 		url: "db/getdatasets.php",
 		data: "",
@@ -58,6 +59,7 @@ $(function() {
 		}
 	});
 
-	
+	// TODO - Populate training set dropdown
+	//
 	
 });

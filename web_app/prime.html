@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html> 
+	<head>
+		<title>VALS - Prime Classifier</title>
+		
+		<script src="js/jquery-1.9.0.min.js"></script>
+	 	<script src="js/openseadragon.min.js"></script>
+		<script src="js/openseadragon-imaginghelper.min.js"></script>
+		<script src="js/openseadragon-viewerinputhook.min.js"></script>
+		<script src="js/knockout-3.1.0.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		
+
+		<link rel="stylesheet" media="screen" href="css/bootstrap.min.css"/>
+		<link rel="stylesheet" media="screen" href="css/style.css"/>
+	</head>
+
+
+	<body>
+
+		<nav class="navbar navbar-default" role="navigation">
+			<div class="navbar-header">
+				<a class="navbar-brand" href="index.html">VALS</a>
+			</div>
+			
+			<div>
+				<ul class="nav navbar-nav">   <!-- Don't allow movement for now -->
+					<li><a href="#">Home</a></li>
+					<li><a href="#">Viewer</a></li>
+					<li  class="active"><a href="#">Prime</a></li>
+				</ul>
+			</div>
+		</nav>
+		
+		<div class="container">
+
+			<div class="row">	<!-- Grid display of selected nuclei -->
+				<div class="col-sm-1 col-md-1 col-lg-1" id="overflow">
+					<div class="slider">
+						<div id="box_1" style="display: none;">
+							<b id="label_1">Class</b>
+							<img id="thumb_1" class="img-thumbnail" height="100" width="100">
+						</div>
+						<div id="box_2" style="display: none;">
+							<b id="label_2">Class</b>
+							<img id="thumb_2" class="img-thumbnail" height="100" width="100">
+						</div>
+						<div id="box_3" style="display: none;">
+							<b id="label_3">Class</b>
+							<img id="thumb_3" class="img-thumbnail" height="100" width="100">
+						</div>
+						<div id="box_4" style="display: none;">
+							<b id="label_4">Class</b>
+							<img id="thumb_4" class="img-thumbnail" height="100" width="100">
+						</div>
+						<div id="box_5" style="display: none;">
+							<b id="label_5">Class</b>
+							<img id="thumb_5" class="img-thumbnail" height="100" width="100">
+						</div>
+						<div id="box_6" style="display: none;">
+							<b id="label_6">Class</b>
+							<img id="thumb_6" class="img-thumbnail" height="100" width="100">
+						</div>
+						<div id="box_7" style="display: none;">
+							<b id="label_7">Class</b>
+							<img id="thumb_7" class="img-thumbnail" height="100" width="100">
+						</div>
+						<div id="box_8" style="display: none;">
+							<b id="label_8">Class</b>
+							<img id="thumb_8" class="img-thumbnail" height="100" width="100">
+						</div>
+					</div>
+				</div>			
+			</div>	<!-- First row -->
+
+
+			<div class="row">	<!-- Slide selection, status  and instructions -->
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					
+					<h4>Slide: </h4>
+					<select id="slideSel"></select>
+					<p></p>
+				</div>
+
+				<div class="col-sm-4 col-md-4 col-lg-4">   <!-- Status -->
+					<div id="status" data-bind="with: statusObj">
+						<strong id="posLabel"></strong>
+						<span data-bind="text:(haveImage()) ? posSel().toFixed(0) : '-'"></span>
+						<br>
+						<strong id="negLabel"></strong>
+						<span data-bind="text:(haveImage()) ? negSel().toFixed(0) : '-'"></span>
+					</div>
+				</div>
+				
+				<div class="col-sm-4 col-md-4 col-lg-4">   <!-- Instructions -->
+					<h3 id="instruct"></h3>
+				</div>
+								
+			</div>  <!-- Second row -->
+
+
+			<div class="row">
+				<div class="col-sm-2 col-md-2 col-lg-2">
+					<p></p>
+					<div class="btn-group-vertical">
+						<input type="button" id="segBtn" value="Show Segmentation" class="btn btn-info" onClick="showSegmentation()">
+						<input type="button" id="selBtn" value="Select Nuclei" class="btn btn-info" onClick="setSelectMode()">
+						<input type="button" id="primeBtn" value="Prime" class="btn btn-success" onClick="primeSession()">
+						<input type="button" id="finishBtn" value="Cancel" class="btn btn-danger" onClick="cancelSession()">
+					</div>
+				</div>
+				
+				<div class="col-sm-10 col-md-10 col-lg-10">
+					<div id="slideZoom" class="zoomView"></div>
+				</div>
+			</div>
+
+		</div>	<!-- container -->
+		
+		<script src="js/prime.js"></script>
+	</body>
+</html>

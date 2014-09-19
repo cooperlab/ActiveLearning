@@ -43,13 +43,13 @@ $(function() {
 		dataType: "json",
 		success: function(data) {
 			
-			if( data.length > 0 ) {
-				uid = data[0];
-				classifier = data[1];
-				posClass = data[2];
-				negClass = data[3];
-			
-			} else {
+			uid = data['uid'];
+			classifier = data['className'];
+			posClass = data['posClass'];
+			negClass = data['negClass'];
+
+			console.log("UID: "+uid);
+			if( uid == null ) {			
 				window.alert("No session active");
 				window.history.back();
 			}
@@ -241,8 +241,8 @@ function thumbSingleClick(box) {
 				curSlide = newSlide;
 				updateSlideView();
 			} else {
-			// On same slide,, no need to load it again
-			homeToNuclei();		
+				// On same slide,, no need to load it again
+				homeToNuclei();		
  			}	
 		}
 		

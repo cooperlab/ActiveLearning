@@ -6,6 +6,8 @@ div#image_zoomer_frame{width: 100% height:1000px}
 div#status_bar{width:100%;height:30px;background-color: grey}
 div#image_zoomer{height: 800px; margin:10px}
 
+div#slideZoom{height: 500px; margin:10px}
+
 
 .container {
 	padding-right:	5px;
@@ -17,7 +19,7 @@ div#image_zoomer{height: 800px; margin:10px}
 
 #overflow{ 
 	border:	1px solid #000;
-	height: 170px;
+	height: 150px;
 	width:	100%;
 	overflow-x:	scroll;
 	overflow-y: hidden;
@@ -29,8 +31,8 @@ div#image_zoomer{height: 800px; margin:10px}
 #overflow .slider div{
 	border:	1px solid #BBB;
 	float:	left;
-	width:	150px;
-	height:	200px;
+	width:	130px;
+	height:	130px;
 	float:	left;
 }
 
