@@ -71,8 +71,9 @@
 						</div>
 					</div>
 				</div>			
-			</div>	<!-- First row -->
+			</div>	<!-- First row (grid display) -->
 
+			<div class="row top-buffer"></div>   <!-- A little space between -->
 
 			<div class="row">	<!-- Slide selection, status  and instructions -->
 				<div class="col-sm-4 col-md-4 col-lg-4">
@@ -96,10 +97,10 @@
 					<h3 id="instruct"></h3>
 				</div>
 								
-			</div>  <!-- Second row -->
+			</div>  <!-- Second row  (slide selection, status & instructions)-->
 
 
-			<div class="row">
+			<div class="row-fluid">		<!-- Buttons & slide viewer -->
 				<div class="col-sm-2 col-md-2 col-lg-2">
 					<p></p>
 					<div class="btn-group-vertical">
@@ -111,9 +112,22 @@
 				</div>
 				
 				<div class="col-sm-10 col-md-10 col-lg-10">
-					<div id="slideZoom" class="zoomView"></div>
+					<div id="imageViewerContiner" class="relative-fill-container">
+						<div id="slideZoom" class="openseadragon-view"></div>
+						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg" data-bind="withL svgOverlayVM" 
+							 visibility="hidden" pointer-events="none" zoomAndPan="disable">
+							<defs></defs>
+							<!-- TODO - Can't get the binding to work with the transform function. 
+								 Currently applying the transform manually in onImageViewChanged
+							-->
+							<g id="annoGrp" class="svgAnnoGrp" data-bind="attr: {transform: annoGrpTransformFunc}">
+								<g id="anno">
+								</g>
+							</g>
+						</svg>
+					</div>
 				</div>
-			</div>
+			</div> <!-- Third row (buttons & slide viewer) -->
 
 		</div>	<!-- container -->
 		

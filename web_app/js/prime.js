@@ -1,3 +1,4 @@
+var annoGrpTransformFunc;
 var IIP_Server = "http://node15.cci.emory.edu/cgi-bin/iipsrv.fcgi?";
 var SlidePath = "FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/";
 var SlideSuffix = ".svs-tile.dzi.tif&";
@@ -38,7 +39,12 @@ $(function() {
 					{tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick}
 			]});
 
-	$(viewer.canvas).css('background', 'black');
+	annoGrpTransformFunc = ko.computed(function() { 
+										return 'translate(' + svgOverlayVM.annoGrpTranslateX() +
+										', ' + svgOverlayVM.annoGrpTranslateY() +
+										') scale(' + svgOverlayVM.annoGrpScale() + ')';
+									}, this); 
+									
 
 	//
 	// Image handlers
@@ -56,25 +62,6 @@ $(function() {
 		statusObj.imgAspectRatio(imgHelper.imgAspectRatio);
 		statusObj.scaleFactor(imgHelper.getZoomFactor());
 		
-        // Create a div that encompasses the entire IMAGE area for the overlay. The overlay
-		// has a 1:1 correlation with the image.
-		//
-        olDiv = document.createElement('div');
-        $(olDiv).attr("id", "ovrSVG");
-        
-        // Load a blank placeholder SVG
-		$(olDiv).load('images/blank.svg');
-
-        var olRect = new OpenSeadragon.Rect(imgHelper.physicalToLogicalX(imgHelper.dataToPhysicalX(0)),
-                                        imgHelper.physicalToLogicalY(imgHelper.dataToPhysicalY(0)),
-                                        imgHelper.physicalToLogicalX(imgHelper.dataToPhysicalX(statusObj.imgWidth())),
-                                        imgHelper.physicalToLogicalY(imgHelper.dataToPhysicalY(statusObj.imgHeight())));
-
-        viewer.drawer.addOverlay({
-                element:    olDiv,
-                location:   olRect,
-                placement:  OpenSeadragon.OverlayPlacement.TOP_LEFT
-        });		
 	});
 
 
@@ -98,13 +85,12 @@ $(function() {
 	viewer.addHandler('animation-finish', function(event) {
 
 		if( displaySeg ) {
-			var annoGrp = document.getElementById('anno');
 		
 			if( statusObj.scaleFactor() > 0.5 ) {
-				annoGrp.setAttribute('visibility', 'visible');
-				updateOverlayInfo();
+				$('.overlaySvg').css('visibility', 'visible');
+				updateSeg();
 			} else {
-				annoGrp.setAttribute('visibility', 'hidden');
+				$('.overlaySvg').css('visibility', 'hidden');
 			}
 		}
 	});
@@ -235,26 +221,16 @@ function onImageViewChanged(event) {
 	statusObj.dataportBottom(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y + boundsRect.height))* imgHelper.imgAspectRatio);
 	statusObj.scaleFactor(imgHelper.getZoomFactor());
 	
-}
-
-
-
-
-function updateOverlayInfo() {
-
-	// Only update the scale of the svg if it has changed. This speeds up 
-	// scrolling through the image.
-	//
-	if( lastScaleFactor != statusObj.scaleFactor() ) {
-		lastScaleFactor = statusObj.scaleFactor();
-		var annoGrp = document.getElementById('anno');
-		var scale = "scale(" + statusObj.scaleFactor() + ")";
+	var p = imgHelper.logicalToPhysicalPoint(new OpenSeadragon.Point(0, 0));
 	
-		annoGrp.setAttribute("transform", scale);
-	}
-
-	updateSeg();
+	svgOverlayVM.annoGrpTranslateX(p.x);
+	svgOverlayVM.annoGrpTranslateY(p.y);
+	svgOverlayVM.annoGrpScale(statusObj.scaleFactor());	
+	
+	var annoGrp = document.getElementById('annoGrp');
+	annoGrp.setAttribute("transform", annoGrpTransformFunc());
 }
+
 
 
 
@@ -270,6 +246,19 @@ function updateOverlayInfo() {
 function updateSeg() {
 
 	if( statusObj.scaleFactor() > 0.5 ) {
+	
+		var left, right, top, bottom, width, height;
+
+		// Grab nuclei a viewport width surrounding the current viewport
+		//	+++ FIX ME !!!! +++
+		width = statusObj.dataportRight() - statusObj.dataportLeft();
+		height = statusObj.dataportBottom() - statusObj.dataportTop();
+		
+		left = (statusObj.dataportLeft() - width > 0) ?	statusObj.dataportLeft() - width : 0;
+		right = statusObj.dataportRight() + width;
+		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
+		bottom = statusObj.dataportBottom() + height;
+		
 	    $.ajax({
 			type: "POST",
        	 	url: "db/getnuclei.php",
@@ -315,79 +304,11 @@ function updateSeg() {
 
 
 
-//
-//	+++++++++++    Openseadragon mouse event handlers  ++++++++++++++++
-//
-//
-//	Mouse enter event handler for viewer
-//
-//
-function onMouseEnter(event) {
-	statusObj.haveMouse(true);
-}
-
-
-//
-// Mouse move event handler for viewer
-//
-//
-function onMouseMove(event) {
-	var offset = osdCanvas.offset();
-
-	statusObj.mouseRelX(event.pageX - offset.left);
-	statusObj.mouseRelY(event.pageY - offset.top);		
-	statusObj.mouseImgX(imgHelper.physicalToDataX(statusObj.mouseRelX()));
-	statusObj.mouseImgY(imgHelper.physicalToDataY(statusObj.mouseRelY()));
-}
-
-
-//
-//	Mouse leave event handler for viewer
-//
-//
-function onMouseLeave(event) {
-	statusObj.haveMouse(false);
-}
-
-
-
-
-// 
-//	The double click handler doesn't seem to work. So we create
-//	our own with a timer.
-//
-function onMouseClick(event) {
-
-	clickCount++;
-	if( clickCount === 1 ) {
-		// If no click within 200ms, treat it as a single click
-		singleClickTimer = setTimeout(function() {
-					// Single click
-					clickCount = 0;
-				}, 200);
-	} else if( clickCount >= 2 ) {
-		// Double click
-		clearTimeout(singleClickTimer);
-		clickCount = 0;
-		nucleiSelect();
-	}
-}
-
-
-
-
-
-// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 
 function nucleiSelect() {
 
 	if( selectNuc ) {
-		console.log("Select nuceli");
-		console.log("Click - x: " + Math.round(statusObj.mouseImgX()) + 
-						" y: " + Math.round(statusObj.mouseImgY()) );
-						
 		$.ajax({
 	        type:   "POST",
             url:    "db/getsingle.php",
@@ -458,6 +379,71 @@ function nucleiSelect() {
 }
 
 
+
+//
+//	+++++++++++    Openseadragon mouse event handlers  ++++++++++++++++
+//
+//
+//	Mouse enter event handler for viewer
+//
+//
+function onMouseEnter(event) {
+	statusObj.haveMouse(true);
+}
+
+
+//
+// Mouse move event handler for viewer
+//
+//
+function onMouseMove(event) {
+	var offset = osdCanvas.offset();
+
+	statusObj.mouseRelX(event.pageX - offset.left);
+	statusObj.mouseRelY(event.pageY - offset.top);		
+	statusObj.mouseImgX(imgHelper.physicalToDataX(statusObj.mouseRelX()));
+	statusObj.mouseImgY(imgHelper.physicalToDataY(statusObj.mouseRelY()));
+}
+
+
+//
+//	Mouse leave event handler for viewer
+//
+//
+function onMouseLeave(event) {
+	statusObj.haveMouse(false);
+}
+
+
+
+
+// 
+//	The double click handler doesn't seem to work. So we create
+//	our own with a timer.
+//
+function onMouseClick(event) {
+
+	clickCount++;
+	if( clickCount === 1 ) {
+		// If no click within 200ms, treat it as a single click
+		singleClickTimer = setTimeout(function() {
+					// Single click
+					clickCount = 0;
+				}, 200);
+	} else if( clickCount >= 2 ) {
+		// Double click
+		clearTimeout(singleClickTimer);
+		clickCount = 0;
+		nucleiSelect();
+	}
+}
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+
 // 
 //	+++++++++++++	Button handlers +++++++++++++++++++++++++++++++++++++++++++
 //
@@ -469,19 +455,19 @@ function nucleiSelect() {
 function showSegmentation() {
 
 	var	segBtn = $('#segBtn');
-	var	svg = document.getElementsByTagName('svg')[0];	// There's only one SVG so use element 0
 
 	if( displaySeg ) {
 		// Currently displaying segmentation, hide it
 		segBtn.val("Show Segmentation");
-		svg.setAttribute('visibility', 'hidden');
+		$('.overlaySvg').css('visibility', 'hidden');
 		displaySeg = false;
 	} else {
 		// Segmentation not currently displayed, show it
 		segBtn.val("Hide Segmentation");
-		svg.setAttribute('visibility', 'visible');
+		$('.overlaySvg').css('visibility', 'visible');
 		displaySeg = true;
-		updateOverlayInfo();
+		
+		updateSeg();
 	}
 }
 
@@ -585,8 +571,21 @@ var statusObj = {
 };
 
 
+var svgOverlayVM = {
+	annoGrpTranslateX:	ko.observable(0.0),
+	annoGrpTranslateY:	ko.observable(0.0),
+	annoGrpScale: 		ko.observable(1.0),
+	annoGrpTransform:	annoGrpTransformFunc
+};
+
+var vm = {
+	statusObj:	ko.observable(statusObj),
+	svgOverlayVM: ko.observable(svgOverlayVM)
+};
+
+
 // Apply binfding for knockout.js - Let it keep track of the image info
 // and mouse positions
 //
-ko.applyBindings(statusObj);
+ko.applyBindings(vm);
 

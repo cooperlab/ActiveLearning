@@ -21,7 +21,7 @@
 		exit();
 	}
 
-	$sql = 'SELECT boundary, id from boundaries where slide="'.$slide.'" AND centroid_x BETWEEN '.$left.' AND '.$right.' AND centroid_y BETWEEN '.$top.' AND '.$bottom.' LIMIT 2000';
+	$sql = 'SELECT boundary, id from boundaries where slide="'.$slide.'" AND centroid_x BETWEEN '.$left.' AND '.$right.' AND centroid_y BETWEEN '.$top.' AND '.$bottom.' LIMIT 15000';
  
 
 	if( $result = mysqli_query($dbConn, $sql) ) {

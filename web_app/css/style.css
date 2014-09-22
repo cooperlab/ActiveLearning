@@ -2,11 +2,9 @@ div#sel_patient{height:130px;}
 div#sel_image_frame{height:1000px;position:absolute;top:250px;left:21px;z-index: 100}
 div#sel_image{width:324px;height:1000px;float:left;}
 div#sel_image_arrow{width:15px;height:1000px;float:left;background-color: grey}
-div#image_zoomer_frame{width: 100% height:1000px}
 div#status_bar{width:100%;height:30px;background-color: grey}
-div#image_zoomer{height: 800px; margin:10px}
-
-div#slideZoom{height: 500px; margin:10px}
+div#image_zoomer{height: 800px}
+div#slideZoom{height: 500px}
 
 
 .container {
@@ -42,5 +40,61 @@ div#slideZoom{height: 500px; margin:10px}
 }
 
 
+.openseadragon-view {
+	color:	#cccccc;
+	background-color: black;
+	cursor: crosshair;
+}
+
+
+.absolute-fill-container
+{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0;
+}
+
+
+
+.viewer-container
+{
+    margin-top: 4px;
+    padding: 0;
+}
+
+
+.relative-fill-container
+{
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+
+.overlaySvg
+{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip: auto;
+}
+
+
+.svgAnnoGrp {
+
+}
 
 
