@@ -129,6 +129,8 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 			//
 			if( strncmp(command, "init", 4) == 0 ) {
 				result = StartSession(sock, root);
+			} else if( strncmp(command, "prime", 5) == 0 ) {
+				result = Submit(sock, root);;
 			} else if( strncmp(command, "select", 6) == 0 ) {
 				result = this->Select(sock, root);
 			} else if( strncmp(command, "end", 3) == 0 ) {
@@ -160,10 +162,12 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	m_UID[UID_LENGTH] = 0;
 
 	if( strlen(m_UID) > 0 ) {
-		result = false;
+		cerr << "Session already in progress: " << m_UID << endl;
+ 		result = false;
 	}
 
 	if( result ) {
+		m_iteration = 0;
 		jsonObj = json_object_get(obj, "features");
 		fileName = json_string_value(jsonObj);
 
@@ -245,109 +249,12 @@ bool Learner::Select(const int sock, json_t *obj)
 	value = json_object_get(obj, "iteration");
 	reqIteration = json_integer_value(value);
 
-	if( m_samples.empty() ) {
-		// TEMPORARY!!!!
-		// For now prime is hard coded to put predetermined
-		// objects int the set. When the "prime" functionality is
-		// implemented, prime will be called with the selected objects.
-		result = Prime(sock, obj);
-	} else {
-		json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
-		int		idx;
-		float	score;
+	json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
+	int		idx;
+	float	score;
 
-		if( root == NULL ) {
-			cerr << "Error creating JSON array" << endl;
-			result = false;
-		}
-
-		if( result ) {
-			sampleArray = json_array();
-			if( sampleArray == NULL ) {
-				cerr << "Unable to create sample JSON Array" << endl;
-				result = false;
-			}
-		}
-
-		if( result ) {
-
-			json_object_set(root, "iteration", json_integer(m_iteration));
-			json_object_set(root, "accuracy", json_real(m_curAccuracy));
-
-			for(int i = 0; i < 8; i++) {
-
-				sample = json_object();
-				if( sample == NULL ) {
-					cerr << "Unable to create sample JSON object" << endl;
-					result = false;
-					break;
-				}
-
-				if( m_iteration != reqIteration ) {
-					// Get new sample
-					idx = m_sampler->Select(&score);
-					cout << "Selected " << idx << endl;
-					m_curSet.push_back(idx);
-					m_curScores.push_back(score);
-				} else {
-					// Haven't submitted that last group of selections. Send
-					// them again
-					score = m_curScores[i];
-					idx = m_curSet[i];
-				}
-
-				json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
-				json_object_set(sample, "id", json_integer(0));
-				json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
-				json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
-				json_object_set(sample, "label", json_integer((score < 0) ? -1 : 1));
-				json_object_set(sample, "maxX", json_integer(0));
-				json_object_set(sample, "maxY", json_integer(0));
-				json_object_set(sample, "boundary", json_string(""));
-
-				json_array_append(sampleArray, sample);
-				json_decref(sample);
-			}
-		}
-
-		json_object_set(root, "samples", sampleArray);
-		json_decref(sampleArray);
-
-		char *jsonObj = json_dumps(root, 0);
-		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
-
-		if( bytesWritten != strlen(jsonObj) )
-			result = false;
-
-		json_decref(root);
-		free(jsonObj);
-	}
-	return result;
-}
-
-
-
-
-
-// ********************* TO BE CHANGED **************************************
-//	Note - Until the prime screens are done in the webapp, This function
-//  	will be used to supply the inital set of samples. The initial set is
-//		hardcoded here.
-//
-//	This method will change to just receive the samples that were selected
-//	by th user.
-// ********************* TO BE CHANGED **************************************
-bool Learner::Prime(const int sock, json_t *obj)
-{
-	bool	result = true;
-	json_t	*root = json_object(), *sampleArray = NULL, *sample = NULL;
-
-	// This is the first time through
-	m_iteration = 1;
-
-	// Root array contains the iteration and the sample array
 	if( root == NULL ) {
-		cerr << "Error creating root JSON object" << endl;
+		cerr << "Error creating JSON array" << endl;
 		result = false;
 	}
 
@@ -360,152 +267,61 @@ bool Learner::Prime(const int sock, json_t *obj)
 	}
 
 	if( result ) {
+
 		json_object_set(root, "iteration", json_integer(m_iteration));
 		json_object_set(root, "accuracy", json_real(m_curAccuracy));
+
+		for(int i = 0; i < 8; i++) {
+
+			sample = json_object();
+			if( sample == NULL ) {
+				cerr << "Unable to create sample JSON object" << endl;
+				result = false;
+				break;
+			}
+
+			if( m_iteration != reqIteration ) {
+				// Get new sample
+				idx = m_sampler->Select(&score);
+				cout << "Selected " << idx << endl;
+				m_curSet.push_back(idx);
+				m_curScores.push_back(score);
+			} else {
+				// Haven't submitted that last group of selections. Send
+				// them again
+				score = m_curScores[i];
+				idx = m_curSet[i];
+			}
+
+			json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
+			json_object_set(sample, "id", json_integer(0));
+			json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
+			json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
+			json_object_set(sample, "label", json_integer((score < 0) ? -1 : 1));
+			json_object_set(sample, "maxX", json_integer(0));
+			json_object_set(sample, "maxY", json_integer(0));
+			json_object_set(sample, "boundary", json_string(""));
+
+			json_array_append(sampleArray, sample);
+			json_decref(sample);
+		}
 	}
 
-	// First sample object
-	//
-	if( result ) {
-		sample = json_object();
-		if( sample == NULL ) {
-			cerr << "Unable to create sample JSON object" << endl;
-			result = false;
-		}
-	}
+	json_object_set(root, "samples", sampleArray);
+	json_decref(sampleArray);
 
-	if( result ) {
-		json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-		json_object_set(sample, "id", json_integer(280003));
-		json_object_set(sample, "centX", json_real(28676.3));
-		json_object_set(sample, "centY", json_real(9239.2));
-		json_object_set(sample, "label", json_integer(1));
-		json_object_set(sample, "maxX", json_integer(0));
-		json_object_set(sample, "maxY", json_integer(0));
-		json_object_set(sample, "boundary", json_string(""));
+	char *jsonObj = json_dumps(root, 0);
+	size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
 
-		json_array_append(sampleArray, sample);
-		json_decref(sample);
+	if( bytesWritten != strlen(jsonObj) )
+		result = false;
 
-		sample = json_object();
-		if( sample != NULL ) {
-			json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-			json_object_set(sample, "id", json_integer(280079));
-			json_object_set(sample, "centX", json_real(28680.9));
-			json_object_set(sample, "centY", json_real(9193.0));
-			json_object_set(sample, "label", json_integer(1));
-			json_object_set(sample, "maxX", json_integer(0));
-			json_object_set(sample, "maxY", json_integer(0));
-			json_object_set(sample, "boundary", json_string(""));
+	json_decref(root);
+	free(jsonObj);
 
-			json_array_append(sampleArray, sample);
-			json_decref(sample);
-		}
-
-		sample = json_object();
-		if( sample != NULL ) {
-			json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-			json_object_set(sample, "id", json_integer(280188));
-			json_object_set(sample, "centX", json_real(28695.2));
-			json_object_set(sample, "centY", json_real(9431.4));
-			json_object_set(sample, "label", json_integer(1));
-			json_object_set(sample, "maxX", json_integer(0));
-			json_object_set(sample, "maxY", json_integer(0));
-			json_object_set(sample, "boundary", json_string(""));
-
-			json_array_append(sampleArray, sample);
-			json_decref(sample);
-		}
-
-		sample = json_object();
-		if( sample != NULL ) {
-			json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-			json_object_set(sample, "id", json_integer(223709));
-			json_object_set(sample, "centX", json_real(28658.7));
-			json_object_set(sample, "centY", json_real(9340.5));
-			json_object_set(sample, "label", json_integer(1));
-			json_object_set(sample, "maxX", json_integer(0));
-			json_object_set(sample, "maxY", json_integer(0));
-			json_object_set(sample, "boundary", json_string(""));
-
-			json_array_append(sampleArray, sample);
-			json_decref(sample);
-		}
-
-		sample = json_object();
-		if( sample != NULL ) {
-			json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-			json_object_set(sample, "id", json_integer(376177));
-			json_object_set(sample, "centX", json_real(33315.6));
-			json_object_set(sample, "centY", json_real(21492.3));
-			json_object_set(sample, "label", json_integer(-1));
-			json_object_set(sample, "maxX", json_integer(0));
-			json_object_set(sample, "maxY", json_integer(0));
-			json_object_set(sample, "boundary", json_string(""));
-
-			json_array_append(sampleArray, sample);
-			json_decref(sample);
-		}
-
-		sample = json_object();
-		if( sample != NULL ) {
-			json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-			json_object_set(sample, "id", json_integer(376216));
-			json_object_set(sample, "centX", json_real(33325.4));
-			json_object_set(sample, "centY", json_real(21677.4));
-			json_object_set(sample, "label", json_integer(-1));
-			json_object_set(sample, "maxX", json_integer(0));
-			json_object_set(sample, "maxY", json_integer(0));
-			json_object_set(sample, "boundary", json_string(""));
-
-			json_array_append(sampleArray, sample);
-			json_decref(sample);
-		}
-
-		sample = json_object();
-		if( sample != NULL ) {
-			json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-			json_object_set(sample, "id", json_integer(150545));
-			json_object_set(sample, "centX", json_real(17490.2));
-			json_object_set(sample, "centY", json_real(21124.8));
-			json_object_set(sample, "label", json_integer(-1));
-			json_object_set(sample, "maxX", json_integer(0));
-			json_object_set(sample, "maxY", json_integer(0));
-			json_object_set(sample, "boundary", json_string(""));
-
-			json_array_append(sampleArray, sample);
-			json_decref(sample);
-		}
-
-		sample = json_object();
-		if( sample != NULL ) {
-			json_object_set(sample, "slide", json_string("TCGA-08-0520-01Z-00-DX1"));
-			json_object_set(sample, "id", json_integer(190362));
-			json_object_set(sample, "centX", json_real(27021.3));
-			json_object_set(sample, "centY", json_real(5192.4));
-			json_object_set(sample, "label", json_integer(-1));
-			json_object_set(sample, "maxX", json_integer(0));
-			json_object_set(sample, "maxY", json_integer(0));
-			json_object_set(sample, "boundary", json_string(""));
-
-			json_array_append(sampleArray, sample);
-			json_decref(sample);
-		}
-
-		json_object_set(root, "samples", sampleArray);
-		json_decref(sampleArray);
-
-		char *jsonObj = json_dumps(root, 0);
-		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
-
-		if( bytesWritten != strlen(jsonObj) )
-			result = false;
-
-		json_decref(root);
-		free(jsonObj);
-	}
 	return result;
 }
+
 
 
 

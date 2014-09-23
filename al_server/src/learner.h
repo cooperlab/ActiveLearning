@@ -49,7 +49,6 @@ protected:
 	bool	StartSession(const int sock, json_t *obj);
 	bool	Select(const int sock, json_t *obj);
 	bool	Submit(const int sock, json_t *obj);
-	bool	Prime(const int sock, json_t *obj);
 	bool	CancelSession(const int sock, json_t *obj);
 	bool	FinalizeSession(const int sock, json_t *obj);
 

@@ -1,0 +1,13 @@
+*.h5
+*.o
+*~
+cmdline.*
+.cproject
+.project
+.DS_Store
+.PBSyncDB
+.settings
+*.csv
+*.model
+*.svm
+
