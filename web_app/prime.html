@@ -20,13 +20,15 @@
 
 		<nav class="navbar navbar-default" role="navigation">
 			<div class="navbar-header">
-				<a class="navbar-brand" href="index.html">VALS</a>
+				<!-- Don't use the name as a link -->
+				<a class="navbar-brand" href="#">VALS</a>
 			</div>
 			
 			<div>
 				<ul class="nav navbar-nav">   <!-- Don't allow movement for now -->
-					<li><a href="#">Home</a></li>
-					<li><a href="#">Viewer</a></li>
+		<!--			<li><a href="#">Home</a></li>
+					<li><a href="#">Viewer</a></li>    
+		-->
 					<li  class="active"><a href="#">Prime</a></li>
 				</ul>
 			</div>
@@ -79,7 +81,7 @@
 				<div class="col-sm-4 col-md-4 col-lg-4">
 					
 					<h4>Slide: </h4>
-					<select id="slideSel"></select>
+					<select id="slideSel" style="font-family: monospace; font-size: 12pt"></select>
 					<p></p>
 				</div>
 
@@ -99,6 +101,7 @@
 								
 			</div>  <!-- Second row  (slide selection, status & instructions)-->
 
+			<div class="row top-buffer"></div>   <!-- A little space between -->
 
 			<div class="row-fluid">		<!-- Buttons & slide viewer -->
 				<div class="col-sm-2 col-md-2 col-lg-2">
@@ -121,8 +124,7 @@
 								 Currently applying the transform manually in onImageViewChanged
 							-->
 							<g id="annoGrp" class="svgAnnoGrp" data-bind="attr: {transform: annoGrpTransformFunc}">
-								<g id="anno">
-								</g>
+								<g id="anno"></g>
 							</g>
 						</svg>
 					</div>
