@@ -346,7 +346,7 @@ function nucleiSelect() {
 						} else {
 							sample['label'] = -1;
 						}
-												
+																		
 						selectedJSON.push(sample);
 						
 						var box = "#box_" + total, thumbTag = "#thumb_" + total,
@@ -371,7 +371,11 @@ function nucleiSelect() {
 							$(labelTag).text(negClass);				
 							$(labelTag).css('background', '#DD0000');
 						}
-
+						
+						if( total === 4 ) {
+							// make sure instructions are updated
+							$('#instruct').text("Selecting "+negClass+" samples");
+						}
 					}
 			}
     	});
@@ -425,11 +429,11 @@ function onMouseClick(event) {
 
 	clickCount++;
 	if( clickCount === 1 ) {
-		// If no click within 200ms, treat it as a single click
+		// If no click within 250ms, treat it as a single click
 		singleClickTimer = setTimeout(function() {
 					// Single click
 					clickCount = 0;
-				}, 200);
+				}, 250);
 	} else if( clickCount >= 2 ) {
 		// Double click
 		clearTimeout(singleClickTimer);
@@ -485,7 +489,26 @@ function primeSession() {
 	} else if( statusObj.negSel() != 4 ) {
 		window.alert("Need to select 4 "+ negClass+" examples");
 	} else {
+	
+		// No need to send boundaries to the server
+		for( i = 0; i < selectedJSON.length; i++ ) {
+			selectedJSON[i]['boundary'] = "";
+		}
+
 		// Submit to active learning server
+		$.ajax({
+			type: "POST",
+			url: "php/primeSession.php",
+			data: {samples: selectedJSON},
+			dataType: "json",
+			success: function(data) {
+				if( data === "PASS" ) {
+					window.location = "grid.html";
+				} else {
+					// TODO - Indicate failure
+				}				
+			}
+		});
 	}
 }
 

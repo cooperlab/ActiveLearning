@@ -1,3 +1,4 @@
+var annoGrpTransformFunc;
 var uid = "";
 var classifier = "";
 var negClass = "";
@@ -59,10 +60,14 @@ $(function() {
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
 	//
-	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "image_zoomer", prefixUrl: "images/"});
+	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "slideZoom", prefixUrl: "images/"});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
-	$(viewer.canvas).css('background', 'black');
 
+	annoGrpTransformFunc = ko.computed(function() { 
+										return 'translate(' + svgOverlayVM.annoGrpTranslateX() +
+										', ' + svgOverlayVM.annoGrpTranslateY() +
+										') scale(' + svgOverlayVM.annoGrpScale() + ')';
+									}, this); 
 
 	//
 	// Image handlers
@@ -80,27 +85,6 @@ $(function() {
 		statusObj.imgAspectRatio(imgHelper.imgAspectRatio);
 		statusObj.scaleFactor(imgHelper.getZoomFactor());
 
-
-        // Create a div that encompasses the entire IMAGE area for the overlay. The overlay
-		// has a 1:1 correlation with the image.
-		//
-        olDiv = document.createElement('div');
-        $(olDiv).attr("id", "ovrSVG");
-        
-        // Load a blank placeholder SVG
-		$(olDiv).load('images/blank.svg');
-
-        var olRect = new OpenSeadragon.Rect(imgHelper.physicalToLogicalX(imgHelper.dataToPhysicalX(0)),
-                                        imgHelper.physicalToLogicalY(imgHelper.dataToPhysicalY(0)),
-                                        imgHelper.physicalToLogicalX(imgHelper.dataToPhysicalX(statusObj.imgWidth())),
-                                        imgHelper.physicalToLogicalY(imgHelper.dataToPhysicalY(statusObj.imgHeight())));
-
-        viewer.drawer.addOverlay({
-                element:    olDiv,
-                location:   olRect,
-                placement:  OpenSeadragon.OverlayPlacement.TOP_LEFT
-        });
-		
 		// Zoom and pan to selected nuclei
 		homeToNuclei();
 	});
@@ -124,7 +108,7 @@ $(function() {
 
 	viewer.addHandler('animation-finish', function(event) {
 	
-		var annoGrp = document.getElementById('anno');
+		var annoGrp = document.getElementById('annoGrp');
 		var sampGrp = document.getElementById('sample');
 		
 		if( sampGrp != null ) {
@@ -156,6 +140,8 @@ $(function() {
 			ele.setAttribute('fill', 'none');
 			ele.setAttribute('visibility', 'visible');
 			sampGrp.appendChild(ele);	
+			
+			$('.overlaySvg').css('visibility', 'visible');
 			
 			// Make sure toggle button refects the correct action and is enabled
 			$('#toggleBtn').val("Hide segmentation");
@@ -347,6 +333,19 @@ function updateSamples() {
 
 				// Hide progress dialog
 				$('#progDiag').modal('hide');
+				
+				// Make sure overlay is hidden
+				$('.overlaySvg').css('visibility', 'hidden');
+
+				// Disable button 
+				$('#toggleBtn').attr('disabled', 'disabled');
+				
+				// Clear grid selection 
+				if( curBox != -1 ) {
+					boxDiv = "#"+boxes[curBox];
+					$(boxDiv).css('background', '#FFFFFF');
+					curBox = -1;
+				}
 			}
 		},
 		error: function() {
@@ -482,7 +481,15 @@ function onImageViewChanged(event) {
 	statusObj.dataportBottom(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y + boundsRect.height))* imgHelper.imgAspectRatio);
 	statusObj.scaleFactor(imgHelper.getZoomFactor());
 
-	updateOverlayInfo();	
+	var p = imgHelper.logicalToPhysicalPoint(new OpenSeadragon.Point(0, 0));
+	
+	svgOverlayVM.annoGrpTranslateX(p.x);
+	svgOverlayVM.annoGrpTranslateY(p.y);
+	svgOverlayVM.annoGrpScale(statusObj.scaleFactor());	
+	
+	var annoGrp = document.getElementById('annoGrp');
+	annoGrp.setAttribute("transform", annoGrpTransformFunc());
+
 }
 
 
@@ -587,12 +594,23 @@ var statusObj = {
 };
 
 
+var svgOverlayVM = {
+	annoGrpTranslateX:	ko.observable(0.0),
+	annoGrpTranslateY:	ko.observable(0.0),
+	annoGrpScale: 		ko.observable(1.0),
+	annoGrpTransform:	annoGrpTransformFunc
+};
+
+var vm = {
+	statusObj:	ko.observable(statusObj),
+	svgOverlayVM: ko.observable(svgOverlayVM)
+};
 
 
 
 // Apply binfding for knockout.js - Let it keep track of the image info
 // and mouse positions
 //
-ko.applyBindings(statusObj);
+ko.applyBindings(vm);
 
 

@@ -50,21 +50,13 @@
 				<div class="col-sm-6 col-md-6 col-lg-6" >
 					<div id="DebugData">
 						<div>
-							<span>Image Mouse X:  </span>
+							<span>Image X:  </span>
 							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgX().toFixed(0) : '-'"></span>
 						</div>
 						<div>
-							<span>Image Mouse Y:  </span>
+							<span>Image Y:  </span>
 							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgY().toFixed(0) : '-'"></span>
 						</div>
-						<div>
-							<span>Logical Mouse X:  </span>
-							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseLogX().toFixed(4) : '-'"></span>
-						</div>
-						<div>
-							<span>Logical Mouse Y:  </span>
-							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseLogY().toFixed(4) : '-'"></span>
-						</div>		
 					</div>
 				</div>
 			</div>
@@ -126,9 +118,22 @@
 				</div>
 			</div>
 			
-			
-			<div class="row">
-				<div id="image_zoomer" class="zoomView"></div>
+			<div class="row top-buffer"></div>
+
+			<div class="row-fluid">
+				<div id="imageViewerContiner" class="relative-fill-container">
+					<div id="slideZoom" class="openseadragon-view"></div>
+						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg" data-bind="withL svgOverlayVM" 
+							 visibility="hidden" pointer-events="none" zoomAndPan="disable">
+							<defs></defs>
+							<!-- TODO - Can't get the binding to work with the transform function. 
+								 Currently applying the transform manually in onImageViewChanged
+							-->
+							<g id="annoGrp" class="svgAnnoGrp" data-bind="attr: {transform: annoGrpTransformFunc}">
+								<g id="anno"></g>
+							</g>
+						</svg>
+				</div>
 			</div>
 
 			<!-- knockout.js doesn't seem to work if the script isn't loaded last  -->

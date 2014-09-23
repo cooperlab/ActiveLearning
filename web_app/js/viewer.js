@@ -1,3 +1,4 @@
+var annoGrpTransformFunc;
 var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
 var slideHost="http://node15.cci.emory.edu/";
 var slideCnt = 0;
@@ -11,15 +12,6 @@ var lastScaleFactor = 0;
 
 var debugMode = 1;
 
-//
-// TODO - Remove modes from the viewer
-//
-
-var viewMode = 'view';		// Default to regular viewer mode
-							// Viewer modes are:
-							//	'view'  - Normal view (display boundaries, select slides)
-							//  'prime' - Prime mode  (select cells for classifier)
-							//  'cell'  - cell info   (Single slide, display boundaries)s
 						
 
 //
@@ -39,26 +31,12 @@ $(function() {
 	//
 	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "image_zoomer", prefixUrl: "images/"});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
-	viewerHook = viewer.addViewerInputHook({ hooks: [
-						{tracker: 'viewer', handler: 'pressHandler', hookHandler: onMouseDown},
-						{tracker: 'viewer', handler: 'scrollHandler', hookHandler: onMouseScroll},
-						{tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick},
-						{tracker: 'viewer', handler: 'releaseHandler', hookHandler: onMouseUp}
-				 ]});
 
-
-	var newMode = $_GET('mode');
-	console.log("New mode: " + newMode);
-	if( newMode != null ) {
-		viewMode = newMode;
-	} 
-	
-	if( viewMode == 'cell' ) {
-		// TODO!!!! ad a check for GET variables 'slide', 'cx' and 'cy'. Theses specify a particlular
-		// nuclei to zoom to. 
-	}
-
-	$(viewer.canvas).css('background', 'black');
+	annoGrpTransformFunc = ko.computed(function() { 
+										return 'translate(' + svgOverlayVM.annoGrpTranslateX() +
+										', ' + svgOverlayVM.annoGrpTranslateY() +
+										') scale(' + svgOverlayVM.annoGrpScale() + ')';
+									}, this); 
 	updateInterface();
 	
 	
@@ -73,27 +51,10 @@ $(function() {
 		osdCanvas.on('mousemove.osdimaginghelper', onMouseMove);
 		osdCanvas.on('mouseleave.osdimaginghelper', onMouseLeave);
 
-		updateImageInfo();
-
-        // Create a div that encompasses the entire IMAGE area for the overlay. The overlay
-		// has a 1:1 correlation with the image.
-		//
-        olDiv = document.createElement('div');
-        $(olDiv).attr("id", "ovrSVG");
-        
-        // Load a blank placeholder SVG
-		$(olDiv).load('images/blank.svg');
-
-        var olRect = new OpenSeadragon.Rect(imgHelper.physicalToLogicalX(imgHelper.dataToPhysicalX(0)),
-                                        imgHelper.physicalToLogicalY(imgHelper.dataToPhysicalY(0)),
-                                        imgHelper.physicalToLogicalX(imgHelper.dataToPhysicalX(statusObj.imgWidth())),
-                                        imgHelper.physicalToLogicalY(imgHelper.dataToPhysicalY(statusObj.imgHeight())));
-
-        viewer.drawer.addOverlay({
-                element:    olDiv,
-                location:   olRect,
-                placement:  OpenSeadragon.OverlayPlacement.TOP_LEFT
-        });
+		statusObj.imgWidth(imgHelper.imgWidth);
+		statusObj.imgHeight(imgHelper.imgHeight);
+		statusObj.imgAspectRatio(imgHelper.imgAspectRatio);
+		statusObj.scaleFactor(imgHelper.getZoomFactor());
 	});
 
 
@@ -101,24 +62,35 @@ $(function() {
 	viewer.addHandler('close', function(event) {
 		statusObj.haveImage(false);
 		
-		viewer.drawer.clearOverlays();
         osdCanvas.off('mouseenter.osdimaginghelper', onMouseEnter);
         osdCanvas.off('mousemove.osdimaginghelper', onMouseMove);
         osdCanvas.off('mouseleave.osdimaginghelper', onMouseLeave);
 
 		osdCanvas = null;
 	});
+
 	
-	if( viewMode == 'view' || viewMode == 'prime' ) { 
+	viewer.addHandler('animation-finish', function(event) {
 
-		// Slide list will also be updated by this call
-		updateDatasetList();
+		if( segDisplayOn ) {
+		
+			if( statusObj.scaleFactor() > 0.5 ) {
+				$('.overlaySvg').css('visibility', 'visible');
+				updateSeg();
+			} else {
+				$('.overlaySvg').css('visibility', 'hidden');
+			}
+		}
+	});
 
-		// Set the update handler for the slide selector
-		slideSel.change(updateSlide);
-		// Set the update handler ffor the dataset selector
-		datasetSel.change(updateDataset);
-	}
+	// Slide list will also be updated by this call
+	updateDatasetList();
+
+	// Set the update handler for the slide selector
+	slideSel.change(updateSlide);
+	// Set the update handler ffor the dataset selector
+	datasetSel.change(updateDataset);
+
 });
 
 
@@ -190,8 +162,6 @@ function updateSlideList() {
 	var slideSel = $("#slide_sel");
 	var slideCntTxt = $("#count_patient");
 
-	console.log("Current dataset: " + curDataset);
-	
 	// Get the list of slides for the current dataset
 	$.ajax({
 		type: "POST",
@@ -245,21 +215,109 @@ function updateDataset() {
 
 
 
-
-
-
 //
-//	Update image information for the current slide
+//	Update annotation and viewport information when the view changes 
+//  due to panning or zooming.
 //
 //
-function updateImageInfo() {
+function onImageViewChanged(event) {
+	var boundsRect = viewer.viewport.getBounds(true);
 
-	statusObj.imgWidth(imgHelper.imgWidth);
-	statusObj.imgHeight(imgHelper.imgHeight);
-	statusObj.imgAspectRatio(imgHelper.imgAspectRatio);
+	// Update viewport information. dataportXXX is the view port coordinates
+	// using pixel locations. ie. if dataPortLeft is  0 the left edge of the 
+	// image is aligned with the left edge of the viewport.
+	//
+	statusObj.viewportX(boundsRect.x);
+	statusObj.viewportY(boundsRect.y);
+	statusObj.viewportW(boundsRect.width);
+	statusObj.viewportH(boundsRect.height);
+	statusObj.dataportLeft(imgHelper.physicalToDataX(imgHelper.logicalToPhysicalX(boundsRect.x)));
+	statusObj.dataportTop(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y)) * imgHelper.imgAspectRatio);
+	statusObj.dataportRight(imgHelper.physicalToDataX(imgHelper.logicalToPhysicalX(boundsRect.x + boundsRect.width)));
+	statusObj.dataportBottom(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y + boundsRect.height))* imgHelper.imgAspectRatio);
 	statusObj.scaleFactor(imgHelper.getZoomFactor());
+
+	var p = imgHelper.logicalToPhysicalPoint(new OpenSeadragon.Point(0, 0));
+	
+	svgOverlayVM.annoGrpTranslateX(p.x);
+	svgOverlayVM.annoGrpTranslateY(p.y);
+	svgOverlayVM.annoGrpScale(statusObj.scaleFactor());	
+	
+	var annoGrp = document.getElementById('annoGrp');
+	annoGrp.setAttribute("transform", annoGrpTransformFunc());	
 }
 
+
+
+
+
+
+//
+//	Retreive the boundaries for nuclei within the viewport bounds.
+//	TODO - Look into expanding the nuclei request to a 'viewport' width
+//			boundary around the view port. Since we are now using the 
+//			'animation-finish' event to trigger the request, it may be
+//			possible to retreive that many boundaries in a sufficient 
+//			amount of time
+//
+function updateSeg() {
+
+	if( statusObj.scaleFactor() > 0.5 ) {
+	
+		var left, right, top, bottom, width, height;
+
+		// Grab nuclei a viewport width surrounding the current viewport
+		//	+++ FIX ME !!!! +++
+		width = statusObj.dataportRight() - statusObj.dataportLeft();
+		height = statusObj.dataportBottom() - statusObj.dataportTop();
+		
+		left = (statusObj.dataportLeft() - width > 0) ?	statusObj.dataportLeft() - width : 0;
+		right = statusObj.dataportRight() + width;
+		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
+		bottom = statusObj.dataportBottom() + height;
+		
+	    $.ajax({
+			type: "POST",
+       	 	url: "db/getnuclei.php",
+       	 	dataType: "json",
+			data: { slide: 	curSlide,
+					left:	statusObj.dataportLeft(),
+					right:	statusObj.dataportRight(),
+					top:	statusObj.dataportTop(),
+					bottom:	statusObj.dataportBottom()
+			},
+		
+			success: function(data) {
+					
+					var ele;
+					var segGrp = document.getElementById('segGrp');
+					var annoGrp = document.getElementById('anno');
+
+					// If group exists, delete it
+					if( segGrp != null ) {
+						segGrp.parentNode.removeChild(segGrp);
+					}
+
+					// Create segment group
+                    segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    segGrp.setAttribute('id', 'segGrp');
+                    annoGrp.appendChild(segGrp);
+
+
+					for( cell in data ) {
+						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+						
+						ele.setAttribute('points', data[cell][0]);
+						ele.setAttribute('id', 'N' + data[cell][1]);
+						ele.setAttribute('stroke', 'blue');
+						ele.setAttribute('fill', 'none');
+						
+						segGrp.appendChild(ele);
+					}
+        		}
+    	});
+	} 
+}
 
 
 
@@ -275,17 +333,7 @@ function updateInterface() {
 	var comp = document.getElementById('DebugData');
 	if( debugMode == 1 ) {
 		$('#DebugData').children().show();
-	} 
-	
-	if( viewMode == 'cell' ) {
-	
-	} else if( viewMode == 'prime' ) {
-		$('#btn_2').show();	
-		$('#SelDataset').hide();
-	} else {    // View mode
-		$('#btn_2').hide();
-		$('#SelDataset').show();
-	}	
+	} 	
 }
 
 
@@ -327,45 +375,13 @@ function onMouseLeave(event) {
 
 
 
-//
-// inputHook handlers ---------------------------------------------
-//
-function onMouseDown(event) {
-}
 
 
 
-function onMouseUp(event) {
-}
-
-
-function onMouseClick(event) {
-
-	if( selectMode && statusObj.scaleFactor() > 1.0 ) { 
-		console.log("Click - x: " + Math.round(statusObj.mouseImgX()) + 
-					" y: " + Math.round(statusObj.mouseImgY()) );
-
-		selectCell(Math.round(statusObj.mouseImgX()), Math.round(statusObj.mouseImgY()));	
-	}
-}
-
-
-function onMouseScroll(event) {
-
-	//  ???? NOT WORKING ????
-	if( selectMode && statusObj.scaleFactor() > 1.0 ) {
-		event.stopBubbling = true;
-	}
-
-}
 
 //
-// ===============================================================
+// =======================  Button Handlers ===================================
 //
-
-
-
-
 
 
 
@@ -375,266 +391,25 @@ function onMouseScroll(event) {
 //
 function viewSegmentation() {
 
-	var btn1 = $("#btn_1"); 
-	var	svg = document.getElementsByTagName('svg')[0];
+	var	segBtn = $('#btn_1');
 
 	if( segDisplayOn ) {
-		svg.setAttribute('visibility', 'hidden');
+		// Currently displaying segmentation, hide it
+		segBtn.val("Show Segmentation");
+		$('.overlaySvg').css('visibility', 'hidden');
 		segDisplayOn = false;
-		btn1.val("Show Segmentation");
 	} else {
-
-		svg.setAttribute('visibility', 'visible');
+		// Segmentation not currently displayed, show it
+		segBtn.val("Hide Segmentation");
+		$('.overlaySvg').css('visibility', 'visible');
 		segDisplayOn = true;
-		btn1.val("Hide Segmentation");
-	}
-}
-
-
-
-
-
-//
-//	Eneter or exit nuclei selection mode. Allows users to click on a nuclei to select it
-//  for priming the learner.
-//
-//
-function setSelectMode() {
-
-	var btn2 = $("#btn_2"), btn1 = $("#btn_1");
-	var	svg = document.getElementsByTagName('svg')[0];
-	
-	if( selectMode ) {
-
-		selectMode = false;	
-		btn2.val("Select Nuclei");
-		btn2.css('color', 'black');
-
-		btn1.prop('disabled', false);
-	} else {
-
-		selectMode = true;
-		svg.setAttribute('visibility', 'visible');
-        btn2.val("Done");
-		btn2.css('color', 'red');
-
-		btn1.prop('disabled', true);
-	}
-}	
-
-
-
-//
-//
-//
-/*
-function selectNuclei() {
-	$.ajax({
-			type: 	"POST",
-			url:	"db/getsingle.php",
-			dataType: "json",
-			data:	{ slide: 	curSlide,
-					  cellX:	statusObj.mouseImgX(),
-					  cellY:	statusObj.mouseImgy()
-			},
-           success: function(data) {
-
-                    var ele;
-                    var annoGrp = document.getElementsByTagName('g')[0];
-
-                    for( cell in data ) {
-                        ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-
-                        ele.setAttribute('points', data[cell][0]);
-                        ele.setAttribute('id', 'N' + data[cell][1]);
-                        ele.setAttribute('stroke', 'blue');
-                        ele.setAttribute('fill', 'none');
-
-                        annoGrp.appendChild(ele);
-                    }
-               	}
-	});
-
-}
-
-*/
-
-//
-//	Retrieves the bounding polygon from the database for the cell closest
-//	to cellX, cellY. Creates a new SVG group to contain selected cells if
-//  it doesn't exist already. Moves the selected cell from the annotation 
-//	group to the select group.
-//
-function selectCell(cellX, cellY) {
-
-    $.ajax({
-	        type:   "POST",
-            url:    "db/getsingle.php",
-            dataType: "json",
-            data:   { slide:    curSlide,
-                      cellX:    cellX,
-                      cellY:    cellY
-            },
-            success: function(data) {
-					if( data !== null ) {
-						var ele;
-						var selectGrp = document.getElementById('selGrp');
-
-
-						// Create selection froup if not already created
-						if( selectGrp == null ) {
-							var annoGrp = document.getElementById('anno');
-							
-							selectGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
-							selectGrp.setAttribute('id', 'selGrp');
-							annoGrp.appendChild(selectGrp);
-						}
-						
-						// Change to find element by id using the cell id and move to select group 
-						//	ele.parentNode.removeChild(ele);
-						//  ele.setAttribute('stroke', 'yellow');
-						//	selectGrp.appendChild(ele);
-						//
-
-						ele = document.getElementById('N' + data[1]);
-						ele.parentNode.removeChild(ele);
-						ele.setAttribute('stroke', 'yellow');
-						selectGrp.appendChild(ele);
-
-//						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-
-//						ele.setAttribute('id', 'N' + data[1]);
-//						ele.setAttribute('points', data[0]);
-//						ele.setAttribute('stroke', '#f1d92c');
-//						ele.setAttribute('fill', 'none');
-//						selectGrp.appendChild(ele);
-					}
-				}	
-    });
-}
-
-
-
-
-function updateSeg() {
-
-
-	if( statusObj.scaleFactor() > 0.5 ) {
-	    $.ajax({
-			type: "POST",
-       	 	url: "db/getnuclei.php",
-       	 	dataType: "json",
-			data: { slide: 	curSlide,
-					left:	statusObj.dataportLeft(),
-					right:	statusObj.dataportRight(),
-					top:	statusObj.dataportTop(),
-					bottom:	statusObj.dataportBottom()
-			},
 		
-			success: function(data) {
-					
-					var ele;
-					var segGrp = document.getElementById('segGrp');
-					var annoGrp = document.getElementById('anno');
-
-					// If group exists, delete it
-					if( segGrp != null ) {
-						segGrp.parentNode.removeChild(segGrp);
-					}
-
-					// Create segment group
-                    segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    segGrp.setAttribute('id', 'segGrp');
-                    annoGrp.appendChild(segGrp);
-
-
-
-					for( cell in data ) {
-						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-						
-						ele.setAttribute('points', data[cell][0]);
-						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', 'blue');
-						ele.setAttribute('fill', 'none');
-						
-						segGrp.appendChild(ele);
-					}
-        		}
-    	});
-	} 
-}
-
-
-
-
-
-//
-//	Update annotation and viewport information when the view changes 
-//  due to panning or zooming.
-//
-//
-function onImageViewChanged(event) {
-	var boundsRect = viewer.viewport.getBounds(true);
-
-	// Update viewport information. dataportXXX is the view port coordinates
-	// using pixel locations. ie. if dataPortLeft is  0 the left edge of the 
-	// image is aligned with the left edge of the viewport.
-	//
-	statusObj.viewportX(boundsRect.x);
-	statusObj.viewportY(boundsRect.y);
-	statusObj.viewportW(boundsRect.width);
-	statusObj.viewportH(boundsRect.height);
-	statusObj.dataportLeft(imgHelper.physicalToDataX(imgHelper.logicalToPhysicalX(boundsRect.x)));
-	statusObj.dataportTop(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y)) * imgHelper.imgAspectRatio);
-	statusObj.dataportRight(imgHelper.physicalToDataX(imgHelper.logicalToPhysicalX(boundsRect.x + boundsRect.width)));
-	statusObj.dataportBottom(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y + boundsRect.height))* imgHelper.imgAspectRatio);
-	statusObj.scaleFactor(imgHelper.getZoomFactor());
-	
-	// TODO - Add an animation-finish event handler to the viewer and do the segmentation update
-	//	there. This will make scrolling and zooming the slide much smoother. See prime.js for an
-	//	example.
-	//
-	
-	
-	// Update the segmentation and select displays only if they are on.	
-	if( segDisplayOn ) {
-		var annoGrp = document.getElementById('anno');
-		
-		if( statusObj.scaleFactor() > 0.5 ) {
-			if( overlayHidden ) {
-				overlayHidden = false;
-				annoGrp.setAttribute('visibility', 'visible');
-			}
-			updateOverlayInfo();
-		} else {
-			if( overlayHidden == false ) {
-				overlayHidden = true;
-				annoGrp.setAttribute('visibility', 'hidden');
-			}
-		}
+		updateSeg();
 	}
 }
 
 
 
-
-
-
-function updateOverlayInfo() {
-
-	// Only update the scale of the svg if it has changed. This speeds up 
-	// scrolling through the image.
-	//
-	if( lastScaleFactor != statusObj.scaleFactor() ) {
-		lastScaleFactor = statusObj.scaleFactor();
-		var annoGrp = document.getElementById('anno');
-		var scale = "scale(" + statusObj.scaleFactor() + ")";
-	
-		annoGrp.setAttribute("transform", scale);
-	}
-
-	updateSeg();
-}
 
 
 
@@ -682,11 +457,23 @@ var statusObj = {
 };
 
 
+var svgOverlayVM = {
+	annoGrpTranslateX:	ko.observable(0.0),
+	annoGrpTranslateY:	ko.observable(0.0),
+	annoGrpScale: 		ko.observable(1.0),
+	annoGrpTransform:	annoGrpTransformFunc
+};
+
+var vm = {
+	statusObj:	ko.observable(statusObj),
+	svgOverlayVM: ko.observable(svgOverlayVM)
+};
+
 
 
 // Apply binfding for knockout.js - Let it keep track of the image info
 // and mouse positions
 //
-ko.applyBindings(statusObj);
+ko.applyBindings(vm);
 
 

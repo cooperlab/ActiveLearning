@@ -37,7 +37,8 @@ $(function() {
 				//
 				$('#beginSession').attr('disabled', 'true');
 				// TODO - Populate the text fields with the session values
-				// and diabple them
+				// and disable them. This way we can see the criteria for the
+				// current session
 			}
 		}
 	});
