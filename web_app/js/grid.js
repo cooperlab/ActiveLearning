@@ -5,8 +5,8 @@ var negClass = "";
 var posClass = "";
 var IIP_Server = "http://node15.cci.emory.edu/cgi-bin/iipsrv.fcgi?";
 var SlidePath = "FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/";
-var SlideSuffix = ".svs-tile.dzi.tif&";
-var SlideLocPre = "RGN=";
+var SlideSuffix = ".svs-tile.dzi.tif";
+var SlideLocPre = "&RGN=";
 var SlideLocSuffix = "&CVT=jpeg";
 var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
 var slideHost="http://node15.cci.emory.edu/";
@@ -16,7 +16,7 @@ var olDiv = null;
 var lastScaleFactor = 0;
 var	sampleDataJson = "";
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
-
+var curDataset;
 var curSlide = "", curBox = -1;
 var curX = 0, curY = 0;
 
@@ -48,7 +48,9 @@ $(function() {
 			classifier = data['className'];
 			posClass = data['posClass'];
 			negClass = data['negClass'];
-
+			curDataset = data['dataset'];
+			
+			
 			console.log("UID: "+uid);
 			if( uid == null ) {			
 				window.alert("No session active");
@@ -60,7 +62,7 @@ $(function() {
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
 	//
-	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "slideZoom", prefixUrl: "images/"});
+	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "slideZoom", prefixUrl: "images/", animationTime: 0.1});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
 
 	annoGrpTransformFunc = ko.computed(function() { 
@@ -251,21 +253,37 @@ function thumbSingleClick(box) {
 function updateSlideView() {
 
 	var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
-	slide = "";
-	
-	$.ajax({ 
-		type: 	"GET",
-		url: 	slideUrl,
-		dataType:	"xml",
-		success: function(xml) {
+
+	$.ajax({
+		type: "POST",
+		url: "db/getPyramidPath.php",
+		dataType: "json",
+		data: { slide: curSlide },
+		success: function(data) {
 		
-			pyramid = $(xml).find("slide_url").text();
-			console.log("Loading: " + pyramid);
-			viewer.open(slideHost + pyramid);
-			
-		}, 
-		error: function() {
-			alert("Unable to get slide information");
+			if( data[0] === null ) {
+		
+				$.ajax({ 
+					type: 	"GET",
+					url: 	slideUrl,
+					dataType:	"xml",
+					success: function(xml) {
+		
+						pyramid = $(xml).find("slide_url").text();
+						console.log("Loading: " + pyramid);
+						viewer.open(slideHost + pyramid);
+				
+					}, 
+					error: function() {
+						alert("Unable to get slide information");
+					}
+				});
+			} else {
+		
+				pyramid = "cgi-bin/iipsrv.fcgi?DeepZoom="+data[0];
+				console.log("Loading: " + pyramid);
+				viewer.open(slideHost + pyramid);
+			}
 		}
 	});
 }
@@ -327,6 +345,15 @@ function updateSamples() {
 				loc = centX+","+centY+","+sizeX+","+sizeY;
 				
 				thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+				
+				if( curDataset === "Single slide test" ) {
+					thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+				} else {
+					thumbNail = IIP_Server+"FIF=/bigdata3/mnalisn_scratch/active_learning_slides/SOX2-pyramids/sox2test.tif"+SlideLocPre+loc+SlideLocSuffix;						
+				}
+	
+				console.log("Grid thumbnail: "+thumbNail);
+
 				$(thumbTag).attr("src", thumbNail);
 				
 				updateClassStatus(sample);

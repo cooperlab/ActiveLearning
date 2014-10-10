@@ -1,10 +1,10 @@
 var annoGrpTransformFunc;
 var IIP_Server = "http://node15.cci.emory.edu/cgi-bin/iipsrv.fcgi?";
 var SlidePath = "FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/";
-var SlideSuffix = ".svs-tile.dzi.tif&";
+var SlideSuffix = ".svs-tile.dzi.tif";
 var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
 var slideHost="http://node15.cci.emory.edu/";
-var SlideLocPre = "RGN=";
+var SlideLocPre = "&RGN=";
 var SlideLocSuffix = "&CVT=jpeg";
 
 var uid = "";
@@ -20,6 +20,12 @@ var lastScaleFactor = 0;
 var clickCount = 0;
 
 var	selectedJSON = [];
+var pyramids;
+
+
+
+
+
 
 $(function() {
 
@@ -33,7 +39,7 @@ $(function() {
 	// Create the slide zoomer, add event handlers, etc...
 	// We will load the tile pyramid after the slide list is loaded
 	//
-	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "slideZoom", prefixUrl: "images/"});
+	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "slideZoom", prefixUrl: "images/", animationTime: 0.1});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
 	viewerHook = viewer.addViewerInputHook({ hooks: [
 					{tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick}
@@ -145,12 +151,14 @@ function updateSlideList() {
 		dataType: "json",
 		success: function(data) {
 
-			curSlide = data[0];		// Start with the first slide in the list
+			pyramids = data['paths'];
+			curSlide = String(data['slides'][0]);		// Start with the first slide in the list
 
+			slideSel.empty();
 			// Add the slides we have segmentation boundaries for to the dropdown
 			// selector
-			for( var item in data ) {			
-				slideSel.append(new Option(data[item], data[item]));
+			for( var item in data['slides'] ) {			
+				slideSel.append(new Option(data['slides'][item], data['slides'][item]));
 			}
 
 			// Get the slide pyrimaid and display	
@@ -167,19 +175,27 @@ function updateSlideView() {
 
 	var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
 	
-	$.ajax({ 
-		type: 	"GET",
-		url: 	slideUrl,
-		dataType:	"xml",
-		success: function(xml) {
+	if( pyramids[$('#slideSel').prop('selectedIndex')] === null ) {	
+
+		$.ajax({ 
+			type: 	"GET",
+			url: 	slideUrl,
+			dataType:	"xml",
+			success: function(xml) {
 		
-			pyramid = $(xml).find("slide_url").text();
-			viewer.open(slideHost + pyramid);			
-		}, 
-		error: function() {
-			alert("Unable to get slide information");
-		}
-	});
+				pyramid = $(xml).find("slide_url").text();
+				viewer.open(slideHost + pyramid);			
+			}, 
+			error: function() {
+				alert("Unable to get slide information");
+			}
+		});
+	} else {
+	
+		pyramid = "cgi-bin/iipsrv.fcgi?DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')];
+		console.log("Loading: " + pyramid);
+		viewer.open(slideHost + pyramid);	
+	}
 }
 
 
@@ -192,7 +208,8 @@ function updateSlideView() {
 //
 //
 function updateSlide() {
-
+	curSlide = $('#slide_sel').val();
+	updateSlideView();
 }
 
 
@@ -292,7 +309,7 @@ function updateSeg() {
 						
 						ele.setAttribute('points', data[cell][0]);
 						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', 'blue');
+						ele.setAttribute('stroke', 'aqua');
 						ele.setAttribute('fill', 'none');
 						
 						segGrp.appendChild(ele);
@@ -361,7 +378,15 @@ function nucleiSelect() {
 						sizeY = 50.0 / sample['maxY'];
 						loc = centX+","+centY+","+sizeX+","+sizeY;
 				
-						var thumbNail = IIP_Server+SlidePath+curSlide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+						var thumbNail;
+						if( curDataset === "Single slide test" ) {
+							thumbNail = IIP_Server+SlidePath+curSlide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+						} else {
+							thumbNail = IIP_Server+"FIF=/bigdata3/mnalisn_scratch/active_learning_slides/SOX2-pyramids/sox2test.tif"+SlideLocPre+loc+SlideLocSuffix;						
+						}
+						
+						console.log("Thumbnail: "+thumbNail);
+						
 						$(thumbTag).attr("src", thumbNail);
 
 						if( sample['label'] === 1 ) {

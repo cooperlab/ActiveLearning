@@ -1,5 +1,7 @@
 <?php
 
+	require '../db/logging.php';
+		
 	// Make sure initSession.php was referenced from the main
 	// page by checking if 'submit' is empty
 	//
@@ -85,6 +87,8 @@
 	socket_close($socket);
 	
 	if( strcmp($response, "PASS") == 0 ) { 
+		write_log("INFO", "Session '".$_POST["classifiername"]."' started");
+		
 		session_start();
 		$_SESSION['uid'] = $UID;
 		$_SESSION['posClass'] = $_POST["posName"];

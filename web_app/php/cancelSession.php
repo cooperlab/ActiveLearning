@@ -1,5 +1,6 @@
 <?php
-
+	require '../db/logging.php';
+	
 	session_start();
 	
 	$end_data =  array( "command" => "end", 
@@ -24,6 +25,7 @@
 	$response = socket_read($socket, 10);
 	socket_close($socket);
 
+	write_log("INFO", "Session '".$_SESSION['classifier']."' canceled");
 
 	// Cleanup session variables
 	//

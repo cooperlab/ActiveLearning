@@ -1,8 +1,10 @@
 <?php
 
+	require '../db/logging.php';
 	session_start();
 	
-	// Get list of samples from al server
+	// Send finalize command to al server to save the training set and
+	// get the pertinent info to save in the database
 	//
 	$end_data =  array( "command" => "finalize", 
 			 	   "uid" => $_SESSION['uid']);
@@ -46,8 +48,9 @@
 	
 	// Add classifier to database
 	//
-	$sql = 'INSERT INTO training_sets (name, type, dataset_id, iterations)';
-	$sql = $sql.' VALUES("'.$_SESSION['classifier'].'", "binary", '.$datasetId.', '.$response['iterations'].')';
+	$sql = 'INSERT INTO training_sets (name, type, dataset_id, iterations, filename)';
+	$sql = $sql.' VALUES("'.$_SESSION['classifier'].'", "binary", '.$datasetId;
+	$sql = $sql.', '.$response['iterations'].', "'.$response['filename'].'")';
 	
 	$status = mysqli_query($dbConn, $sql);
 	$trainingSetId = $dbConn->insert_id;
@@ -92,6 +95,8 @@
 		mysqli_query($dbConn, $sql);
 	}
 	mysqli_close($dbConn);
+	
+	write_log("INFO", "Session ".$_SESSION['classifier']." finished, Trining set saved to: ".$response['filename']);
 	
 	// TODO - Add a download of the training set file.
 	echo "PASS";

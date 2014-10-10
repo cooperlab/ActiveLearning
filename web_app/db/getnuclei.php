@@ -13,7 +13,7 @@
 	$bottom = intval($_POST['bottom']);
 	$slide = $_POST['slide'];
 
-
+	
 
 	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
 	if( !$dbConn ) {
@@ -22,8 +22,7 @@
 	}
 
 	$sql = 'SELECT boundary, id from boundaries where slide="'.$slide.'" AND centroid_x BETWEEN '.$left.' AND '.$right.' AND centroid_y BETWEEN '.$top.' AND '.$bottom.' LIMIT 15000';
- 
-
+  	
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
 		$jsonData = array();
@@ -33,10 +32,10 @@
 		
 		mysqli_free_result($result);
 
-		echo json_encode($jsonData);
 	}
-
 	mysqli_close($dbConn);
+	
+	echo json_encode($jsonData);
 
 ?>
 

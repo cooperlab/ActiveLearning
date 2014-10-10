@@ -9,6 +9,7 @@ var imgHelper = null, osdCanvas = null, viewerHook = null;
 var overlayHidden = false, selectMode = false, segDisplayOn = false;;
 var olDiv = null;
 var lastScaleFactor = 0;
+var pyramids;
 
 var debugMode = 1;
 
@@ -29,7 +30,7 @@ $(function() {
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
 	//
-	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "image_zoomer", prefixUrl: "images/"});
+	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "image_zoomer", prefixUrl: "images/", animationTime: 0.1});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
 
 	annoGrpTransformFunc = ko.computed(function() { 
@@ -106,21 +107,29 @@ function updatePyramid() {
 
 	var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
 	slide = "";
+
+	if( pyramids[$('#slide_sel').prop('selectedIndex')] === null ) {	
 	
-	$.ajax({ 
-		type: 	"GET",
-		url: 	slideUrl,
-		dataType:	"xml",
-		success: function(xml) {
+		$.ajax({ 
+			type: 	"GET",
+			url: 	slideUrl,
+			dataType:	"xml",
+			success: function(xml) {
 		
-			pyramid = $(xml).find("slide_url").text();
-			console.log("Loading: " + pyramid);
-			viewer.open(slideHost + pyramid);
-		}, 
-		error: function() {
-			alert("Unable to get slide information");
-		}
-	});
+				pyramid = $(xml).find("slide_url").text();
+				console.log("Loading: " + pyramid);
+				viewer.open(slideHost + pyramid);
+			}, 
+			error: function() {
+				alert("Unable to get slide information");	
+			}
+		});
+	} else {
+	
+		pyramid = "cgi-bin/iipsrv.fcgi?DeepZoom="+pyramids[$('#slide_sel').prop('selectedIndex')];
+		console.log("Loading: " + pyramid);
+		viewer.open(slideHost + pyramid);
+	}
 }
 
 
@@ -162,6 +171,8 @@ function updateSlideList() {
 	var slideSel = $("#slide_sel");
 	var slideCntTxt = $("#count_patient");
 
+	console.log("Getting slides for: "+curDataset);
+	
 	// Get the list of slides for the current dataset
 	$.ajax({
 		type: "POST",
@@ -170,14 +181,16 @@ function updateSlideList() {
 		dataType: "json",
 		success: function(data) {
 
-			curSlide = data[0];		// Start with the first slide in the list
-			slideCnt = Object.keys(data).length;;
+			pyramids = data['paths'];
+			curSlide = String(data['slides'][0]);		// Start with the first slide in the list
+			slideCnt = Object.keys(data['slides']).length;;
 			slideCntTxt.text(slideCnt);
 
+			slideSel.empty();
 			// Add the slides we have segmentation boundaries for to the dropdown
 			// selector
-			for( var item in data ) {			
-				slideSel.append(new Option(data[item], data[item]));
+			for( var item in data['slides'] ) {			
+				slideSel.append(new Option(data['slides'][item], data['slides'][item]));
 			}
 
 			// Get the slide pyrimaid and display	
@@ -197,7 +210,8 @@ function updateSlideList() {
 //
 //
 function updateSlide() {
-
+	curSlide = $('#slide_sel').val();
+	updatePyramid();
 }
 
 
@@ -210,8 +224,12 @@ function updateSlide() {
 //
 function updateDataset() {
 
-
+	curDataset = $('#dataset_sel').val();
+	updateSlideList();
 }
+
+
+
 
 
 
@@ -276,6 +294,7 @@ function updateSeg() {
 		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
 		bottom = statusObj.dataportBottom() + height;
 		
+		console.log("Current Slide: "+curSlide);
 	    $.ajax({
 			type: "POST",
        	 	url: "db/getnuclei.php",
@@ -309,7 +328,7 @@ function updateSeg() {
 						
 						ele.setAttribute('points', data[cell][0]);
 						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', 'blue');
+						ele.setAttribute('stroke', 'aqua');
 						ele.setAttribute('fill', 'none');
 						
 						segGrp.appendChild(ele);
