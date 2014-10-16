@@ -131,12 +131,9 @@ int main(int argc, char *argv[])
 			listenFD = socket(AF_INET, SOCK_STREAM, 0);
 			memset(&serv_addr, 0, sizeof(struct sockaddr_in));
 
-			cout << "Starting on port " << port << endl;
 			serv_addr.sin_family = AF_INET;
 			serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 			serv_addr.sin_port = htons(port);
-
-			cout << "After htons " << serv_addr.sin_port << endl;
 
 			bind(listenFD, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr_in));
 			listen(listenFD, 10);

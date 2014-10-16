@@ -128,62 +128,64 @@ bool MData::Load(string fileName)
 		}
 	}
 
+	bool slidesExist = H5Lexists(fileId, "/slides", H5P_DEFAULT);
 	// Allocate buffer for slide indices
 	//
-	if( result ) {
+	if( result && slidesExist ) {
 		m_slideIdx = (int*)malloc(dims[0] * sizeof(int));
 		if( m_slideIdx == NULL ) {
 			cerr << "Unable to allocate index buffer" << endl;
 			result = false;
 		}
-	}
 
-	// Read slide indices
-	if( result ) {
-		status = H5LTread_dataset_int(fileId, "/slideIdx", m_slideIdx);
-		if( status < 0 ) {
-			cerr << "Unable to read index data" << endl;
-			result = false;
+		// Read slide indices
+		if( result ) {
+			status = H5LTread_dataset_int(fileId, "/slideIdx", m_slideIdx);
+			if( status < 0 ) {
+				cerr << "Unable to read index data" << endl;
+				result = false;
+			}
 		}
 	}
 
-	// Allocate buffer for x_centroid
-	//
-	if( result ) {
-		m_xCentroid = (float*)malloc(dims[0] * sizeof(float));
-		if( m_xCentroid == NULL ) {
-			cerr << "Unable to allocate x centroids buffer" << endl;
-			result = false;
+	if( result && H5Lexists(fileId, "/x_centroid", H5P_DEFAULT) ) {
+		// Allocate buffer for x_centroid
+		//
+		if( result ) {
+			m_xCentroid = (float*)malloc(dims[0] * sizeof(float));
+			if( m_xCentroid == NULL ) {
+				cerr << "Unable to allocate x centroids buffer" << endl;
+				result = false;
+			}
 		}
-	}
-	// Read x centroids
-	if( result ) {
-		status = H5LTread_dataset_float(fileId, "/x_centroid", m_xCentroid);
-		if( status < 0 ) {
-			cerr << "Unable to read x centroid data" << endl;
-			result = false;
+		// Read x centroids
+		if( result ) {
+			status = H5LTread_dataset_float(fileId, "/x_centroid", m_xCentroid);
+			if( status < 0 ) {
+				cerr << "Unable to read x centroid data" << endl;
+				result = false;
+			}
 		}
-	}
 
-	// Allocate buffer for y centroids
-	//
-	if( result ) {
-		m_yCentroid = (float*)malloc(dims[0] * sizeof(float));
-		if( m_yCentroid == NULL ) {
-			cerr << "Unable to allocate y centroids buffer" << endl;
-			result = false;
+		// Allocate buffer for y centroids
+		//
+		if( result ) {
+			m_yCentroid = (float*)malloc(dims[0] * sizeof(float));
+			if( m_yCentroid == NULL ) {
+				cerr << "Unable to allocate y centroids buffer" << endl;
+				result = false;
+			}
+		}
+
+		// Read y centroids
+		if( result ) {
+			status = H5LTread_dataset_float(fileId, "/y_centroid", m_yCentroid);
+			if( status < 0 ) {
+				cerr << "Unable to read y centroid data" << endl;
+				result = false;
+			}
 		}
 	}
-
-	// Read y centroids
-	if( result ) {
-		status = H5LTread_dataset_float(fileId, "/y_centroid", m_yCentroid);
-		if( status < 0 ) {
-			cerr << "Unable to read y centroid data" << endl;
-			result = false;
-		}
-	}
-
 	// Allocate a buffer for the feature data
 	//
 	if( result ) {
@@ -216,33 +218,35 @@ bool MData::Load(string fileName)
 		}
 	}
 
-	// Read slide names, do this last because we reuse the dims variable
-	//
-	hid_t	dset, fileType;
-	if( result ) {
-		dset = H5Dopen(fileId, "slides", H5P_DEFAULT);
-		fileType = H5Dget_type(dset);
-		m_space = H5Dget_space(dset);
-		H5Sget_simple_extent_dims(m_space, dims, NULL);
+	if( slidesExist ) {
+		// Read slide names, do this last because we reuse the dims variable
+		//
+		hid_t	dset, fileType;
+		if( result ) {
+			dset = H5Dopen(fileId, "slides", H5P_DEFAULT);
+			fileType = H5Dget_type(dset);
+			m_space = H5Dget_space(dset);
+			H5Sget_simple_extent_dims(m_space, dims, NULL);
 
-		m_slides = (char**)malloc(dims[0] * sizeof(char*));
-		if( m_slides == NULL ) {
-			cerr << "Unable to allocate slide name buffer" << endl;
-			result = false;
+			m_slides = (char**)malloc(dims[0] * sizeof(char*));
+			if( m_slides == NULL ) {
+				cerr << "Unable to allocate slide name buffer" << endl;
+				result = false;
+			}
 		}
-	}
 
-	if( result ) {
-		m_memType = H5Tcopy(H5T_C_S1);
-		H5Tset_size(m_memType, H5T_VARIABLE);
-		status = H5Dread(dset, m_memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides);
-		if( status < 0 ) {
-			cerr << "Unable to read slide names" << endl;
-			result = false;
-		} else {
-			this->m_numSlides = dims[0];
-			H5Dclose(dset);
-			H5Tclose(fileType);
+		if( result ) {
+			m_memType = H5Tcopy(H5T_C_S1);
+			H5Tset_size(m_memType, H5T_VARIABLE);
+			status = H5Dread(dset, m_memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides);
+			if( status < 0 ) {
+				cerr << "Unable to read slide names" << endl;
+				result = false;
+			} else {
+				this->m_numSlides = dims[0];
+				H5Dclose(dset);
+				H5Tclose(fileType);
+			}
 		}
 	}
 	if( fileId > 0 )
@@ -432,6 +436,14 @@ bool MData::SaveAs(string filename)
 		}
 	}
 
+	if( result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/db_id", 2, dims, H5T_NATIVE_INT, m_dbIds);
+		if( status < 0 ) {
+			cerr << "Unable to create ID dataset" << endl;
+			result = false;
+		}
+	}
 	if( result )
 		result = SaveProvenance(fileId);
 

@@ -18,8 +18,11 @@ m_dataIndex(NULL),
 m_remaining(0),
 m_dataset(dataset)
 {
-
+	srand(time(NULL));
 }
+
+
+
 
 
 Sampler::~Sampler(void)
@@ -37,8 +40,18 @@ Sampler::~Sampler(void)
 bool Sampler::Init(int count, int *list)
 {
 	bool	result = false;
+	int		pick;
 
-
+	for(int i = 0; i < count; i++) {
+		for(int j = 0; j < m_remaining; j++) {
+			if( m_dataIndex[j] == list[i] ) {
+				pick = j;
+				break;
+			}
+		}
+		m_remaining--;
+		m_dataIndex[pick] = m_dataIndex[m_remaining];
+	}
 	return result;
 }
 
@@ -131,6 +144,56 @@ float* UncertainSample::CreateCheckSet(void)
 		}
 	}
 	return checkSet;
+}
+
+
+
+
+
+
+//------------------------------------------------------------------------------
+
+
+RandomSample::RandomSample(MData *dataset) : Sampler(dataset)
+{
+
+	int numObjs = dataset->GetNumObjs();
+	m_dataIndex = (int*)malloc(numObjs * sizeof(int));
+	if( m_dataIndex ) {
+		m_remaining = numObjs;
+		for(int i = 0; i < numObjs; i++)
+			m_dataIndex[i] = i;
+	}
+}
+
+
+
+RandomSample::~RandomSample(void)
+{
+
+}
+
+
+
+
+
+
+// Selects a random object without replacement.
+// Returns -1 if no objects are left
+//
+int RandomSample::Select(float *score)
+{
+	int	obj = -1, pick;
+
+	if( m_dataIndex && m_remaining > 0 ) {
+		pick = rand() % m_remaining;
+		obj = m_dataIndex[pick];
+
+		// Put last obj of list in spot just selected
+		m_remaining--;
+		m_dataIndex[pick] = m_dataIndex[m_remaining];
+	}
+	return obj;
 }
 
 

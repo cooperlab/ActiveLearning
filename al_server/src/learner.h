@@ -51,14 +51,18 @@ protected:
 	bool	Submit(const int sock, json_t *obj);
 	bool	CancelSession(const int sock, json_t *obj);
 	bool	FinalizeSession(const int sock, json_t *obj);
+	bool	ApplyClassifier(const int sock, json_t *obj);
 
 	bool 	UpdateBuffers(int updateSize);
 	void	Cleanup(void);
 
 	bool	SaveTrainingSet(string filename);
 
+	bool	InitSampler(void);
+
 	float	CalcAccuracy(void);
-	bool	CreateSet(set<int> dataItems, float *&data, int *&labels);
+	bool	CreateSet(vector<int> folds, int fold, float *&trainX,
+					  int *&trainY, float *&testX, int *&testY);
 
 };
 

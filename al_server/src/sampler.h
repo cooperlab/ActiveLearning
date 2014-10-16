@@ -55,4 +55,20 @@ protected:
 
 
 
+
+class RandomSample : public Sampler
+{
+public:
+				RandomSample(MData *dataset);
+	virtual 	~RandomSample(void);
+
+	virtual int 	Select(float *score = NULL);
+	virtual SampType	GetSamplerType(void) { return SAMP_RANDOM; }
+
+protected:
+
+
+};
+
+
 #endif
