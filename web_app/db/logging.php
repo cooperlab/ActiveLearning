@@ -4,11 +4,11 @@ function write_log($type, $message)
 {
 	$dbConn = mysqli_connect("localhost", "logger", "BMIIsGoodz!", "nuclei");
 	if( !$dbConn ) {
-		return array( status => false, message => 'Unable to connect to database');
+		return array( 'status' => false, 'message' => 'Unable to connect to database');
 	}
 
 	if( $message == '' ) {
-		return array( status => false, message => 'Empty message not valid');
+		return array( 'status' => false, 'message' => 'Empty message not valid');
 	}
 	
 	$remoteAddr = $_SERVER['REMOTE_ADDR'];
@@ -30,11 +30,11 @@ function write_log($type, $message)
 	$status = mysqli_query($dbConn, $sql);
 
 	if( !$status ) {
-		return array( status => false, message => "Unable to add to log");
+		return array( 'status' => false, 'message' => "Unable to add to log");
 	}
 	
 	mysqli_close($dbConn);
-	return array( status => true);
+	return array( 'status' => true);
 }
 
 

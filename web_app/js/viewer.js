@@ -13,7 +13,7 @@ var pyramids;
 
 var debugMode = 1;
 
-						
+	var clickCount = 0;					
 
 //
 //	Initialization
@@ -32,7 +32,7 @@ $(function() {
 	//
 	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "image_zoomer", prefixUrl: "images/", animationTime: 0.1});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
-
+	
 	annoGrpTransformFunc = ko.computed(function() { 
 										return 'translate(' + svgOverlayVM.annoGrpTranslateX() +
 										', ' + svgOverlayVM.annoGrpTranslateY() +
@@ -86,7 +86,11 @@ $(function() {
 
 	// Slide list will also be updated by this call
 	updateDatasetList();
-
+	
+	// Classifier list needs the current dataset so update 
+	// dataset list first
+	updateClassifierList();
+	
 	// Set the update handler for the slide selector
 	slideSel.change(updateSlide);
 	// Set the update handler ffor the dataset selector
@@ -131,7 +135,6 @@ function updatePyramid() {
 		viewer.open(slideHost + pyramid);
 	}
 }
-
 
 
 
@@ -200,6 +203,19 @@ function updateSlideList() {
 }
 
 
+
+
+
+//
+//	Updates the classifier selector
+//
+function updateClassifierList() {
+	var classSel = $("#classifier_sel");
+
+	// First selection should be none
+	classSel.append(new Option('----------------', 'none'));
+
+}
 
 
 
@@ -303,7 +319,9 @@ function updateSeg() {
 					left:	statusObj.dataportLeft(),
 					right:	statusObj.dataportRight(),
 					top:	statusObj.dataportTop(),
-					bottom:	statusObj.dataportBottom()
+					bottom:	statusObj.dataportBottom(),
+					dataset: curDataset,
+					trainset: "sox2TileDemo.h5"
 			},
 		
 			success: function(data) {
@@ -337,6 +355,7 @@ function updateSeg() {
     	});
 	} 
 }
+
 
 
 

@@ -55,7 +55,7 @@
 	$status = mysqli_query($dbConn, $sql);
 	$trainingSetId = $dbConn->insert_id;
 	if( $status == FALSE ) {
-		echo("<p>Unable to insert classifier into database</p>" . mysqli_connect_error() );
+		log_error("Unable to insert classifier into database ".mysqli_connect_error());
 		exit();
 	}
 	
@@ -67,7 +67,7 @@
 	$status = mysqli_query($dbConn, $sql);
 	$posId = $dbConn->insert_id;
 	if( $status == FALSE ) {
-		echo("<p>Unable to insert pos class into database</p>" . mysqli_error($dbConn) );
+		log_error("Unable to insert pos class into database ".mysqli_error($dbConn));
 		exit();
 	}
 
@@ -76,7 +76,7 @@
 	$status = mysqli_query($dbConn, $sql);
 	$negId = $dbConn->insert_id;
 	if( $status == FALSE ) {
-		echo("<p>Unable to insert neg class into database</p>" . mysqli_error($dbConn) );
+		log_error("Unable to insert neg class into database ".mysqli_error($dbConn) );
 		exit();
 	}
 
