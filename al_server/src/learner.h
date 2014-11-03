@@ -52,6 +52,8 @@ protected:
 	bool	CancelSession(const int sock, json_t *obj);
 	bool	FinalizeSession(const int sock, json_t *obj);
 	bool	ApplyClassifier(const int sock, json_t *obj);
+	bool	Visualize(const int sock, json_t *obj);
+
 
 	bool 	UpdateBuffers(int updateSize);
 	void	Cleanup(void);

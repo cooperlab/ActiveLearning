@@ -149,7 +149,9 @@ int main(int argc, char *argv[])
 
 				cout << "Request from " << inet_ntoa(peer.sin_addr) << endl;
 
-				HandleRequest(connFD, learner);
+				if( HandleRequest(connFD, learner) == false ) {
+					cerr << "Request failed" << endl;
+				}
 				close(connFD);
 				sleep(1);
 			}

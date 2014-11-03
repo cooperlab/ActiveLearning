@@ -6,6 +6,7 @@
 #include <cfloat>
 #include <ctime>
 #include <cmath>
+#include <algorithm>
 
 
 #include "sampler.h"
@@ -145,6 +146,109 @@ float* UncertainSample::CreateCheckSet(void)
 	}
 	return checkSet;
 }
+
+
+
+
+struct ScoreIdx{
+	int	idx;
+	float score;
+};
+
+bool SortFunc(ScoreIdx a, ScoreIdx b)
+{
+	return (a.score < b.score);
+}
+
+//
+//	Select samples for visualization. nStrata specifies the number of uncertainty
+// 	levels. An nStrata of 1 will select the most uncertain sample, 2 will select
+//  the most uncertain and the most certain, 3 will add the 50% percentile and
+//  so on. nGroups specifies the number of samples per strata. Samples will be
+//	returned for both clases, so for an nStrata of 4 and nGroups of 2 there will
+//	be 4(strata) * 2(groups) * 2(classes) samples for a total of 16 returned.
+//	They are ordered as follows: Group 1 Neg class most certain to most uncertain,
+//	Group 1 Pos class most uncertain to most certain, ... Group N Neg class most
+//	certain to most uncertain, Group N Pos class most uncertain to most certain.
+//
+//
+bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *&idxScores)
+{
+	bool	result = true;
+	float	*checkSet = CreateCheckSet(),
+			*scores = (float*) malloc(m_remaining * sizeof(float));
+
+
+	idx = (int*)calloc(nStrata * nGroups * 2, sizeof(int));
+	idxScores = (float*)calloc(nStrata * nGroups * 2, sizeof(float));
+
+	// Score the unlabeled data and split into 2 classes
+	if( scores && idx ) {
+
+		vector<ScoreIdx> neg, pos;
+		ScoreIdx	temp;
+
+		if( m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+			for(int i = 0; i < m_remaining; i++) {
+				if( scores[i] < 0 ) {
+					temp.score = scores[i];
+					temp.idx = m_dataIndex[i];
+					neg.push_back(temp);
+				} else {
+					temp.score = scores[i];
+					temp.idx = m_dataIndex[i];
+					pos.push_back(temp);
+				}
+			}
+
+			sort(neg.begin(), neg.end(), SortFunc);
+			sort(pos.begin(), pos.end(), SortFunc);
+
+			float posPercent[nStrata], negPercent[nStrata];
+
+			posPercent[0] = negPercent[0] = 0;
+			posPercent[nStrata - 1] = pos.size() - nGroups - 1;
+			negPercent[nStrata - 1] = neg.size() - nGroups - 1;
+
+			float stride = (1.0f / (float)(nStrata - 1));
+			for(int i = 1; i < nStrata - 1; i++) {
+				posPercent[i] = i * stride * pos.size();
+				negPercent[i] = i * stride * neg.size();
+			}
+
+			for(int grp = 0; grp < nGroups; grp++) {
+				for(int s = 0; s < nStrata; s++) {
+					idx[(grp * 2 * nStrata) + s] = neg[negPercent[s] + grp].idx;
+					idx[(grp * 2 * nStrata) + s + nStrata] = pos[posPercent[s] + grp].idx;
+
+					if( idxScores ) {
+						idxScores[(grp * 2 * nStrata) + s] = neg[negPercent[s] + grp].score;
+						idxScores[(grp * 2 * nStrata) + s + nStrata] = pos[posPercent[s] + grp].score;
+					}
+				}
+			}
+			cout << "Selected: ";
+			for(int j = 0; j < nGroups; j++) {
+				for(int i = 0; i < nStrata * 2; i++) {
+					cout << idx[(j * nStrata * 2) + i];
+					if( idxScores )
+						cout << "(" << idxScores[(j * nStrata * 2) + i] << ")";
+					cout << " ";
+				}
+				cout << endl;
+			}
+			cout << endl;
+		}
+		if( checkSet )
+			free(checkSet);
+	}
+
+	if( scores )
+		free(scores);
+
+	return result;
+}
+
 
 
 

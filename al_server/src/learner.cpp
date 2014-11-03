@@ -141,6 +141,11 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 				result = FinalizeSession(sock, root);
 			} else if( strncmp(command, "apply", 8) == 0 ) {
 				result = ApplyClassifier(sock, root);
+			} else if( strncmp(command, "visualize", 9) == 0 ) {
+				result = Visualize(sock, root);
+			} else {
+				cerr << "Invalid command" << endl;
+				result = false;
 			}
 		}
 		json_decref(root);
@@ -550,6 +555,75 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 
 
 
+bool Learner::Visualize(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*root = json_array(), *sample = NULL, *value = NULL;
+	int		strata, groups;
+
+	cout << "Selecting objects for visualization" << endl;
+
+	value = json_object_get(obj, "strata");
+	strata = json_integer_value(value);
+
+	value = json_object_get(obj, "groups");
+	groups = json_integer_value(value);
+
+	if( root == NULL ) {
+		cerr << "Unable to crate JSON array for visualization" << endl;
+		result = false;
+	}
+
+	if( result ) {
+		int	*sampleIdx = NULL, totalSamp;
+		float *sampleScores = NULL;
+
+		totalSamp = strata * groups * 2;
+		result = m_sampler->GetVisSamples(strata, groups, sampleIdx, sampleScores);
+
+		if( result ) {
+			for(int i = 0; i < totalSamp; i++) {
+				sample = json_object();
+
+				if( sample == NULL ) {
+					cerr << "Unable to create sample JSON object" << endl;
+					result = false;
+					break;
+				}
+
+				json_object_set(sample, "slide", json_string(m_dataset->GetSlide(sampleIdx[i])));
+				json_object_set(sample, "id", json_integer(0));
+				json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(sampleIdx[i])));
+				json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(sampleIdx[i])));
+				json_object_set(sample, "maxX", json_integer(0));
+				json_object_set(sample, "maxY", json_integer(0));
+				json_object_set(sample, "score", json_real(sampleScores[i]));
+
+				json_array_append(root, sample);
+				json_decref(sample);
+			}
+
+			if( sampleIdx ) {
+				free(sampleIdx);
+			}
+			if( sampleScores ) {
+				free(sampleScores);
+			}
+		}
+	}
+
+	if( result ) {
+		char *jsonObj = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+		free(jsonObj);
+	}
+	json_decref(root);
+
+	return result;
+}
 
 
 
@@ -613,6 +687,7 @@ bool Learner::CancelSession(const int sock, json_t *obj)
 
 	// Just erase the UID for now
 	memset(m_UID, 0, UID_LENGTH + 1);
+	cout << "Session canceled" << endl;
 
 	Cleanup();
 
