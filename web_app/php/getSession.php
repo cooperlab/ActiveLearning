@@ -1,6 +1,8 @@
 <?php
 
+	require 'hostspecs.php';
 	session_start();
+	
 	
 	$sessionInfo = array();
 	
@@ -9,9 +11,11 @@
 		$sessionInfo['classname'] = $_SESSION['classifier'];
 		$sessionInfo['posClass'] = $_SESSION['posClass'];
 		$sessionInfo['negClass'] = $_SESSION['negClass'];
-		$sessionInfo['alServer'] = $_SESSION['al_server'];
-		$sessionInfo['alServerPort'] = $_SESSION['al_server_port'];
-		$sessionInfo['dataset'] = $_SESSION['dataset'];		
+		$sessionInfo['alServer'] = $host;
+		$sessionInfo['alServerPort'] = $port;
+		$sessionInfo['dataset'] = $_SESSION['dataset'];	
+		$sessionInfo['iipServer'] = $IIP_Server;
+		$sessionInfo['slidePath'] = $SlidePath;	
 	}
 	
 	echo json_encode($sessionInfo);

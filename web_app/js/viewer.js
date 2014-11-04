@@ -112,6 +112,8 @@ function updatePyramid() {
 	var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
 	slide = "";
 
+	console.log("Slide data: " + slideUrl);
+	
 	if( pyramids[$('#slide_sel').prop('selectedIndex')] === null ) {	
 	
 		$.ajax({ 
@@ -121,7 +123,7 @@ function updatePyramid() {
 			success: function(xml) {
 		
 				pyramid = $(xml).find("slide_url").text();
-				console.log("Loading: " + pyramid);
+				console.log("Loading: " + slideHost + pyramid);
 				viewer.open(slideHost + pyramid);
 			}, 
 			error: function() {
@@ -131,7 +133,7 @@ function updatePyramid() {
 	} else {
 	
 		pyramid = "cgi-bin/iipsrv.fcgi?DeepZoom="+pyramids[$('#slide_sel').prop('selectedIndex')];
-		console.log("Loading: " + pyramid);
+		console.log("Loading: " + slideHost + pyramid);
 		viewer.open(slideHost + pyramid);
 	}
 }

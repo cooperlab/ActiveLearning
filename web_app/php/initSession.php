@@ -94,8 +94,6 @@
 		$_SESSION['posClass'] = $_POST["posName"];
 		$_SESSION['negClass'] = $_POST["negName"];
 		$_SESSION['classifier'] = $_POST["classifiername"];
-		$_SESSION['al_server'] = $host;
-		$_SESSION['al_server_port'] = $port;
 		$_SESSION['iteration'] = 0;
 		$_SESSION['dataset'] = $_POST["dataset"];
 		header("Location: ../prime.html");

@@ -1,5 +1,6 @@
 <?php
 
+	require 'hostspecs.php';
 	session_start();
 	
 	$sel_data =  array( "command" => "select", 
@@ -8,8 +9,7 @@
 
 	$sel_data = json_encode($sel_data);
 
-	$port = $_SESSION['al_server_port'];
-	$addr = gethostbyname($_SESSION['al_server']);
+	$addr = gethostbyname($host);
 	set_time_limit(0);
 	
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);

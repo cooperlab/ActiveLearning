@@ -1,5 +1,6 @@
 <?php
 
+	require 'hostspecs.php';
 	session_start();
 	
 	$primeData = array( "command" => "prime", 
@@ -9,8 +10,7 @@
 	 
 	$primeData = json_encode($primeData, JSON_NUMERIC_CHECK);
 	
-	$port = $_SESSION['al_server_port'];
-	$addr = gethostbyname($_SESSION['al_server']);
+	$addr = gethostbyname($host);
 	set_time_limit(0);
 	
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);

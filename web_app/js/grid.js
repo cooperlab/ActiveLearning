@@ -3,8 +3,8 @@ var uid = "";
 var classifier = "";
 var negClass = "";
 var posClass = "";
-var IIP_Server = "http://node15.cci.emory.edu/cgi-bin/iipsrv.fcgi?";
-var SlidePath = "FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/";
+var IIP_Server = "";
+var SlidePath = "";
 var SlideSuffix = ".svs-tile.dzi.tif";
 var SlideLocPre = "&RGN=";
 var SlideLocSuffix = "&CVT=jpeg";
@@ -49,8 +49,8 @@ $(function() {
 			posClass = data['posClass'];
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
-			
-			
+			IIP_Server = data['iipServer'];
+			SlidePath = data['slidePath'];
 			console.log("UID: "+uid);
 			if( uid == null ) {			
 				window.alert("No session active");

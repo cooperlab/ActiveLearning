@@ -1,5 +1,5 @@
 <?php
-
+	require 'hostspecs.php';
 	session_start();
 	
 	
@@ -10,8 +10,7 @@
 	  			 	       
 	$submit_data = json_encode($submit_data, JSON_NUMERIC_CHECK);
 	
-	$port = $_SESSION['al_server_port'];
-	$addr = gethostbyname($_SESSION['al_server']);
+	$addr = gethostbyname($host);
 	set_time_limit(0);
 	
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
