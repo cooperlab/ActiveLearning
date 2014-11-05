@@ -712,12 +712,14 @@ bool Learner::SaveTrainingSet(string fileName)
 	}
 
 	if( result ) {
-		trainingSet->SaveAs(m_dataPath + fileName);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving training set to: " + m_dataPath + fileName);
+		result = trainingSet->SaveAs(m_dataPath + fileName);
 	}
-
+	
 	if( trainingSet != NULL )
 		delete trainingSet;
 
+	
 	return result;
 }
 
