@@ -1,4 +1,3 @@
-#include <iostream>
 #include <cstdlib>
 #include <cstring>
 #include <set>
@@ -96,14 +95,12 @@ bool MData::Load(string fileName)
 
 	fileId = H5Fopen(fileName.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 	if( fileId < 0 ) {
-		cerr << "Unable to open " << fileName << endl;
 		result = false;
 	}
 
 	if( result ) {
 		status = H5LTget_dataset_info(fileId, "/features", dims, NULL, NULL);
 		if( status < 0 ) {
-			cerr << "Unable to read features dimensions" << endl;
 			result = false;
 		}
 	}
@@ -112,7 +109,6 @@ bool MData::Load(string fileName)
 	if( result && H5Lexists(fileId, "/labels", H5P_DEFAULT) ) {
 		m_labels = (int*)malloc(dims[0] * sizeof(int));
 		if( m_labels == NULL ) {
-			cerr << "Unable to allocate label buffer" << endl;
 			result = false;
 		}
 
@@ -120,7 +116,6 @@ bool MData::Load(string fileName)
 		if( result ) {
 			status = H5LTread_dataset_int(fileId, "/labels", m_labels);
 			if( status < 0 ) {
-				cerr << "Unable to read label data" << endl;
 				result = false;
 			} else {
 				m_haveLabels = true;
@@ -134,7 +129,6 @@ bool MData::Load(string fileName)
 	if( result && slidesExist ) {
 		m_slideIdx = (int*)malloc(dims[0] * sizeof(int));
 		if( m_slideIdx == NULL ) {
-			cerr << "Unable to allocate index buffer" << endl;
 			result = false;
 		}
 
@@ -142,7 +136,6 @@ bool MData::Load(string fileName)
 		if( result ) {
 			status = H5LTread_dataset_int(fileId, "/slideIdx", m_slideIdx);
 			if( status < 0 ) {
-				cerr << "Unable to read index data" << endl;
 				result = false;
 			}
 		}
@@ -154,7 +147,6 @@ bool MData::Load(string fileName)
 		if( result ) {
 			m_xCentroid = (float*)malloc(dims[0] * sizeof(float));
 			if( m_xCentroid == NULL ) {
-				cerr << "Unable to allocate x centroids buffer" << endl;
 				result = false;
 			}
 		}
@@ -162,7 +154,6 @@ bool MData::Load(string fileName)
 		if( result ) {
 			status = H5LTread_dataset_float(fileId, "/x_centroid", m_xCentroid);
 			if( status < 0 ) {
-				cerr << "Unable to read x centroid data" << endl;
 				result = false;
 			}
 		}
@@ -172,7 +163,6 @@ bool MData::Load(string fileName)
 		if( result ) {
 			m_yCentroid = (float*)malloc(dims[0] * sizeof(float));
 			if( m_yCentroid == NULL ) {
-				cerr << "Unable to allocate y centroids buffer" << endl;
 				result = false;
 			}
 		}
@@ -181,7 +171,6 @@ bool MData::Load(string fileName)
 		if( result ) {
 			status = H5LTread_dataset_float(fileId, "/y_centroid", m_yCentroid);
 			if( status < 0 ) {
-				cerr << "Unable to read y centroid data" << endl;
 				result = false;
 			}
 		}
@@ -196,11 +185,9 @@ bool MData::Load(string fileName)
 				for(int i = 1; i < dims[0]; i++)
 					m_objects[i] = m_objects[i - 1] + dims[1];
 			} else {
-				cerr << "Unable to allocate feature buffer" << endl;
 				result = false;
 			}
 		} else {
-			cerr << "Unable to allocate feature buffer index" << endl;
 			result = false;
 		}
 	}
@@ -210,7 +197,6 @@ bool MData::Load(string fileName)
 	if( result ) {
 		status = H5LTread_dataset_float(fileId, "/features", m_objects[0]);
 		if( status < 0 ) {
-			cerr << "Unable to read feature data" << endl;
 			result = false;
 		} else {
 			m_numObjs = dims[0];
@@ -230,7 +216,6 @@ bool MData::Load(string fileName)
 
 			m_slides = (char**)malloc(dims[0] * sizeof(char*));
 			if( m_slides == NULL ) {
-				cerr << "Unable to allocate slide name buffer" << endl;
 				result = false;
 			}
 		}
@@ -240,7 +225,6 @@ bool MData::Load(string fileName)
 			H5Tset_size(m_memType, H5T_VARIABLE);
 			status = H5Dread(dset, m_memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides);
 			if( status < 0 ) {
-				cerr << "Unable to read slide names" << endl;
 				result = false;
 			} else {
 				this->m_numSlides = dims[0];
@@ -409,11 +393,9 @@ bool MData::SaveAs(string filename)
 	hsize_t	dims[2];
 	herr_t	status;
 
-	cout << "Saving " << filename << endl;
-
 	fileId = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 	if( fileId < 0 ) {
-		cerr << "Unable to create training set file" << endl;
+//		cerr << "Unable to create training set file" << endl;
 		result = false;
 	}
 
@@ -422,7 +404,7 @@ bool MData::SaveAs(string filename)
 		dims[1] = m_numDim;
 		status = H5LTmake_dataset(fileId, "/features", 2, dims, H5T_NATIVE_FLOAT, m_objects[0]);
 		if( status < 0 ) {
-			cerr << "Unable to create features dataset" << endl;
+//			cerr << "Unable to create features dataset" << endl;
 			result = false;
 		}
 	}
@@ -431,7 +413,7 @@ bool MData::SaveAs(string filename)
 		dims[1] = 1;
 		status = H5LTmake_dataset(fileId, "/labels", 2, dims, H5T_NATIVE_INT, m_labels);
 		if( status < 0 ) {
-			cerr << "Unable to create labels dataset" << endl;
+//			cerr << "Unable to create labels dataset" << endl;
 			result = false;
 		}
 	}
@@ -440,7 +422,7 @@ bool MData::SaveAs(string filename)
 		dims[1] = 1;
 		status = H5LTmake_dataset(fileId, "/db_id", 2, dims, H5T_NATIVE_INT, m_dbIds);
 		if( status < 0 ) {
-			cerr << "Unable to create ID dataset" << endl;
+//			cerr << "Unable to create ID dataset" << endl;
 			result = false;
 		}
 	}
@@ -466,7 +448,6 @@ bool MData::SaveProvenance(hid_t fileId)
 
 	struct utsname	hostInfo;
 	if( uname(&hostInfo) ) {
-		cerr << "uname failed" << endl;
 		result = false;
 	}
 
@@ -482,7 +463,6 @@ bool MData::SaveProvenance(hid_t fileId)
 
 		status = H5LTset_attribute_string(fileId, "/", "host info", sysInfo.c_str());
 		if( status < 0 ) {
-			cerr << "Unable to write system info attribute" << endl;
 			result = false;
 		}
 	}
@@ -492,7 +472,6 @@ bool MData::SaveProvenance(hid_t fileId)
 
 		status = H5LTset_attribute_int(fileId, "/", "version", ver, 2);
 		if( status < 0 ) {
-			cerr << "Unable to write version attribute" << endl;
 			result = false;
 		}
 	}
@@ -508,7 +487,6 @@ bool MData::SaveProvenance(hid_t fileId)
 
 		status = H5LTset_attribute_string(fileId, "/", "creation date", curTime);
 		if( status < 0 ) {
-			cerr << "Unable to write creation time" << endl;
 			result = false;
 		}
 	}

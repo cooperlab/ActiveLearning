@@ -1,7 +1,8 @@
-#include <iostream>
+#include <fstream>
 #include <cstdlib>
 
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -11,19 +12,24 @@
 #include <time.h> 
 
 #include <jansson.h>
+#include <libconfig.h++>
 
 #include "learner.h"
+#include "logger.h"
 
-#include "cmdline.h"
+//#include "cmdline.h"
 #include "base_config.h"
 
 
 
 
 using namespace std;
+using namespace libconfig;
+
 
 
 bool	gDone = false;		// Sig handler will set this to true
+EvtLogger	*gLogger = NULL;
 
 #define RX_BUFFER_SIZE		(100 * 1024)
 static char *gBuffer = NULL;
@@ -36,10 +42,42 @@ static char *gBuffer = NULL;
 bool Daemonize(void)
 {
 	bool	result = true;
+	pid_t	pid, sid;
 
-	// TODO - Daemonize the process and convert all output to
-	//		  stdio and stderr to log file output
+	// Fork child process
+	pid = fork();
+	if( pid < 0 ) {
+		// fork error
+		result = false;
+	}
 
+	if( result && pid > 0 ) {
+		// Kill parent process
+		exit(EXIT_SUCCESS);
+	}
+
+	// Change umask
+	if( result ) {
+		umask(0);
+		sid = setsid();
+		if( sid < 0 ) {
+			result = false;
+		}
+	}
+
+	// Change to root directory
+	if( result ) {
+		if( chdir("/") < 0 ) {
+			result = false;
+		}
+	}
+
+	// Close stdio
+	if( result ) {
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
+	}
 	return result;
 }
 
@@ -56,7 +94,7 @@ Learner* Initialize(string path)
 
 	learner = new Learner(path);
 	if( learner == NULL ) {
-		cerr << "Unable to create learner object" << endl;
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create learner object");
 	}
 	return learner;
 }
@@ -74,12 +112,12 @@ bool HandleRequest(const int fd, Learner *learner)
 
 
 	bytesRx = recv(fd, gBuffer, RX_BUFFER_SIZE, 0);
-	cout << "Read " << bytesRx << " bytes" << endl;
+
 	if( bytesRx > 0 ) {
 		result = learner->ParseCommand(fd, gBuffer, bytesRx);
 
 	} else {
-		cout << "Invalid request" << endl;
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid request");
 	}
 	return result;
 }
@@ -89,26 +127,68 @@ bool HandleRequest(const int fd, Learner *learner)
 
 
 
+bool ReadConfig(string& path, short& port)
+{
+	bool	result = true;
+	Config	config;
+	int		readPort;
+
+	// Load & parse config file
+	try{
+		config.readFile("/etc/al_server/al_server.conf");
+	} catch( const FileIOException &ioex ) {
+		result = false;;
+	}
+	// Root path
+	try {
+		 path = (const char*)config.lookup("root_path");;
+	} catch( const SettingNotFoundException &nfEx ) {
+		result = false;
+	}
+
+	// Server port
+	try {
+		config.lookupValue("port", readPort);
+	} catch(const SettingNotFoundException &nfEx) {
+		result = false;
+	}
+	port = (short)readPort;
+	return result;
+}
+
+
+
+
+
+
+
+
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	gengetopt_args_info		args;
 	Learner	*learner = NULL;
+	short 	port;
+	string 	path;
 
-
-	status = cmdline_parser(argc, argv, &args);
-	string  path = args.data_path_arg;
+	gLogger = new EvtLogger("/var/log/al_server.log");
+	if( gLogger == NULL ) {
+		status = -1;
+	}
 
 	if( status == 0 ) {
+		if( !ReadConfig(path, port) ) {
+			status = -1;
+		}
+	}
 
-		// Daemonize the process
+	if( status == 0 ) {
 		Daemonize();
 	}
 
 	if( status == 0 ) {
 		gBuffer = (char*)malloc(RX_BUFFER_SIZE);
 		if( gBuffer == NULL ) {
-			cerr << "Unable to allocate RX buffer" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to allocate RX buffer");;
 			status = -1;
 		}
 	}
@@ -117,7 +197,7 @@ int main(int argc, char *argv[])
 		// Setup Active learning objects
 		learner = Initialize(path);
 		if( learner == NULL ) {
-			cerr << "Unable to initialize server" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to initialize server");
 			status = -1;
 		}
 
@@ -125,7 +205,6 @@ int main(int argc, char *argv[])
 
 			int listenFD = 0, connFD = 0;
 			struct sockaddr_in serv_addr, test;
-			short	port = args.port_arg;
 
 			// Setup socket
 			listenFD = socket(AF_INET, SOCK_STREAM, 0);
@@ -140,17 +219,18 @@ int main(int argc, char *argv[])
 
 			struct sockaddr_in	peer;
 			int	len = sizeof(peer);
-
+			char msg[100];
 			// Event loop...
 			while( !gDone ) {
 
 				// Get a connection
 				connFD = accept(listenFD, (struct sockaddr*)&peer, (socklen_t*)&len);
 
-				cout << "Request from " << inet_ntoa(peer.sin_addr) << endl;
+				snprintf(msg, 100, "Request from %s", inet_ntoa(peer.sin_addr));
+				gLogger->LogMsg(EvtLogger::Evt_INFO, msg);
 
 				if( HandleRequest(connFD, learner) == false ) {
-					cerr << "Request failed" << endl;
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "Request failed");
 				}
 				close(connFD);
 				sleep(1);
@@ -162,6 +242,9 @@ int main(int argc, char *argv[])
 		if( learner )
 			delete learner;
 	}
+	if( gLogger )
+		delete gLogger;
+
 	return status;
 }
 

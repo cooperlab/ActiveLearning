@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <iostream>
 #include <string>
 #include <vector>
 #include <cstring>
@@ -227,17 +226,6 @@ bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *
 					}
 				}
 			}
-			cout << "Selected: ";
-			for(int j = 0; j < nGroups; j++) {
-				for(int i = 0; i < nStrata * 2; i++) {
-					cout << idx[(j * nStrata * 2) + i];
-					if( idxScores )
-						cout << "(" << idxScores[(j * nStrata * 2) + i] << ")";
-					cout << " ";
-				}
-				cout << endl;
-			}
-			cout << endl;
 		}
 		if( checkSet )
 			free(checkSet);

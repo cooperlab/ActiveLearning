@@ -1,4 +1,3 @@
-#include <iostream>
 #include <cfloat>
 #include <cstring>
 #include <cmath>
@@ -24,8 +23,6 @@ m_sampledClusters(NULL)
 
 	if( m_membership ) {
 		m_initialized = ClusterData();
-	} else {
-		cerr << "Unable to allocate membership buffer" << endl;
 	}
 }
 
@@ -183,7 +180,6 @@ void ClusterSample::GetSupportSet(set<int>& supportSet, int *&supportLabels)
 			if( newLabels )
 				supportLabels = newLabels;
 			else  {
-				cerr << "Unable to adjust buffer" << endl;
 				exit(-1);
 			}
 			int		idx = supportSet.size();

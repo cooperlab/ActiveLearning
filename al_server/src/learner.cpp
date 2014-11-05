@@ -8,7 +8,7 @@
 #include <algorithm>
 
 #include "learner.h"
-
+#include "logger.h"
 
 
 
@@ -19,6 +19,7 @@ const char failResp[] = "FAIL";
 
 #define INITIAL_OBJS 8
 
+extern EvtLogger *gLogger;
 
 
 Learner::Learner(string dataPath) :
@@ -108,11 +109,10 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 	json_error_t error;
 
 	data[size] = 0;
-	cout << data << endl;
 
 	root = json_loads(data, 0, &error);
 	if( !root ) {
-		cerr << "Error parsing json" << endl;
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Error parsing json");
 		result = false;
 	}
 
@@ -120,10 +120,12 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 		json_t	*cmdObj = json_object_get(root, "command");
 
 		if( !json_is_string(cmdObj) ) {
-			cerr << "Command is not a string" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Command is not a string");
 			result = false;
 		} else {
 			const char	*command = json_string_value(cmdObj);
+
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Processing: " + string(command));
 
 			// TODO - Get rid of hard-coded commands
 			//
@@ -144,7 +146,7 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 			} else if( strncmp(command, "visualize", 9) == 0 ) {
 				result = Visualize(sock, root);
 			} else {
-				cerr << "Invalid command" << endl;
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
 			}
 		}
@@ -169,7 +171,9 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	m_UID[UID_LENGTH] = 0;
 
 	if( strlen(m_UID) > 0 ) {
-		cerr << "Session already in progress: " << m_UID << endl;
+		char msg[100];
+		snprintf(msg, 100, "Session already in progress: %s", m_UID);
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, msg);
  		result = false;
 	}
 
@@ -189,7 +193,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		strncpy(m_UID, uid, UID_LENGTH);
 		m_dataset = new MData();
 		if( m_dataset == NULL ) {
-			cerr << "Unable to create dataset object" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
 			result = false;
 		}
 	}
@@ -206,7 +210,8 @@ bool Learner::StartSession(const int sock, json_t *obj)
 
 	if( result ) {
 		string fqFileName = m_dataPath + string(fileName);
-		cout << "Loading " << fqFileName << endl;
+
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
 
 		result = m_dataset->Load(fqFileName);
 	}
@@ -214,9 +219,10 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	// Create classifier and sampling objects
 	//
 	if( result ) {
+		char msg[100];
 
-		cout << "Loaded... " << m_dataset->GetNumObjs() << " objects of "
-				<< m_dataset->GetDims() << " dimensions" << endl;
+		snprintf(msg, 100, "Loaded... %d objects of %d dimensions", m_dataset->GetNumObjs(), m_dataset->GetDims());
+		gLogger->LogMsg(EvtLogger::Evt_INFO, msg);
 
  		m_classifier = new OCVBinarySVM();
 		if( m_classifier == NULL ) {
@@ -265,14 +271,14 @@ bool Learner::Select(const int sock, json_t *obj)
 	float	score;
 
 	if( root == NULL ) {
-		cerr << "Error creating JSON array" << endl;
+		gLogger->LogMsg(EvtLogger::Evt_ERROR,  "Error creating JSON array");
 		result = false;
 	}
 
 	if( result ) {
 		sampleArray = json_array();
 		if( sampleArray == NULL ) {
-			cerr << "Unable to create sample JSON Array" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Unable to create sample JSON Array");
 			result = false;
 		}
 	}
@@ -286,7 +292,7 @@ bool Learner::Select(const int sock, json_t *obj)
 
 			sample = json_object();
 			if( sample == NULL ) {
-				cerr << "Unable to create sample JSON object" << endl;
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON object");
 				result = false;
 				break;
 			}
@@ -294,7 +300,6 @@ bool Learner::Select(const int sock, json_t *obj)
 			if( m_iteration != reqIteration ) {
 				// Get new sample
 				idx = m_sampler->Select(&score);
-				cout << "Selected " << idx << ", score: " << score << endl;
 				m_curSet.push_back(idx);
 				m_curScores.push_back(score);
 			} else {
@@ -354,14 +359,14 @@ bool Learner::Submit(const int sock, json_t *obj)
 	// Check iteration to make sure we're in sync
 	//
 	if( iter != m_iteration ) {
-		cerr << "Resubmitting not allowed" << endl;
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Resubmitting not allowed");;
 		result = false;
 	}
 
 	if( result ) {
 		sampleArray = json_object_get(obj, "samples");
 		if( !json_is_array(sampleArray) ) {
-			cerr << "Invalid samples array" <<endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
 			result = false;
 		}
 	}
@@ -426,7 +431,9 @@ bool Learner::Submit(const int sock, json_t *obj)
 				result = m_dataset->GetSample(idx, &m_trainSet[pos * dims]);
 				m_samples.push_back(idx);
 			} else {
-				cerr << "Unable to find item: " << slide << ", " << centX << ", " << centY  << endl;
+				char msg[100];
+				snprintf(msg, 100, "Unable to find item: %s, %f, %f ", slide, centX, centY);
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, msg);
 				result = false;
 			}
 
@@ -488,14 +495,14 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 
 
 	if( root == NULL ) {
-		cerr << "Error creating JSON array" << endl;
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Error creating JSON array");
 		result = false;
 	}
 
 	if( result ) {
 		sampleArray = json_array();
 		if( sampleArray == NULL ) {
-			cerr << "Unable to create sample JSON Array" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON Array");
 			result = false;
 		}
 	}
@@ -511,7 +518,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 
 			sample = json_object();
 			if( sample == NULL ) {
-				cerr << "Unable to create sample JSON object" << endl;
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON object");
 				result = false;
 				break;
 			}
@@ -561,8 +568,6 @@ bool Learner::Visualize(const int sock, json_t *obj)
 	json_t	*root = json_array(), *sample = NULL, *value = NULL;
 	int		strata, groups;
 
-	cout << "Selecting objects for visualization" << endl;
-
 	value = json_object_get(obj, "strata");
 	strata = json_integer_value(value);
 
@@ -570,7 +575,7 @@ bool Learner::Visualize(const int sock, json_t *obj)
 	groups = json_integer_value(value);
 
 	if( root == NULL ) {
-		cerr << "Unable to crate JSON array for visualization" << endl;
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to crate JSON array for visualization");
 		result = false;
 	}
 
@@ -586,7 +591,7 @@ bool Learner::Visualize(const int sock, json_t *obj)
 				sample = json_object();
 
 				if( sample == NULL ) {
-					cerr << "Unable to create sample JSON object" << endl;
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON object");
 					result = false;
 					break;
 				}
@@ -676,18 +681,9 @@ bool Learner::CancelSession(const int sock, json_t *obj)
 {
 	bool	result = true;
 
-	if( m_samples.size() > 0 ) {
-		cout << m_samples.size() << " samples selected" << endl;
-		for(int i = 0; i < m_samples.size(); i++) {
-			cout << i << ") idx: " << m_samples[i] << ", id: " << m_ids[i] <<
-					", label: " << m_labels[i] << endl;
-
-		}
-	}
-
 	// Just erase the UID for now
 	memset(m_UID, 0, UID_LENGTH + 1);
-	cout << "Session canceled" << endl;
+	gLogger->LogMsg(EvtLogger::Evt_INFO, "Session canceled");
 
 	Cleanup();
 
@@ -750,27 +746,27 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	if( dataSetFile && trainSetFile ) {
 		dataSet = new MData();
 		if( dataSet == NULL ) {
-			cerr << "Unable to create dataset object" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
 			result = false;
 		}
 
 		if( result ) {
 			string fqFileName = m_dataPath + string(dataSetFile);
-			cout << "Loading " << fqFileName << endl;
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
 			result = dataSet->Load(fqFileName);
 		}
 
 		if( result ) {
 			trainingSet = new MData();
 			if( trainingSet == NULL ) {
-				cerr << "Unable to create trainingset object" << endl;
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create trainingset object");
 				result = false;
 			}
 		}
 
 		if( result ) {
 			string fqFileName = m_dataPath + string(trainSetFile);
-			cout << "Loading " << fqFileName << endl;
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
 			result = trainingSet->Load(fqFileName);
 		}
 
@@ -784,7 +780,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 		if( result ) {
 			results = (int*)malloc(dataSet->GetNumObjs() * sizeof(int));
 			if( results == NULL ) {
-				cerr << "Unable to allocate results buffer" << endl;
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to allocate results buffer");
 				result = false;
 			}
 		}
@@ -809,14 +805,14 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 			json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
 
 			if( root == NULL ) {
-				cerr << "Unable to create JSON object" << endl;
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create JSON object");
 				result = false;
 			}
 
 			if( result ) {
 				sampleArray = json_array();
 				if( sampleArray == NULL ) {
-					cerr << "Unable to create JSON array" << endl;
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create JSON array");
 					result = false;
 				}
 			}
@@ -864,8 +860,6 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 		delete classifier;
 	if( results )
 		free(results);
-
-	cout << "All done" << endl;
 	return result;
 }
 
@@ -888,11 +882,6 @@ float Learner::CalcAccuracy(void)
 	if( classifier ) {
 		vector<int>::iterator  it;
 
-		cout << "Current samples: " << endl;
-		for(it = m_samples.begin(); it != m_samples.end(); it++) {
-			cout << *it << " ";
-		}
-		cout << endl;
 		classifier->Train(m_trainSet, m_labels, m_samples.size(), m_dataset->GetDims());
 
 		int  *results = (int*)malloc(m_samples.size() * sizeof(int));
@@ -900,13 +889,9 @@ float Learner::CalcAccuracy(void)
 			classifier->ClassifyBatch(m_trainSet, m_samples.size(), m_dataset->GetDims(), results);
 			int  score = 0;
 			for(int i = 0; i < m_samples.size(); i++) {
-				cout << "Pred: " << results[i] << " label: " << m_labels[i] << endl;
-
 				if( results[i] == m_labels[i] )
 					score++;
 			}
-
-			cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
 			result = (float)score / (float)m_samples.size();
 			free(results);
 		}
@@ -930,7 +915,7 @@ float Learner::CalcAccuracy(void)
 		if( CreateSet(foldList, fold, trainX, trainY, testX, testY) ) {
 
 		} else {
-			cerr << "Unable to create training / test set for validation" << endl;
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create training / test set for validation");
 			result = false;
 			break;
 		}

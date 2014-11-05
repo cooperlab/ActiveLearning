@@ -65,13 +65,15 @@ set(LIBRARIES ${LIBRARIES} ${JANSSON_LIBRARIES})
  
 
 #
-### gengetopt 
+## libconfig++
 #
-find_program(GENGETOPT gengetopt)
-if( GENGETOPT STREQUAL "GENGETOPT-NOTFOUND")
-	message(FATAL_ERROR "Unable to find gengetopt")
-endif( GENGETOPT STREQUAL "GENGETOPT-NOTFOUND")
+find_package(LIBCONFIG REQUIRED)
+if( NOT LIBCONFIG_FOUND )
+  message(FATAL_ERROR "Package libconfig not found")
+endif( NOT LIBCONFIG_FOUND )
 
+include_directories(${LIBCONFIG_INCLUDE_DIR})
+set(LIBRARIES ${LIBRARIES} ${LIBCONFIG_LIBRARIES})
 
 
 
@@ -79,27 +81,16 @@ endif( GENGETOPT STREQUAL "GENGETOPT-NOTFOUND")
 #
 ## Generate cmdline.c, cmdline.h and base_config.h
 # 
-configure_file("${PROJECT_SOURCE_DIR}/src/options.ggo.in" "${CMAKE_CURRENT_BINARY_DIR}/options.ggo")
 configure_file("${PROJECT_SOURCE_DIR}/src/base_config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/base_config.h")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-ADD_CUSTOM_COMMAND(
-	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cmdline.c ${CMAKE_CURRENT_BINARY_DIR}/cmdline.h
-	COMMAND ${GENGETOPT} 
-	ARGS  -i ${CMAKE_CURRENT_BINARY_DIR}/options.ggo
-	DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/options.ggo
-)
-
 
 
 #
 # Executable
 #
 add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.cpp 
-                sampler.cpp cmdline.c)
+                sampler.cpp logger.cpp)
                
-add_dependencies(al_server ${CMAKE_CURRENT_BINARY_DIR}/cmdline.c)
- 
 target_link_libraries(al_server ${LIBRARIES})
 set_target_properties(al_server PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set_target_properties(al_server PROPERTIES OUTPUT_NAME al_serverd${BUILD_POSTFIX})

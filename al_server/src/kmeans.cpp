@@ -17,7 +17,6 @@
 /*   See COPYRIGHT notice in top-level directory.                            */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#include <iostream>
 #include <cstdlib>
 
 
@@ -102,7 +101,6 @@ float** kmeans(float **objects,      /* in: [numObjs][numCoords] */
 		for(int i = 1; i < numClusters; i++)
 			clusters[i] = clusters[i - 1] + numCoords;
 	} else {
-		cerr << "Unable to allocate cluster buffers" << endl;
 		result = false;
 	}
 	
@@ -136,7 +134,6 @@ float** kmeans(float **objects,      /* in: [numObjs][numCoords] */
 				pickList[pick] = pickList[remaining];
 			}
 		} else {
-			cerr << "Unable to allocate data index" << endl;
 			result = false;
 		}
 	}
@@ -159,11 +156,9 @@ float** kmeans(float **objects,      /* in: [numObjs][numCoords] */
 				for(int i = 1; i<numClusters; i++)
 					newClusters[i] = newClusters[i - 1] + numCoords;
 			} else {
-				cerr << "Unable to allocate cluster buffer" << endl;
 				result = false;
 			}
 		} else {
-			cerr << "Unable to allocate cluster buffer index" << endl;
 			result = false;
 		}
 	}
@@ -203,7 +198,6 @@ float** kmeans(float **objects,      /* in: [numObjs][numCoords] */
 			}
 
 			delta /= numObjs;
-			//cout << "Loop: " << loop << ", delta: " << delta << endl;
 		} while (delta > threshold && loop++ < 500);
 	}
 	if( newClusters ) {
