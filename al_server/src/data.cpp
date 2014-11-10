@@ -395,7 +395,6 @@ bool MData::SaveAs(string filename)
 
 	fileId = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 	if( fileId < 0 ) {
-//		cerr << "Unable to create training set file" << endl;
 		result = false;
 	}
 
@@ -404,7 +403,6 @@ bool MData::SaveAs(string filename)
 		dims[1] = m_numDim;
 		status = H5LTmake_dataset(fileId, "/features", 2, dims, H5T_NATIVE_FLOAT, m_objects[0]);
 		if( status < 0 ) {
-//			cerr << "Unable to create features dataset" << endl;
 			result = false;
 		}
 	}
@@ -413,7 +411,6 @@ bool MData::SaveAs(string filename)
 		dims[1] = 1;
 		status = H5LTmake_dataset(fileId, "/labels", 2, dims, H5T_NATIVE_INT, m_labels);
 		if( status < 0 ) {
-//			cerr << "Unable to create labels dataset" << endl;
 			result = false;
 		}
 	}
@@ -422,7 +419,6 @@ bool MData::SaveAs(string filename)
 		dims[1] = 1;
 		status = H5LTmake_dataset(fileId, "/db_id", 2, dims, H5T_NATIVE_INT, m_dbIds);
 		if( status < 0 ) {
-//			cerr << "Unable to create ID dataset" << endl;
 			result = false;
 		}
 	}
