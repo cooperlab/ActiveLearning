@@ -346,6 +346,8 @@ function updateSamples() {
 				
 				thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
 				
+				// TODO - Fix thumb paths
+				//
 				if( curDataset === "Single slide test" ) {
 					thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
 				} else {
