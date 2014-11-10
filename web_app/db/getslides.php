@@ -1,15 +1,13 @@
 <?php
 
+	require 'connect.php';
+
 	/* 	Retrieve a list of segmented slides from the data base.
 		Return as a json object
 	*/
 	$dataset = $_POST['dataset'];
 	
-	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
-	if( !$dbConn ) {
-		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
-		exit();
-	}
+	$dbConn = guestConnect();
 	
 	/* 
 		May want to change this if the joins cause a slowdown

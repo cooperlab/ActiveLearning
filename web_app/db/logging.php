@@ -1,11 +1,11 @@
 <?php
 
+require 'connect.php';
+
+
+
 function write_log($type, $message)
 {
-	$dbConn = mysqli_connect("localhost", "logger", "BMIIsGoodz!", "nuclei");
-	if( !$dbConn ) {
-		return array( 'status' => false, 'message' => 'Unable to connect to database');
-	}
 
 	if( $message == '' ) {
 		return array( 'status' => false, 'message' => 'Empty message not valid');
@@ -22,6 +22,7 @@ function write_log($type, $message)
 	}
 		
 
+	$dbConn = loggerConnect();
 	$message = mysqli_real_escape_string($dbConn, $message);
 	$remoteAddr = mysqli_real_escape_string($dbConn, $remoteAddr);
 	$type = mysqli_real_escape_string($dbConn, $type);

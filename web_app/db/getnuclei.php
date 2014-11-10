@@ -1,7 +1,8 @@
 <?php
-	require 'logging.php';
+	require 'logging.php';		// Also includes connect.php
 	require '../php/hostspecs.php';
-	
+
+
 
 	/* 	Retrieve a list of nuclei boundaries within the given rectangle
 		Return as a json object
@@ -51,12 +52,7 @@
 	}
 */
 
-	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
-	if( !$dbConn ) {
-		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
-		exit();
-	}
-
+	$dbConn = guestConnect();
 	$sql = 'SELECT boundary, id from boundaries where slide="'.$slide.'" AND centroid_x BETWEEN '.$left.' AND '.$right.' AND centroid_y BETWEEN '.$top.' AND '.$bottom.' LIMIT 15000';
   	
 	if( $result = mysqli_query($dbConn, $sql) ) {

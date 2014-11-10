@@ -1,5 +1,7 @@
 <?php
 
+	require 'connect.php';
+
 	/* 	Retrieve a single nuclei that has the closest centroid to the specified point
 		Return as a json object
 	*/
@@ -17,11 +19,7 @@
  	$boxTop = $cellY - 10;
 	$boxBottom = $cellY + 10;
 
-	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
-	if( !$dbConn ) {
-		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
-		exit();
-	}
+	$dbConn = guestConnect();
 
 	$sql = 'SELECT boundary, id, centroid_x, centroid_y, '.
 		   '(pow(centroid_x -'.$cellX.',2) + pow(centroid_y -'.$cellY.',2)) AS dist '.

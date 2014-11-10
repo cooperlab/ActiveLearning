@@ -31,12 +31,7 @@
 	$response = json_decode($response, true);
 
 
-	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
-	if( !$dbConn ) {
-		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
-		exit();
-	}
-	
+	$dbConn = guestConnect();
 	// Get dataset ID
 	if( $result = mysqli_query($dbConn, 'SELECT id from datasets where name="'.$_SESSION['dataset'].'"') ) {
 

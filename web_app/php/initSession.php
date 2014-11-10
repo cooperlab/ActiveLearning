@@ -40,11 +40,7 @@
 	
 	// Get the dataset file from the database
 	//
-	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
-	if( !$dbConn ) {
-		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
-		exit();
-	}
+	$dbConn = guestConnect();
 	$sql = 'SELECT features_file FROM datasets WHERE name="'.$_POST["dataset"].'"';
 
 	if( $result = mysqli_query($dbConn, $sql) ) {

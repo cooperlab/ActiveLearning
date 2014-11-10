@@ -37,12 +37,7 @@
 	
 	// Now get the max X & Y from the database for the slide of the samples
 	//
-	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
-	if( !$dbConn ) {
-		log_error("[GetVis] Unable to connect to the database server ".mysqli_connect_error() );
-		exit();
-	}
-
+	$dbConn = guestConnect();
 	$response = json_decode($response, true);
 	
 	for($i = 0, $len = count($response); $i < $len; ++$i) {

@@ -1,6 +1,8 @@
 <?php
 
 	require 'hostspecs.php';
+	require '../db/logging.php';
+	
 	session_start();
 	
 	$sel_data =  array( "command" => "select", 
@@ -28,12 +30,7 @@
 
 	// Now get the max X & Y from the database for the slide of the samples
 	//
-	$dbConn = mysqli_connect("localhost", "guest", "", "nuclei");
-	if( !$dbConn ) {
-		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
-		exit();
-	}
-
+	$dbConn = guestConnect();
 	$response = json_decode($response, true);
 		
 	
