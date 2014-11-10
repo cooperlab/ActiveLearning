@@ -64,3 +64,20 @@ $(function() {
 	//
 	
 });
+
+
+
+
+function resetAlServer() {
+
+	console.log("Canceling session");
+
+	$.ajax({
+		url: "php/cancelSession.php",
+		data: "",
+		success: function() {
+			window.location = "index.html";
+		}
+	});
+}
+
