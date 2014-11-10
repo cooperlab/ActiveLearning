@@ -96,7 +96,7 @@
 	}
 	mysqli_close($dbConn);
 	
-	write_log("INFO", "Session ".$_SESSION['classifier']." finished, Trining set saved to: ".$response['filename']);
+	write_log("INFO", "Session ".$_SESSION['classifier']." finished, Training set saved to: ".$response['filename']);
 	
 	// TODO - Add a download of the training set file.
 	echo "PASS";
