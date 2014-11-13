@@ -161,7 +161,7 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 
 bool Learner::StartSession(const int sock, json_t *obj)
 {
-	bool	result = true;
+	bool	result = true, uidUpdated = false;
 	json_t	*jsonObj;
 	const char *fileName, *uid, *classifierName;
 
@@ -181,7 +181,12 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		m_iteration = 0;
 		jsonObj = json_object_get(obj, "features");
 		fileName = json_string_value(jsonObj);
-
+		if( fileName == NULL ) {
+			result = false;
+		}
+	}
+	
+	if( result ) {
 		jsonObj = json_object_get(obj, "uid");
 		uid = json_string_value(jsonObj);
 		if( uid == NULL ) {
@@ -191,6 +196,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 
 	if( result ) {
 		strncpy(m_UID, uid, UID_LENGTH);
+		uidUpdated = true;
 		m_dataset = new MData();
 		if( m_dataset == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
@@ -246,6 +252,10 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	if( bytesWritten != sizeof(failResp) - 1 )
 		result = false;
 
+	if( !result && uidUpdated ){
+		// Initialization failed, clear current UID
+		memset(m_UID, 0, UID_LENGTH + 1);
+	}
 	return result;
 }
 
@@ -259,26 +269,51 @@ bool Learner::StartSession(const int sock, json_t *obj)
 bool Learner::Select(const int sock, json_t *obj)
 {
 	bool	result = true;
-	json_t 	*value = NULL;
-	int		reqIteration;
-
-
-	value = json_object_get(obj, "iteration");
-	reqIteration = json_integer_value(value);
-
-	json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
-	int		idx;
+	json_t 	*root = NULL, *value = NULL, *sample = NULL, *sampleArray = NULL;
+	int		reqIteration, idx;
 	float	score;
 
-	if( root == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR,  "Error creating JSON array");
-		result = false;
-	}
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
 
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) No active session");
+		result = false;
+	} else {
+		value = json_object_get(obj, "uid");
+		const char *uid = json_string_value(value);
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Invalid UID");
+			result = false;		
+		}
+	}
+			
+	value = json_object_get(obj, "iteration");
+	if( value == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode iteration");
+		result = false;
+	} else {
+		reqIteration = json_integer_value(value);
+	}
+	
+	if( result ) {
+		root = json_object();
+
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(select) Error creating JSON object");
+			result = false;
+		}
+	}
+	
 	if( result ) {
 		sampleArray = json_array();
 		if( sampleArray == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Unable to create sample JSON Array");
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "(select) Unable to create sample JSON Array");
 			result = false;
 		}
 	}
@@ -323,18 +358,19 @@ bool Learner::Select(const int sock, json_t *obj)
 		}
 	}
 
-	json_object_set(root, "samples", sampleArray);
-	json_decref(sampleArray);
+	if( result ) {
+		json_object_set(root, "samples", sampleArray);
+		json_decref(sampleArray);
 
-	char *jsonObj = json_dumps(root, 0);
-	size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+		char *jsonObj = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
 
-	if( bytesWritten != strlen(jsonObj) )
-		result = false;
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
 
-	json_decref(root);
-	free(jsonObj);
-
+		json_decref(root);
+		free(jsonObj);
+	}
 	return result;
 }
 
@@ -353,16 +389,42 @@ bool Learner::Submit(const int sock, json_t *obj)
 	json_t	*sampleArray, *value, *jsonObj;
 	int		iter;
 
-	value = json_object_get(obj, "iteration");
-	iter = json_integer_value(value);
-
-	// Check iteration to make sure we're in sync
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
 	//
-	if( iter != m_iteration ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Resubmitting not allowed");;
+	m_UID[UID_LENGTH] = 0;
+
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) No active session");
 		result = false;
+	} else {
+		value = json_object_get(obj, "uid");
+		const char *uid = json_string_value(value);
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) Invalid UID");
+			result = false;		
+		}
 	}
 
+	if( result ) {
+		value = json_object_get(obj, "iteration");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) Unable to decode iteration");
+			result = false;
+		} else {
+			iter = json_integer_value(value);
+			// Check iteration to make sure we're in sync
+			//
+			if( iter != m_iteration ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Resubmitting not allowed");;
+				result = false;
+			}
+		}
+	}
+	
 	if( result ) {
 		sampleArray = json_object_get(obj, "samples");
 		if( !json_is_array(sampleArray) ) {
@@ -442,7 +504,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 				break;
 		}
 	}
-
+	
 	// Send result back to client
 	//
 	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
@@ -481,20 +543,45 @@ bool Learner::Submit(const int sock, json_t *obj)
 bool Learner::FinalizeSession(const int sock, json_t *obj)
 {
 	bool	result = true;
-	json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
+	json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL,
+			*jsonObj = NULL;
+	const char *uid = NULL;
 	int		idx;
 	float	score;
-	string 	fileName = m_classifierName + ".h5";
+	string 	fileName = m_classifierName + ".h5", fqfn;
 
-	struct stat buffer;
-	if( stat(fileName.c_str(), &buffer) == 0 ) {
-		string 	tag = &m_UID[UID_LENGTH - 3];
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
 
-		fileName = m_classifierName + "_" + tag + ".h5";
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finalize) No active session");
+		result = false;
+	} else {
+		jsonObj = json_object_get(obj, "uid");
+		const char *uid = json_string_value(jsonObj);
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finaleize) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finaleize) Invalid UID");
+			result = false;		
+		}
 	}
 
 
-	if( root == NULL ) {
+	if( result ) {
+		fqfn = m_dataPath + fileName;
+		struct stat buffer;
+		if( stat(fqfn.c_str(), &buffer) == 0 ) {
+			string 	tag = &m_UID[UID_LENGTH - 3];
+
+			fileName = m_classifierName + "_" + tag + ".h5";
+		}
+	}
+
+	if( result && root == NULL ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Error creating JSON array");
 		result = false;
 	}
@@ -533,22 +620,25 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 		}
 	}
 
-	json_object_set(root, "samples", sampleArray);
-	json_decref(sampleArray);
+	if( result ) {
+		json_object_set(root, "samples", sampleArray);
+		json_decref(sampleArray);
 
-	char *jsonObj = json_dumps(root, 0);
-	size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+		char *jsonStr = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonStr, strlen(jsonStr));
 
-	if( bytesWritten != strlen(jsonObj) )
-		result = false;
-
+		if( bytesWritten != strlen(jsonStr) )
+			result = false;
+		free(jsonStr);
+	}
 	json_decref(root);
-	free(jsonObj);
 
 	// Save the training set
 	//
-	result = SaveTrainingSet(fileName);
-
+	if( result ) {
+		result = SaveTrainingSet(fileName);
+	}
+	
 	// This session is done, clear the UID and cleanup associated
 	// data
 	//
@@ -568,12 +658,47 @@ bool Learner::Visualize(const int sock, json_t *obj)
 	json_t	*root = json_array(), *sample = NULL, *value = NULL;
 	int		strata, groups;
 
-	value = json_object_get(obj, "strata");
-	strata = json_integer_value(value);
+	
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
 
-	value = json_object_get(obj, "groups");
-	groups = json_integer_value(value);
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) No active session");
+		result = false;
+	} else {
+		value = json_object_get(obj, "uid");
+		const char *uid = json_string_value(value);
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid UID");
+			result = false;		
+		}
+	}
 
+	if( result ) {
+		value = json_object_get(obj, "strata");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid strata");
+			result = false;
+		} else {		
+			strata = json_integer_value(value);
+		}
+	}
+	
+	if( result ) {
+		value = json_object_get(obj, "groups");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid groups");
+			result = false;	
+		} else {
+			groups = json_integer_value(value);
+		}
+	}	
+	
 	if( root == NULL ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to crate JSON array for visualization");
 		result = false;
@@ -739,12 +864,34 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	int		*results = NULL, *labels, dims;
 	float	*test, *train;
 
-	value = json_object_get(obj, "dataset");
-	dataSetFile = json_string_value(value);
+		// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
 
-	value = json_object_get(obj, "trainingset");
-	trainSetFile = json_string_value(value);
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) No active session");
+		result = false;
+	} else {
+		value = json_object_get(obj, "uid");
+		const char *uid = json_string_value(value);
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid UID");
+			result = false;		
+		}
+	}
 
+	if( result ) {
+		value = json_object_get(obj, "dataset");
+		dataSetFile = json_string_value(value);
+
+		value = json_object_get(obj, "trainingset");
+		trainSetFile = json_string_value(value);
+	}
+	
 	if( dataSetFile && trainSetFile ) {
 		dataSet = new MData();
 		if( dataSet == NULL ) {
