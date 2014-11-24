@@ -1,9 +1,8 @@
 var negClass = "";
 var posClass = "";
 var uid = "";
-var IIP_Server = "";
-var SlidePath = "";
-var curDataset;
+var IIPServer = "";
+
 
 var SlideSuffix = ".svs-tile.dzi.tif";
 var SlideLocPre = "&RGN=";
@@ -31,10 +30,9 @@ $(function() {
 			uid = data['uid'];
 			posClass = data['posClass'];
 			negClass = data['negClass'];
-			curDataset = data['dataset'];
-			IIP_Server = data['iipServer'];
-			SlidePath = data['slidePath'];
-					
+			IIPServer = data['IIPServer'];
+
+			
 			if( uid == null ) {			
 				window.alert("No session active");
 				window.history.back();
@@ -66,33 +64,41 @@ function visualize() {
 			  },
 		success: function(data) {
 
-			console.log("Vis data length: " + data.length);
-			var thumbtag;
+			var thumbTag;
 			
 			// Data is returned ordered most certain to most uncertain for
 			// the negative class followed by the positive class most uncertain 
 			// to most certain
 			// 			
-			var row = 1, col = 1;
+			var row = 1, col = 1, scale;
 			for(var i in data) {
 				slide = data[i]['slide'];
-				centX = (data[i]['centX'] - 40) / data[i]['maxX'];
-				centY = (data[i]['centY'] - 40) / data[i]['maxY'];
-				sizeX = 80.0 / data[i]['maxX'];
-				sizeY = 80.0 / data[i]['maxY'];
+				scale = data[i]['scale'];
+				
+				centX = (data[i]['centX'] - (40.0 * scale)) / data[i]['maxX'];
+				centY = (data[i]['centY'] - (40.0 * scale)) / data[i]['maxY'];
+				sizeX = (80.0 * scale) / data[i]['maxX'];
+				sizeY = (80.0 * scale) / data[i]['maxY'];
 				loc = centX+","+centY+","+sizeX+","+sizeY;
 				
-				thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
 				
-				if( curDataset === "Single slide test" ) {
-					thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+				if( data[i]['path'] === null ) {
+					var SlidePath = "FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/";	
+					thumbNail = IIPServer+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
 				} else {
-					thumbNail = IIP_Server+"FIF=/bigdata3/mnalisn_scratch/active_learning_slides/SOX2-pyramids/sox2test.tif"+SlideLocPre+loc+SlideLocSuffix;						
+					thumbNail = IIPServer+"FIF="+data[i]['path']+SlideLocPre+loc+SlideLocSuffix;						
 				}
+				
+				console.log("thumbnail: " + thumbNail);
 					
 				thumbTag = "#row_"+(parseInt(row))+"_"+(parseInt(col));
 				$(thumbTag).attr("src", thumbNail);
 				
+				if( row === 1 ) {
+					thumbTag = "#thumb_"+parseInt(col);
+					$(thumbTag).attr("src", thumbNail);
+				}
+									
 				col = col + 1;
 				if( col > 2 * strata ) {
 					col = 1;
@@ -132,10 +138,12 @@ function showBoundaries(nuclei)
 				
 				img = document.getElementById(rowTag);
 				overlay = document.getElementById(visTag);
+				slideScale = nuclei[obj]['scale'];
+
 
 				if( overlay != null ) {
-					x = nuclei[obj]['centX'] - 40;
-					y = nuclei[obj]['centY'] - 40;
+					x = nuclei[obj]['centX'] - 40.0; //(40.0 * slideScale);
+					y = nuclei[obj]['centY'] - 40.0; //(40.0 * slideScale);
 		
 					ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
 					ele.setAttribute('points', nuclei[obj]['boundary']);
@@ -145,7 +153,11 @@ function showBoundaries(nuclei)
 					ele.setAttribute('visibility', 'visible');
 					overlay.appendChild(ele);	
 				}
-				scale = 1.0; //img.clientWidth / 80.0; 
+				
+				console.log("Image width: "+img.clientWidth+" image height: "+img.clientHeight);
+				console.log("Scale to: "+(img.clientWidth / (50.0 *slideScale)));
+				
+				scale = 1.0; //(img.clientWidth / (50.0 *slideScale));
 				overlay.setAttribute("transform", 'translate(-'+x+',-'+y+') scale('+scale+')');
 				
 				col = col + 1;

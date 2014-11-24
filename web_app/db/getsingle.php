@@ -34,14 +34,14 @@
 		mysqli_free_result($result);
 	}		
 	
-	$sql = 'SELECT x_size, y_size FROM slides WHERE name="'.$slide.'"';
+	$sql = 'SELECT x_size, y_size, scale FROM slides WHERE name="'.$slide.'"';
 	if( $result = mysqli_query($dbConn, $sql) ) {
 		$sizes = mysqli_fetch_row($result);
 		mysqli_free_result($result);
 	}	
 	mysqli_close($dbConn);
 
-	array_push($jsonData, $sizes[0], $sizes[1]);
+	array_push($jsonData, $sizes[0], $sizes[1], $sizes[2]);
 	 
 	echo json_encode($jsonData);
 

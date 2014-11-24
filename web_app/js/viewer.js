@@ -1,6 +1,5 @@
 var annoGrpTransformFunc;
-var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
-var slideHost="http://node15.cci.emory.edu/";
+var IIPServer="";
 var slideCnt = 0;
 var curSlide = "";
 var curDataset = "";
@@ -10,16 +9,18 @@ var overlayHidden = false, selectMode = false, segDisplayOn = false;;
 var olDiv = null;
 var lastScaleFactor = 0;
 var pyramids;
+var clickCount = 0;					
 
 var debugMode = 1;
 
-	var clickCount = 0;					
+
+
 
 //
 //	Initialization
 //	
 //		Get a list of available slides from the database
-//		Populate the selection dropdown
+//		Populate the selection and classifier dropdowns
 //		load the first slide
 //		Register event handlers
 //
@@ -27,6 +28,7 @@ $(function() {
 	var slideSel = $("#slide_sel");
 	var	datasetSel = $("#dataset_sel");
 	
+		
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
 	//
@@ -84,12 +86,26 @@ $(function() {
 		}
 	});
 
-	// Slide list will also be updated by this call
-	updateDatasetList();
+	// get slide host info
+	//
+	$.ajax({
+		url: "php/getSession.php",
+		data: "",
+		dataType: "json",
+		success: function(data) {
+			
+			IIPServer = data['IIPServer'];
+			console.log("IIPServer: " + IIPServer);
+			
+			// Slide list will also be updated by this call
+			updateDatasetList();
 	
-	// Classifier list needs the current dataset so update 
-	// dataset list first
-	updateClassifierList();
+			// Classifier list needs the current dataset so update 	
+			// dataset list first
+			updateClassifierList();
+		}
+	});
+
 	
 	// Set the update handler for the slide selector
 	slideSel.change(updateSlide);
@@ -109,32 +125,43 @@ $(function() {
 //
 function updatePyramid() {
 
-	var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
 	slide = "";
 
-	console.log("Slide data: " + slideUrl);
-	
 	if( pyramids[$('#slide_sel').prop('selectedIndex')] === null ) {	
 	
+		// Slides that don't have their path in the database use the digital slide
+		// archive. Eventually all slides will be retrived from the local image server, allowing
+		// this code to be removed.
+		//
+		var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
+		var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
+		console.log("Slide data: " + slideUrl);
+		
 		$.ajax({ 
 			type: 	"GET",
 			url: 	slideUrl,
 			dataType:	"xml",
 			success: function(xml) {
-		
+
 				pyramid = $(xml).find("slide_url").text();
-				console.log("Loading: " + slideHost + pyramid);
-				viewer.open(slideHost + pyramid);
+				// Slides from node15 have /cgi-bin/iipsrv.fcgi? as part of their path
+				// we need to remove it.
+				// This will all go away when all slides are migrated to the new server
+				var pos = pyramid.indexOf('?');
+				pyramid = pyramid.substring(pos + 1);
+
+				console.log("Loading: " + IIPServer + pyramid);
+				viewer.open(IIPServer + pyramid);
 			}, 
 			error: function() {
 				alert("Unable to get slide information");	
 			}
 		});
 	} else {
-	
-		pyramid = "cgi-bin/iipsrv.fcgi?DeepZoom="+pyramids[$('#slide_sel').prop('selectedIndex')];
-		console.log("Loading: " + slideHost + pyramid);
-		viewer.open(slideHost + pyramid);
+		// Zoomer needs '.dzi' appended to the end of the filename
+		pyramid = "DeepZoom="+pyramids[$('#slide_sel').prop('selectedIndex')]+".dzi";
+		console.log("Loading: " + IIPServer + pyramid);
+		viewer.open(IIPServer + pyramid);
 	}
 }
 
@@ -172,6 +199,7 @@ function updateDatasetList() {
 
 //
 //	Updates the list of available slides for the current dataset
+//
 function updateSlideList() {
 	var slideSel = $("#slide_sel");
 	var slideCntTxt = $("#count_patient");

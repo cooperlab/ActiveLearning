@@ -1,9 +1,9 @@
 var annoGrpTransformFunc;
-var IIP_Server = "http://node15.cci.emory.edu/cgi-bin/iipsrv.fcgi?";
-var SlidePath = "FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/";
+var IIPServer = "";
+
+
+
 var SlideSuffix = ".svs-tile.dzi.tif";
-var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
-var slideHost="http://node15.cci.emory.edu/";
 var SlideLocPre = "&RGN=";
 var SlideLocSuffix = "&CVT=jpeg";
 
@@ -27,14 +27,19 @@ var pyramids;
 
 
 
+//
+//	Initialization
+//	
+//
 $(function() {
 
+	// Setup the grid slider relative to the window width
 	width = 0;
 	$('#overflow .slider div').each(function() {
 		width += $(this).outerWidth(true);
 	});
-	
 	$('#overflow .slider').css('width', width + "px");
+
 
 	// Create the slide zoomer, add event handlers, etc...
 	// We will load the tile pyramid after the slide list is loaded
@@ -69,8 +74,6 @@ $(function() {
 		statusObj.scaleFactor(imgHelper.getZoomFactor());
 		
 	});
-
-
 
 
 	viewer.addHandler('close', function(event) {
@@ -115,6 +118,8 @@ $(function() {
 			posClass = data['posClass'];
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
+			IIPServer = data['IIPServer'];
+			
 			
 			if( uid == null ) {			
 				window.alert("No session active");
@@ -171,30 +176,40 @@ function updateSlideList() {
 
 
 
+
+
 function updateSlideView() {
 
-	var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
 	
 	if( pyramids[$('#slideSel').prop('selectedIndex')] === null ) {	
+		var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
+		var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
 
 		$.ajax({ 
 			type: 	"GET",
 			url: 	slideUrl,
 			dataType:	"xml",
 			success: function(xml) {
-		
+			
+				// Slides from node15 have /cgi-bin/iipsrv.fcgi? as part of their path
+				// we need to remove it.
+				// This will all go away when all slides are migrated to the new server
 				pyramid = $(xml).find("slide_url").text();
-				viewer.open(slideHost + pyramid);			
+				var pos = pyramid.indexOf('?');
+				pyramid = pyramid.substring(pos + 1);
+
+				console.log("Loading: " + IIPServer + pyramid);
+				viewer.open(IIPServer + pyramid);			
 			}, 
 			error: function() {
 				alert("Unable to get slide information");
 			}
 		});
 	} else {
-	
-		pyramid = "cgi-bin/iipsrv.fcgi?DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')];
-		console.log("Loading: " + pyramid);
-		viewer.open(slideHost + pyramid);	
+		// Zoomer needs '.dzi' appended to the end of the file
+		pyramid = "DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')]+".dzi";
+		console.log("Loading: " + IIPServer + pyramid);
+		viewer.open(IIPServer + pyramid);	
 	}
 }
 
@@ -357,6 +372,7 @@ function nucleiSelect() {
 						sample['boundary'] = data[0];
 						sample['maxX'] = data[5];
 						sample['maxY'] = data[6];
+						sample['scale'] = data[7];
 						
 						if( total <= 4 ) {
 							sample['label'] = 1;
@@ -372,17 +388,20 @@ function nucleiSelect() {
 						console.log("centX: " + sample['centX'] + ", maxX: " + sample['maxX']);
 						
 						$(box).show();
-						centX = (sample['centX'] - 25) / sample['maxX'];
-						centY = (sample['centY'] - 25) / sample['maxY'];
-						sizeX = 50.0 / sample['maxX'];
-						sizeY = 50.0 / sample['maxY'];
+						centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
+						centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
+						sizeX = (50.0 * sample['scale']) / sample['maxX'];
+						sizeY = (50.0 * sample['scale']) / sample['maxY'];
 						loc = centX+","+centY+","+sizeX+","+sizeY;
 				
 						var thumbNail;
-						if( curDataset === "Single slide test" ) {
-							thumbNail = IIP_Server+SlidePath+curSlide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+						// Slides that are from node15 have NULL as their slide path. We can remove this
+						// check when everything is migrated to the new server
+						//
+						if( pyramids[$('#slideSel').prop('selectedIndex')] === null ) {													
+							thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+curSlide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
 						} else {
-							thumbNail = IIP_Server+"FIF=/bigdata3/mnalisn_scratch/active_learning_slides/SOX2-pyramids/sox2test.tif"+SlideLocPre+loc+SlideLocSuffix;						
+							thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+SlideLocPre+loc+SlideLocSuffix;						
 						}
 						
 						console.log("Thumbnail: "+thumbNail);

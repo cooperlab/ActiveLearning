@@ -41,12 +41,15 @@
 		
 		
 		// get slide dimensions for the sample
-		$sql = 'SELECT x_size, y_size FROM slides WHERE name="'.$response['samples'][$i]['slide'].'"';
+		$sql = 'SELECT x_size, y_size, pyramid_path, scale FROM slides WHERE name="'.$response['samples'][$i]['slide'].'"';
 		if( $result = mysqli_query($dbConn, $sql) ) {
-			$array = mysqli_fetch_row($result);
+			$row = mysqli_fetch_row($result);
 			
-			$response['samples'][$i]['maxX'] = intval($array[0]);
-			$response['samples'][$i]['maxY'] = intval($array[1]);
+			$response['samples'][$i]['maxX'] = intval($row[0]);
+			$response['samples'][$i]['maxY'] = intval($row[1]);
+			$response['samples'][$i]['path'] = $row[2];
+			$response['samples'][$i]['scale'] = intval($row[3]);
+			
 			mysqli_free_result($result);
 		} 
 		

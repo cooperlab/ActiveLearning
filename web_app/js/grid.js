@@ -3,13 +3,11 @@ var uid = "";
 var classifier = "";
 var negClass = "";
 var posClass = "";
-var IIP_Server = "";
-var SlidePath = "";
+var IIPServer = "";
 var SlideSuffix = ".svs-tile.dzi.tif";
 var SlideLocPre = "&RGN=";
 var SlideLocSuffix = "&CVT=jpeg";
-var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
-var slideHost="http://node15.cci.emory.edu/";
+
 var viewer = null, imgHelper = null, osdCanvas = null;
 var olDiv = null;
 
@@ -19,6 +17,8 @@ var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_
 var curDataset;
 var curSlide = "", curBox = -1;
 var curX = 0, curY = 0;
+
+
 
 
 //
@@ -49,9 +49,9 @@ $(function() {
 			posClass = data['posClass'];
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
-			IIP_Server = data['iipServer'];
-			SlidePath = data['slidePath'];
-			console.log("UID: "+uid);
+			IIPServer = data['IIPServer'];
+			
+			console.log("grid] IIPServer: "+IIPServer);
 			if( uid == null ) {			
 				window.alert("No session active");
 				window.history.back();
@@ -186,7 +186,11 @@ $(function() {
 
 
 
-
+//
+//	A double click in the thumbnail box toggles the current classification
+//	of the object.
+//
+//
 function thumbDoubleClick(box) {
 
 	var index = boxes.indexOf(box);
@@ -205,7 +209,11 @@ function thumbDoubleClick(box) {
 
 
 
-
+// 
+// A single click in the thumbnail box loads the appropriate slide into the viewer
+// and pans and zooms to the specific object.
+//
+//
 function thumbSingleClick(box) {
 	
 	// Load the appropriate slide in the viewer
@@ -234,9 +242,11 @@ function thumbSingleClick(box) {
  			}	
 		}
 		
+		// Mark the selected box with a gray background
 		var boxDiv = "#"+box;
 		$(boxDiv).css('background', '#CCCCCC');
 	
+		// Clear previously selected box if there was one
 		if( curBox != -1 && curBox != index ) {
 			boxDiv = "#"+boxes[curBox];
 			$(boxDiv).css('background', '#FFFFFF');
@@ -252,7 +262,6 @@ function thumbSingleClick(box) {
 
 function updateSlideView() {
 
-	var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
 
 	$.ajax({
 		type: "POST",
@@ -262,16 +271,30 @@ function updateSlideView() {
 		success: function(data) {
 		
 			if( data[0] === null ) {
-		
+			
+				// Slides that don't have their path in the database use the digital slide
+				// archive. Eventually all slides will be retrived from the local image server, allowing
+				// this code to be removed.
+				//
+				var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
+				var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
+				
 				$.ajax({ 
 					type: 	"GET",
 					url: 	slideUrl,
 					dataType:	"xml",
 					success: function(xml) {
-		
+						
+								
+						// Slides from node15 have /cgi-bin/iipsrv.fcgi? as part of their path
+						// we need to remove it.
+						// This will all go away when all slides are migrated to the new server
 						pyramid = $(xml).find("slide_url").text();
-						console.log("Loading: " + pyramid);
-						viewer.open(slideHost + pyramid);
+						var pos = pyramid.indexOf('?');
+						pyramid = pyramid.substring(pos + 1);
+
+						console.log("Loading: " + IIPServer + pyramid);
+						viewer.open(IIPServer + pyramid);
 				
 					}, 
 					error: function() {
@@ -279,10 +302,10 @@ function updateSlideView() {
 					}
 				});
 			} else {
-		
-				pyramid = "cgi-bin/iipsrv.fcgi?DeepZoom="+data[0];
+				// Zoomer needs '.dzi' appended to the end of the filename
+				pyramid = "DeepZoom="+data[0]+".dzi";
 				console.log("Loading: " + pyramid);
-				viewer.open(slideHost + pyramid);
+				viewer.open(IIPServer + pyramid);
 			}
 		}
 	});
@@ -325,7 +348,7 @@ function updateSamples() {
 				curSlide = "";
 			};
 	
-			var slide, centX, centY, sizeX, sizeY, loc, thumbNail;
+			var slide, centX, centY, sizeX, sizeY, loc, thumbNail, scale;
 			var sampleArray = data['samples'];
 			
 			statusObj.iteration(data['iteration']);
@@ -336,28 +359,28 @@ function updateSamples() {
 				thumbTag = "#thumb_"+(parseInt(sample)+1);
 				labelTag = "#label_"+(parseInt(sample)+1);
 				boxTag = "#"+boxes[sample];
-				
+				scale = sampleArray[sample]['scale'];
 				slide = sampleArray[sample]['slide'];
-				centX = (sampleArray[sample]['centX'] - 25) / sampleArray[sample]['maxX'];
-				centY = (sampleArray[sample]['centY'] - 25) / sampleArray[sample]['maxY'];
-				sizeX = 50.0 / sampleArray[sample]['maxX'];
-				sizeY = 50.0 / sampleArray[sample]['maxY'];
+				
+				centX = (sampleArray[sample]['centX'] - (25 * scale)) / sampleArray[sample]['maxX'];
+				centY = (sampleArray[sample]['centY'] - (25 * scale)) / sampleArray[sample]['maxY'];
+				sizeX = (50.0 * scale) / sampleArray[sample]['maxX'];
+				sizeY = (50.0 * scale) / sampleArray[sample]['maxY'];
 				loc = centX+","+centY+","+sizeX+","+sizeY;
 				
-				thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
-				
-				// TODO - Fix thumb paths
+				// Slides that are from node15 have NULL as their slide path. We can remove this
+				// check when everything is migrated to the new server
 				//
-				if( curDataset === "Single slide test" ) {
-					thumbNail = IIP_Server+SlidePath+slide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+				if( sampleArray[sample]['path'] === null ) {	
+					// Hardcoded path for node15 slides												
+					thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+sampleArray[sample]['slide']+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
 				} else {
-					thumbNail = IIP_Server+"FIF=/bigdata3/mnalisn_scratch/active_learning_slides/SOX2-pyramids/sox2test.tif"+SlideLocPre+loc+SlideLocSuffix;						
+					thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+SlideLocSuffix;						
 				}
 	
 				console.log("Grid thumbnail: "+thumbNail);
 
 				$(thumbTag).attr("src", thumbNail);
-				
 				updateClassStatus(sample);
 
 				// Hide progress dialog

@@ -48,12 +48,15 @@
 		
 		// get slide dimensions for the nuclei
 		//
-		$sql = 'SELECT x_size, y_size FROM slides WHERE name="'.$response[$i]['slide'].'"';
+		$sql = 'SELECT x_size, y_size, scale, pyramid_path FROM slides WHERE name="'.$response[$i]['slide'].'"';
 		if( $result = mysqli_query($dbConn, $sql) ) {
-			$array = mysqli_fetch_row($result);
+			$row = mysqli_fetch_row($result);
 			
-			$response[$i]['maxX'] = intval($array[0]);
-			$response[$i]['maxY'] = intval($array[1]);
+			$response[$i]['maxX'] = intval($row[0]);
+			$response[$i]['maxY'] = intval($row[1]);
+			$response[$i]['scale'] = intval($row[2]);
+			$response[$i]['path'] = $row[3];
+			
 			mysqli_free_result($result);
 		} 
 		
@@ -63,9 +66,9 @@
 		$sql = $sql.' AND centroid_x='.$response[$i]['centX'].' and centroid_y='.$response[$i]['centY'];
 
 		if( $result = mysqli_query($dbConn, $sql) ) {
-			$array = mysqli_fetch_row($result);
+			$row = mysqli_fetch_row($result);
 			
-			$response[$i]['id'] = intval($array[0]);
+			$response[$i]['id'] = intval($row[0]);
 			mysqli_free_result($result);
 		} 		
 	}	
