@@ -17,7 +17,6 @@
 #include "learner.h"
 #include "logger.h"
 
-//#include "cmdline.h"
 #include "base_config.h"
 
 
@@ -127,7 +126,7 @@ bool HandleRequest(const int fd, Learner *learner)
 
 
 
-bool ReadConfig(string& path, short& port)
+bool ReadConfig(string& path, short& port, string& interface)
 {
 	bool	result = true;
 	Config	config;
@@ -141,7 +140,7 @@ bool ReadConfig(string& path, short& port)
 	}
 	// Root path
 	try {
-		 path = (const char*)config.lookup("root_path");;
+		 path = (const char*)config.lookup("root_path");
 	} catch( const SettingNotFoundException &nfEx ) {
 		result = false;
 	}
@@ -153,6 +152,15 @@ bool ReadConfig(string& path, short& port)
 		result = false;
 	}
 	port = (short)readPort;
+	
+	// interface address
+	try { 
+		interface = (const char*)config.lookup("interface"); 
+	} catch( const SettingNotFoundException &nfEx ) {
+		// Default to localhost if not in config file.
+		interface = "127.0.0.1";
+	}
+	
 	return result;
 }
 
@@ -168,7 +176,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	Learner	*learner = NULL;
 	short 	port;
-	string 	path;
+	string 	path, interface;
 
 	gLogger = new EvtLogger("/var/log/al_server.log");
 	if( gLogger == NULL ) {
@@ -176,8 +184,13 @@ int main(int argc, char *argv[])
 	}
 
 	if( status == 0 ) {
-		if( !ReadConfig(path, port) ) {
+		if( !ReadConfig(path, port, interface) ) {
 			status = -1;
+		} else {
+			char portBuff[10];
+			snprintf(portBuff, 10, "%d", port);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Listening on interface: " + interface + 
+												 " port: " + string(portBuff));
 		}
 	}
 
@@ -211,7 +224,7 @@ int main(int argc, char *argv[])
 			memset(&serv_addr, 0, sizeof(struct sockaddr_in));
 
 			serv_addr.sin_family = AF_INET;
-			serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+			serv_addr.sin_addr.s_addr = inet_addr(interface.c_str());
 			serv_addr.sin_port = htons(port);
 
 			bind(listenFD, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr_in));
