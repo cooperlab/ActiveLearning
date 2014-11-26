@@ -192,7 +192,10 @@ int main(int argc, char *argv[])
 	}
 
 	if( status == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "al_server started");
+		
 		if( !ReadConfig(dataPath, outPath, port, interface) ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to read configuration file");
 			status = -1;
 		} else {
 			char portBuff[10];
