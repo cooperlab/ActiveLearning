@@ -18,7 +18,7 @@
 class Learner
 {
 public:
-			Learner(string dataPath = "./");
+			Learner(string dataPath = "./", string outPath = "./");
 			~Learner(void);
 
 	bool	ParseCommand(const int sock, char *data, int size);
@@ -29,6 +29,7 @@ protected:
 	char	m_UID[UID_LENGTH + 1];
 	MData	*m_dataset;
 	string	m_dataPath;
+	string 	m_outPath;
 	string	m_classifierName;
 
 	vector<int> m_samples;

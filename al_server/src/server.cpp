@@ -86,12 +86,12 @@ bool Daemonize(void)
 
 // Create the needed objects
 //
-Learner* Initialize(string path)
+Learner* Initialize(string dataPath, string outPath)
 {
 	bool	result = true;
 	Learner	*learner = NULL;
 
-	learner = new Learner(path);
+	learner = new Learner(dataPath, outPath);
 	if( learner == NULL ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create learner object");
 	}
@@ -126,7 +126,7 @@ bool HandleRequest(const int fd, Learner *learner)
 
 
 
-bool ReadConfig(string& path, short& port, string& interface)
+bool ReadConfig(string& dataPath, string& outPath, short& port, string& interface)
 {
 	bool	result = true;
 	Config	config;
@@ -138,9 +138,17 @@ bool ReadConfig(string& path, short& port, string& interface)
 	} catch( const FileIOException &ioex ) {
 		result = false;;
 	}
-	// Root path
+	
+	// Data path
 	try {
-		 path = (const char*)config.lookup("root_path");
+		 dataPath = (const char*)config.lookup("data_path");
+	} catch( const SettingNotFoundException &nfEx ) {
+		result = false;
+	}
+
+	// Out path
+	try {
+		 outPath = (const char*)config.lookup("out_path");
 	} catch( const SettingNotFoundException &nfEx ) {
 		result = false;
 	}
@@ -176,7 +184,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	Learner	*learner = NULL;
 	short 	port;
-	string 	path, interface;
+	string 	dataPath, outPath, interface;
 
 	gLogger = new EvtLogger("/var/log/al_server.log");
 	if( gLogger == NULL ) {
@@ -184,7 +192,7 @@ int main(int argc, char *argv[])
 	}
 
 	if( status == 0 ) {
-		if( !ReadConfig(path, port, interface) ) {
+		if( !ReadConfig(dataPath, outPath, port, interface) ) {
 			status = -1;
 		} else {
 			char portBuff[10];
@@ -208,7 +216,7 @@ int main(int argc, char *argv[])
 
 	if( status == 0 ) {
 		// Setup Active learning objects
-		learner = Initialize(path);
+		learner = Initialize(dataPath, outPath);
 		if( learner == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to initialize server");
 			status = -1;

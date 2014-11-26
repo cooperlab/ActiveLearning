@@ -22,7 +22,7 @@ const char failResp[] = "FAIL";
 extern EvtLogger *gLogger;
 
 
-Learner::Learner(string dataPath) :
+Learner::Learner(string dataPath, string outPath) :
 m_dataset(NULL),
 m_labels(NULL),
 m_ids(NULL),
@@ -30,6 +30,7 @@ m_trainSet(NULL),
 m_classifier(NULL),
 m_sampler(NULL),
 m_dataPath(dataPath),
+m_outPath(outPath),
 m_sampleIter(NULL),
 m_curAccuracy(0.0f)
 {
@@ -837,8 +838,8 @@ bool Learner::SaveTrainingSet(string fileName)
 	}
 
 	if( result ) {
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving training set to: " + m_dataPath + fileName);
-		result = trainingSet->SaveAs(m_dataPath + fileName);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving training set to: " + m_outPath + fileName);
+		result = trainingSet->SaveAs(m_outPath + fileName);
 	}
 	
 	if( trainingSet != NULL )
