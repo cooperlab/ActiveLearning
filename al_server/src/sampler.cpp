@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -129,6 +130,80 @@ int UncertainSample::Select(float *score)
 
 
 
+// Select the 'count' most uncertain samples in the remaining set. The id's
+// and score buffers are allcated here but must be freed by the caller.
+//
+bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
+{
+	bool	result = true;
+	float	*checkSet = CreateCheckSet(),
+			*scores = (float*)malloc(m_remaining * sizeof(float));
+	int		*picks = (int*)malloc(count * sizeof(int));
+
+	ids = (int*)malloc(count * sizeof(int));
+	selScores = (float*)malloc(count * sizeof(float));
+
+	if( ids == NULL || selScores == NULL || scores == NULL || picks == NULL ) {
+		result = false;
+	}
+
+	if( result ) {
+		checkSet = CreateCheckSet();
+		if( !m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		int minIdx;
+		float  min = FLT_MAX, objScore;
+
+		for(int i = 0; i < count; i++) {
+			selScores[i] = FLT_MAX;
+		}
+
+		for(int i = 0; i < m_remaining; i++) {
+			objScore = abs(scores[i]);
+			minIdx = count - 1;
+
+			if( objScore < abs(selScores[minIdx]) ) {
+				// Score is less than at least the last element, put it
+				// there to start
+
+				while( minIdx > 0 && objScore < abs(selScores[minIdx - 1]) ) {
+					selScores[minIdx] = selScores[minIdx - 1];
+					picks[minIdx] = picks[minIdx - 1];
+					minIdx--;
+				}
+				selScores[minIdx] = scores[i];
+				picks[minIdx] = i;
+			}
+		}
+
+		// Remove selected objects from remaining set
+		m_remaining--;
+		for(int i = 0; i < count; i++) {
+			ids[i] = m_dataIndex[picks[i]];
+			m_dataIndex[picks[i]] = m_dataIndex[m_remaining];
+			m_remaining--;
+		}
+	}
+
+	if( picks )
+		free(picks);
+	if( scores )
+		free(scores);
+	if( checkSet ) 
+		free(checkSet);
+
+	return result;
+}
+
+
+
+
+
+
 
 float* UncertainSample::CreateCheckSet(void)
 {
@@ -158,6 +233,9 @@ bool SortFunc(ScoreIdx a, ScoreIdx b)
 {
 	return (a.score < b.score);
 }
+
+
+
 
 //
 //	Select samples for visualization. nStrata specifies the number of uncertainty
@@ -289,5 +367,18 @@ int RandomSample::Select(float *score)
 }
 
 
+
+
+
+
+
+bool RandomSample::SelectBatch(int count, int *&ids, float *&scores)
+{
+	bool	result = false;
+
+	// TODO - Need to implement
+
+	return result;
+}
 
 

@@ -17,6 +17,7 @@ public:
 	enum SampType {SAMP_RANDOM, SAMP_UNCERTAIN, SAMP_INFO_DENSITY, SAMP_HIERARCHICAL, SAMP_CLUSTER};
 
 	virtual int 	Select(float *score = NULL) = 0;
+	virtual bool	SelectBatch(int count, int *&ids, float *&scores) = 0;
 	virtual bool 	Init(int count, int *list);
 	virtual SampType GetSamplerType(void) = 0;
 	virtual bool 	GetVisSamples(int nStrata, int nGroups, int *&idx, float *&idxScores) = 0;
@@ -45,6 +46,7 @@ public:
 	virtual		~UncertainSample(void);
 
 	virtual int		Select(float *score = NULL);
+	virtual bool	SelectBatch(int count, int *&ids, float *&scores);
 	virtual SampType 	GetSamplerType(void) { return SAMP_UNCERTAIN; }
 	virtual bool 	GetVisSamples(int nStrata, int nGroups, int *&idx, float *&idxScores);
 
@@ -65,6 +67,7 @@ public:
 	virtual 	~RandomSample(void);
 
 	virtual int 		Select(float *score = NULL);
+	virtual bool		SelectBatch(int count, int *&ids, float *&scores);
 	virtual SampType	GetSamplerType(void) { return SAMP_RANDOM; }
 
 protected:

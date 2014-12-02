@@ -324,6 +324,14 @@ bool Learner::Select(const int sock, json_t *obj)
 		json_object_set(root, "iteration", json_integer(m_iteration));
 		json_object_set(root, "accuracy", json_real(m_curAccuracy));
 
+		int 	*selIdx = NULL;
+		float	*selScores = NULL;
+
+		if( m_iteration != reqIteration ) {
+			// Get new samples
+			m_sampler->SelectBatch(8, selIdx, selScores);
+		}
+
 		for(int i = 0; i < 8; i++) {
 
 			sample = json_object();
@@ -335,9 +343,10 @@ bool Learner::Select(const int sock, json_t *obj)
 
 			if( m_iteration != reqIteration ) {
 				// Get new sample
-				idx = m_sampler->Select(&score);
+				idx = selIdx[i];
 				m_curSet.push_back(idx);
-				m_curScores.push_back(score);
+				score = selScores[i];
+				m_curScores.push_back(selScores[i]);
 			} else {
 				// Haven't submitted that last group of selections. Send
 				// them again
@@ -357,6 +366,11 @@ bool Learner::Select(const int sock, json_t *obj)
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
 		}
+
+		if( selIdx )
+			free(selIdx);
+		if( selScores )
+			free(selScores);
 	}
 
 	if( result ) {
