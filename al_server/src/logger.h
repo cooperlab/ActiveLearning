@@ -16,6 +16,9 @@ public:
 
 	bool	LogMsg(LogType tyep, std::string msg);
 
+	double 	WallTime(void);
+
+
 
 protected:
 

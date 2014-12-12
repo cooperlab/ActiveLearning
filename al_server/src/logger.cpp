@@ -1,5 +1,6 @@
 #include <fstream>
 #include <ctime>
+#include <sys/time.h>
 #include "logger.h"
 
 
@@ -52,10 +53,27 @@ bool EvtLogger::LogMsg(LogType type, string msg)
 			break;
 		}
 		snprintf(timeBuff, 100, "%02d-%02d-%d %02d:%02d:%02d",
-				ltm->tm_mon, ltm->tm_mday, 1900 + ltm->tm_year,
-				1 + ltm->tm_hour, 1 + ltm->tm_min, 1 + ltm->tm_sec);
+				ltm->tm_mon + 1, ltm->tm_mday, 1900 + ltm->tm_year,
+				ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
 		m_logFile << typeName << " " << timeBuff << " - " << msg << endl;
 		result = true;
 	}
 	return result;
+}
+
+
+
+
+double EvtLogger::WallTime(void)
+{
+    double          now_time;
+    struct timeval  etstart;
+    struct timezone tzp;
+
+    if (gettimeofday(&etstart, &tzp) == -1)
+        perror("Error: calling gettimeofday() not successful.\n");
+
+    now_time = ((double)etstart.tv_sec) +              /* in seconds */
+               ((double)etstart.tv_usec) / 1000000.0;  /* in microseconds */
+    return now_time;
 }
