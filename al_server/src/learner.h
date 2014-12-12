@@ -2,6 +2,7 @@
 #define _LEARNER_H_
 
 #include <vector>
+#include <string>
 #include <set>
 #include <jansson.h>
 
@@ -28,9 +29,11 @@ protected:
 
 	char	m_UID[UID_LENGTH + 1];
 	MData	*m_dataset;
+	MData	*m_classTrain;	// Used for applying classifier when no session active
 	string	m_dataPath;
 	string 	m_outPath;
 	string	m_classifierName;
+	string	m_curDatasetName;
 
 	vector<int> m_samples;
 	vector<int>	m_curSet;
@@ -55,6 +58,10 @@ protected:
 	bool	ApplyClassifier(const int sock, json_t *obj);
 	bool	Visualize(const int sock, json_t *obj);
 
+	bool	ApplyGeneralClassifier(const int sock, json_t *obj);
+	bool	ApplySessionClassifier(const int sock, json_t *obj);
+	bool	SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
+			 	 	 	 	   string slide, int *results, const int sock);
 
 	bool 	UpdateBuffers(int updateSize);
 	void	Cleanup(void);
@@ -66,6 +73,9 @@ protected:
 	float	CalcAccuracy(void);
 	bool	CreateSet(vector<int> folds, int fold, float *&trainX,
 					  int *&trainY, float *&testX, int *&testY);
+
+	bool	LoadDataset(string dataSetFileName);
+	bool	LoadTrainingSet(string trainingSetName);
 
 };
 

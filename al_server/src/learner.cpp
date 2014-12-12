@@ -24,6 +24,7 @@ extern EvtLogger *gLogger;
 
 Learner::Learner(string dataPath, string outPath) :
 m_dataset(NULL),
+m_classTrain(NULL),
 m_labels(NULL),
 m_ids(NULL),
 m_trainSet(NULL),
@@ -110,7 +111,6 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 	json_error_t error;
 
 	data[size] = 0;
-
 	root = json_loads(data, 0, &error);
 	if( !root ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Error parsing json");
@@ -577,10 +577,10 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 		jsonObj = json_object_get(obj, "uid");
 		const char *uid = json_string_value(jsonObj);
 		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finaleize) Unable to decode UID");
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finalize) Unable to decode UID");
 			result = false;
 		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finaleize) Invalid UID");
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finalize) Invalid UID");
 			result = false;		
 		}
 	}
@@ -610,8 +610,8 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		// The current iteration has not been submitted, hence the -1.
-		json_object_set(root, "iterations", json_integer(m_iteration - 1));
+		// Iteration count starts form 0.
+		json_object_set(root, "iterations", json_integer(m_iteration));
 		json_object_set(root, "filename", json_string(fileName.c_str()));
 
 		// We just return an array of the nuclei database id's, label and iteration when added
@@ -866,9 +866,10 @@ bool Learner::SaveTrainingSet(string fileName)
 
 
 
-//
-// TODO - Break into two methods
-//
+
+
+
+
 bool Learner::ApplyClassifier(const int sock, json_t *obj)
 {
 	bool	result = true;
@@ -879,154 +880,304 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	int		*results = NULL, *labels, dims;
 	float	*test, *train;
 
-		// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
 	// always write a 0 there to make strlen safe.
 	//
 	m_UID[UID_LENGTH] = 0;
 
+	double timing = gLogger->WallTime();
+
 	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) No active session");
-		result = false;
+		// No session active, load specified training set.
+		//result = ApplyGeneralClassifier(sock, obj);
 	} else {
+		// Session in progress, use current training set.
 		value = json_object_get(obj, "uid");
 		const char *uid = json_string_value(value);
 		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Unable to decode UID");
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Unable to decode UID");
 			result = false;
 		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid UID");
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Invalid UID");
 			result = false;		
+		}
+
+		if( result ) {
+			result = ApplySessionClassifier(sock, obj);
+		}
+	}
+
+	timing = gLogger->WallTime() - timing;
+	char msg[100];
+
+	snprintf(msg, 100, "Classification took: %f", timing);
+	gLogger->LogMsg(EvtLogger::Evt_INFO, msg);
+
+	return result;
+}
+
+
+
+
+
+
+
+
+
+//
+//	Applies the specified classifier to the specified dataset. Used when
+//	no session is active.
+//
+bool Learner::ApplyGeneralClassifier(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*value;
+	const char *trainSetName = NULL, *dataSetFileName = NULL;
+	Classifier *classifier = NULL;
+	int		*results = NULL, *labels = NULL;
+
+	value = json_object_get(obj, "dataset");
+	dataSetFileName = json_string_value(value);
+
+	value = json_object_get(obj, "trainingset");
+	trainSetName = json_string_value(value);
+
+	if( dataSetFileName == NULL || trainSetName == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyGeneralClassifier) Dataset or Training set not specified");
+		result = false;
+	}
+
+	if( result ) {
+		result = LoadDataset(dataSetFileName);
+	}
+
+	if( result ) {
+		result = LoadTrainingSet(trainSetName);
+	}
+
+	if( result ) {
+		results = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int));
+		if( results == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyGeneralClassifier) Unable to allocate results buffer");
+			result = false;
 		}
 	}
 
 	if( result ) {
-		value = json_object_get(obj, "dataset");
-		dataSetFile = json_string_value(value);
-
-		value = json_object_get(obj, "trainingset");
-		trainSetFile = json_string_value(value);
+ 		classifier = new OCVBinarySVM();
+		if( classifier == NULL ) {
+			result = false;
+		}
 	}
-	
-	if( dataSetFile && trainSetFile ) {
-		dataSet = new MData();
-		if( dataSet == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
+
+	if( result ) {
+		float 	**ptr, *test, *train;
+		int 	dims;
+
+		ptr = m_classTrain->GetData();
+		train = ptr[0];
+		labels = m_classTrain->GetLabels();
+
+		ptr = m_dataset->GetData();
+		test = ptr[0];
+		dims = m_dataset->GetDims();
+
+		result = classifier->Train(train, labels, m_classTrain->GetNumObjs(), dims);
+		if( result ) {
+			result = classifier->ClassifyBatch(test, m_dataset->GetNumObjs(), dims, results);
+		}
+	}
+
+	if( result ) {
+		result = SendClassifyResult(0, 0, 0, 0, "", results, sock);
+	}
+
+	if( results )
+		free(results);
+	if( classifier )
+		delete classifier;
+
+	return result;
+}
+
+
+
+
+
+
+
+bool Learner::ApplySessionClassifier(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*value;
+	const char *slideName = NULL;
+	int		xMin, xMax, yMin, yMax;
+
+	value = json_object_get(obj, "slide");
+	slideName = json_string_value(value);
+	value = json_object_get(obj, "xMin");
+	xMin = json_integer_value(value);
+	value = json_object_get(obj, "xMax");
+	xMax = json_integer_value(value);
+	value = json_object_get(obj, "yMin");
+	yMin = json_integer_value(value);
+	value = json_object_get(obj, "yMax");
+	yMax = json_integer_value(value);
+
+	if( slideName == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplySessionClassifier) Unable to decode slide name");
+		result = false;
+	}
+
+	if( result ) {
+		float 	**ptr, *test;
+		int 	*labels = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int)), dims;
+
+		if( labels == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplySessionClassifier) Unable to allocate labels buffer");
 			result = false;
 		}
 
 		if( result ) {
-			string fqFileName = m_dataPath + string(dataSetFile);
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
-			result = dataSet->Load(fqFileName);
-		}
-
-		if( result ) {
-			trainingSet = new MData();
-			if( trainingSet == NULL ) {
-				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create trainingset object");
-				result = false;
-			}
-		}
-
-		if( result ) {
-			string fqFileName = m_dataPath + string(trainSetFile);
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
-			result = trainingSet->Load(fqFileName);
-		}
-
-		if( result ) {
-	 		classifier = new OCVBinarySVM();
-			if( classifier == NULL ) {
-				result = false;
-			}
-		}
-
-		if( result ) {
-			results = (int*)malloc(dataSet->GetNumObjs() * sizeof(int));
-			if( results == NULL ) {
-				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to allocate results buffer");
-				result = false;
-			}
-		}
-
-		if( result ) {
-			float **ptr;
-
-			ptr = trainingSet->GetData();
-			train = ptr[0];
-			labels = trainingSet->GetLabels();
-
-			ptr = dataSet->GetData();
+			ptr = m_dataset->GetData();
 			test = ptr[0];
+			dims = m_dataset->GetDims();
 
-			dims = dataSet->GetDims();
-
-			classifier->Train(train, labels, trainingSet->GetNumObjs(), dims);
-			classifier->ClassifyBatch(train, dataSet->GetNumObjs(), dims, results);
+			result = m_classifier->ClassifyBatch(test, m_dataset->GetNumObjs(), dims, labels);
 		}
 
 		if( result ) {
-			json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL;
-
-			if( root == NULL ) {
-				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create JSON object");
-				result = false;
-			}
-
-			if( result ) {
-				sampleArray = json_array();
-				if( sampleArray == NULL ) {
-					gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create JSON array");
-					result = false;
-				}
-			}
-
-			if( result ) {
-#if 0
-				for(int i = 0; i < dataSet->GetNumObjs(); i++) {
-					sample = json_object();
-					if( sample == NULL ) {
-						cerr << "Unable to create JSON object for sample" << endl;
-						result = false;
-						break;
-					}
-					json_object_set(sample, "id", json_integer(0));
-					json_object_set(sample, "class", json_integer(results[i]));
-					json_object_set(sample, "centX", json_real(dataSet->GetXCentroid(i)));
-					json_object_set(sample, "centY", json_real(dataSet->GetYCentroid(i)));
-
-					json_array_append(sampleArray, sample);
-					json_decref(sample);
-				}
-#endif
-				if( result ) {
-					json_object_set(root, "objects", sampleArray);
-					json_decref(sampleArray);
-
-					char *jsonObj = json_dumps(root, 0);
-					size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
-
-					if( bytesWritten != strlen(jsonObj) )
-						result = false;
-
-					json_decref(root);
-					free(jsonObj);
-				}
-			}
+			result = SendClassifyResult(xMin, xMax, yMin, yMax, slideName,
+										labels, sock);
 		}
- 	}
 
-	if( dataSet )
-		delete dataSet;
-	if( trainingSet )
-		delete trainingSet;
-	if( classifier )
-		delete classifier;
-	if( results )
-		free(results);
+		if( labels )
+			free(labels);
+	}
 	return result;
 }
 
+
+
+
+
+
+bool Learner::SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
+								 string slide, int *results, const int sock)
+{
+	bool	result = true;
+	json_t	*root = json_object();
+
+	if( root == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(SendClassifyResult) Unable to create JSON object");
+		result = false;
+	}
+
+	if( result ) {
+		char tag[25];
+
+		for(int i = 0; i < m_dataset->GetNumObjs(); i++) {
+
+			if( slide.compare(m_dataset->GetSlide(i)) == 0 &&
+				m_dataset->GetXCentroid(i) >= xMin && m_dataset->GetXCentroid(i) <= xMax &&
+				m_dataset->GetYCentroid(i) >= yMin && m_dataset->GetYCentroid(i) <= yMax ) {
+
+				snprintf(tag, 24, "%.1f_%.1f",
+						m_dataset->GetXCentroid(i), m_dataset->GetYCentroid(i));
+
+				json_object_set(root, tag, json_integer((results[i] == -1) ? 0 : 1 ));
+			}
+		}
+
+		if( result ) {
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "(SendClassifyResult) Dumping JSON object");
+			char *jsonObj = json_dumps(root, 0);
+
+			if( jsonObj == NULL ) {
+				result = false;
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(SendClassifyResult) Unable to encode JSON");
+			}
+
+			if( result ) {
+				gLogger->LogMsg(EvtLogger::Evt_INFO, "(SendClassifyResult) Sending JSON object");
+				size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+				if( bytesWritten != strlen(jsonObj) ) {
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(SendClassifyResult) Unable to send entire JSON object");
+					result = false;
+				}
+			}
+			json_decref(root);
+			free(jsonObj);
+		}
+	}
+	return result;
+}
+
+
+
+
+
+
+
+bool Learner::LoadDataset(string dataSetFileName)
+{
+	bool result = true;
+
+	// Load dataset only if not loaded already
+	//
+	if( m_curDatasetName.compare(dataSetFileName) != 0 ) {
+		m_curDatasetName = dataSetFileName;
+
+		if( m_dataset )
+			delete m_dataset;
+
+		m_dataset = new MData();
+		if( m_dataset == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(LoadDataset) Unable to create dataset object");
+			result = false;
+		}
+
+		if( result ) {
+			string fqn = m_dataPath + dataSetFileName;
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: " + fqn);
+			result = m_dataset->Load(fqn);
+		}
+	}
+	return result;
+}
+
+
+
+
+
+
+bool Learner::LoadTrainingSet(string trainingSetName)
+{
+	bool	result = true;
+
+	// Only load if not already loaded
+	//
+	if( m_classifierName.compare(trainingSetName) != 0 ) {
+		m_classifierName = trainingSetName;
+
+		if( m_classTrain )
+			delete m_classTrain;
+
+		m_classTrain = new MData();
+		if( m_classTrain == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(LoadTrainingSet) Unable to create trainset object");
+			result = false;
+		}
+
+		if( result ) {
+			string fqn = m_outPath + trainingSetName + ".h5";
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: " + fqn);
+			result = m_classTrain->Load(fqn);
+		}
+	}
+	return result;
+}
 
 
 
