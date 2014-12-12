@@ -3,15 +3,18 @@ var IIPServer="";
 var slideCnt = 0;
 var curSlide = "";
 var curDataset = "";
+
 var viewer = null;
 var imgHelper = null, osdCanvas = null, viewerHook = null;
 var overlayHidden = false, selectMode = false, segDisplayOn = false;;
 var olDiv = null;
 var lastScaleFactor = 0;
-var pyramids;
+var pyramids, trainingSets;
 var clickCount = 0;					
 
-var debugMode = 1;
+// The following only needed for active sessions
+var uid = null, classifier = "", negClass = "", posClass = "";			
+
 
 
 
@@ -25,10 +28,7 @@ var debugMode = 1;
 //		Register event handlers
 //
 $(function() {
-	var slideSel = $("#slide_sel");
-	var	datasetSel = $("#dataset_sel");
 	
-		
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
 	//
@@ -40,8 +40,6 @@ $(function() {
 										', ' + svgOverlayVM.annoGrpTranslateY() +
 										') scale(' + svgOverlayVM.annoGrpScale() + ')';
 									}, this); 
-	updateInterface();
-	
 	
 	//
 	// Image handlers
@@ -94,24 +92,34 @@ $(function() {
 		dataType: "json",
 		success: function(data) {
 			
+			uid = data['uid'];
+			classifier = data['className'];
+			posClass = data['posClass'];
+			negClass = data['negClass'];
 			IIPServer = data['IIPServer'];
-			console.log("IIPServer: " + IIPServer);
+			curDataset = data['dataset'];
 			
-			// Slide list will also be updated by this call
+			// Don't display the legend until a classifier is selected
+			$('#legend').hide();
+
+			if( uid === null ) {
+				// No active session, don;t allow navigation to select & visualize
+				$('#nav_select').hide();
+				$('#nav_visualize').hide();
+			} else {
+				// Active session, dataset selection not allowed
+				document.getElementById('dataset_sel').disabled = true
+			}
+			// Slide list and classifier list will also be updated by this call
 			updateDatasetList();
-	
-			// Classifier list needs the current dataset so update 	
-			// dataset list first
-			updateClassifierList();
 		}
 	});
 
 	
-	// Set the update handler for the slide selector
-	slideSel.change(updateSlide);
-	// Set the update handler ffor the dataset selector
-	datasetSel.change(updateDataset);
-
+	// Set the update handlers for the selectors
+	$("#slide_sel").change(updateSlide);
+	$("#dataset_sel").change(updateDataset);
+	$("#classifier_sel").change(updateClassifier);
 });
 
 
@@ -181,14 +189,21 @@ function updateDatasetList() {
 		dataType: "json",
 		success: function(data) {
 			
-			curDataset = data[0];		// Use first dataset initially
-				
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item], data[item]));
 			}
-			
+
+			if( curDataset === null ) {
+				curDataset = data[0];		// Use first dataset initially
+			} else {
+				datasetSel.val(curDataset);
+			}
+									
 			// Need to update the slide list since we set the default slide
 			updateSlideList();
+			
+			// Classifier list needs the current dataset
+			updateClassifierList();
 		}
 	});
 }
@@ -242,9 +257,31 @@ function updateSlideList() {
 function updateClassifierList() {
 	var classSel = $("#classifier_sel");
 
+	classSel.empty();
+	
 	// First selection should be none
 	classSel.append(new Option('----------------', 'none'));
-
+	console.log("UID: "+uid);
+	console.log("Current dataset: "+curDataset);
+	
+	if( uid === null ) {
+		$.ajax({
+			type: "POST",
+			url: "db/getTrainingSets.php",
+			data: { dataset: curDataset },
+			dataType: "json",
+			success: function(data) {
+			
+				trainingSets = data;
+				for( var item in data['trainingSets'] ) {			
+					classSel.append(new Option(data['trainingSets'][item], data['trainingSets'][item]));
+				}
+			}
+		});
+		
+	} else {
+		classSel.append(new Option('Current', 'current'));		
+	}
 }
 
 
@@ -272,6 +309,40 @@ function updateDataset() {
 
 	curDataset = $('#dataset_sel').val();
 	updateSlideList();
+	updateClassifierList();
+}
+
+
+
+//
+//	Update boundaries, if visible, to the appropriate colors based on
+//	the selected classifier.
+//
+//
+function updateClassifier() {
+
+	var class_sel = document.getElementById('classifier_sel'),
+		classifier = class_sel.options[class_sel.selectedIndex].value;
+
+	console.log("Classifier changed to: "+classifier);
+	
+	if( class_sel.selectedIndex != 0 ) {
+							
+		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:deeppink;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
+		document.getElementById('negLegend').innerHTML = box + " " + negClass;
+		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lime;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
+		document.getElementById('posLegend').innerHTML = box + " " + posClass;
+		
+		$('#legend').show();
+	} else {
+	
+		$('#legend').hide();
+	}
+	
+	if( overlayHidden === false ) {
+	
+		updateSeg();
+	}
 }
 
 
@@ -340,18 +411,23 @@ function updateSeg() {
 		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
 		bottom = statusObj.dataportBottom() + height;
 		
+		var class_sel = document.getElementById('classifier_sel'),
+			classifier = class_sel.options[class_sel.selectedIndex].value;
+		console.log("Current classifier: "+classifier);
 		console.log("Current Slide: "+curSlide);
+		
 	    $.ajax({
 			type: "POST",
        	 	url: "db/getnuclei.php",
        	 	dataType: "json",
-			data: { slide: 	curSlide,
+			data: { uid:	uid,
+					slide: 	curSlide,
 					left:	statusObj.dataportLeft(),
 					right:	statusObj.dataportRight(),
 					top:	statusObj.dataportTop(),
 					bottom:	statusObj.dataportBottom(),
 					dataset: curDataset,
-					trainset: "sox2TileDemo.h5"
+					trainset: classifier
 			},
 		
 			success: function(data) {
@@ -376,7 +452,7 @@ function updateSeg() {
 						
 						ele.setAttribute('points', data[cell][0]);
 						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', 'aqua');
+						ele.setAttribute('stroke', data[cell][2]);
 						ele.setAttribute('fill', 'none');
 						
 						segGrp.appendChild(ele);
@@ -387,22 +463,6 @@ function updateSeg() {
 }
 
 
-
-
-
-//
-// 	Display the appropriate interface componenets
-// 	based on the view mode. The components default to 
-// 	hidden.
-//
-//
-function updateInterface() {
-
-	var comp = document.getElementById('DebugData');
-	if( debugMode == 1 ) {
-		$('#DebugData').children().show();
-	} 	
-}
 
 
 

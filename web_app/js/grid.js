@@ -18,6 +18,7 @@ var curDataset;
 var curSlide = "", curBox = -1;
 var curX = 0, curY = 0;
 
+var boundaryOn = true;
 
 
 
@@ -135,19 +136,23 @@ $(function() {
 			
 			sampGrp.appendChild(ele);
 		
+
 			ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
 			ele.setAttribute('points', sampleDataJson['samples'][curBox]['boundary']);
 			ele.setAttribute('id', 'boundary');
 			ele.setAttribute('stroke', 'yellow');
 			ele.setAttribute('fill', 'none');
-			ele.setAttribute('visibility', 'visible');
+			if( boundaryOn ) {
+				ele.setAttribute('visibility', 'visible');
+				// Make sure toggle button refects the correct action and is enabled
+				$('#toggleBtn').val("Hide segmentation");
+				$('#toggleBtn').removeAttr('disabled');
+			} else {
+				ele.setAttribute('visibility', 'hidden');
+			}
 			sampGrp.appendChild(ele);	
-			
+
 			$('.overlaySvg').css('visibility', 'visible');
-			
-			// Make sure toggle button refects the correct action and is enabled
-			$('#toggleBtn').val("Hide segmentation");
-			$('#toggleBtn').removeAttr('disabled');
 		}
 	});
 	
@@ -251,7 +256,8 @@ function thumbSingleClick(box) {
 			boxDiv = "#"+boxes[curBox];
 			$(boxDiv).css('background', '#FFFFFF');
 		}
-		curBox = index;			
+		curBox = index;
+		boundaryOn = true;
 	}
 };
 
@@ -498,12 +504,15 @@ function toggleSegVisibility() {
 	var boundary = document.getElementById('boundary');
 	if( boundary != null ) {
 	
-		if( boundary.getAttribute('visibility') == 'visible' ) {
+		if( boundaryOn ) {
+//		if( boundary.getAttribute('visibility') == 'visible' ) {
 			$('#toggleBtn').val("Show segmentation");
 			boundary.setAttribute('visibility', 'hidden');
+			boundaryOn = false;
 		} else {
 			$('#toggleBtn').val("Hide segmentation");
 			boundary.setAttribute('visibility', 'visible');
+			boundaryOn = true;
 		}
 	}
 }

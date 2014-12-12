@@ -26,78 +26,57 @@
 			<div>
 				<ul class="nav navbar-nav">
 					<li><a href="index.html">Home</a></li>
-					<li class="active"><a href="#">Viewer</a></li>
+					<li class="active"><a href="viewer.html">Viewer</a></li>
+					<li><a href="grid.html" id="nav_select">Select</a></li>
+					<li><a href="visualize.html" id="nav_visualize">Visualize</a></li>
 				</ul>
 			</div>
 		</nav>
 
+		<!-- First row: Dataset & slide selection, classifier selection and info -->
 		<div class="container">
 
 			<div class="row">
 				<div id="SelPatient" class="col-sm-4 col-md-4 col-lg-4">
 					<div id="SelDataset">
-						<h4>Select Dataset: </h4>
+						<h5>Select Dataset: </h5>
 						<select id="dataset_sel"></select>
 					</div>
 					
-					<h4>Select Slide: </h4>
+					<h5>Select Slide: </h5>
 					<select id="slide_sel"></select>
+					
 					<p>
-					<br />
+						<br/>
 						Available Slides: <span id="count_patient"></span>
-					<br />
 					</p>
 				</div>
 
 
-				<div class="col-sm-4 col-md-4 col-lg-4" data-bind="with: statusObj">
-
-					<div id="DebugData">
-						<div>
-							<span>Mouse X:  </span>
-							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgX().toFixed(0) : '-'"></span>
-						</div>
-						<div>
-							<span>Mouse Y:  </span>
-							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgY().toFixed(0) : '-'"></span>
-						</div>
-						<div>
-							<span>Viewport left:  </span>
-							<span data-bind="text: haveImage() ? dataportLeft().toFixed(0) : '-'"></span>
-						</div>
-						<div>
-							<span>Viewport top:  </span>
-							<span data-bind="text: haveImage() ? dataportTop().toFixed(0) : '-'"></span>
-						</div>
-						<div>
-							<span>Viewport right:  </span>
-							<span data-bind="text: haveImage() ? dataportRight().toFixed(0) : '-'"></span>
-						</div>
-						<div>
-							<span>Viewport bottom:  </span>
-							<span data-bind="text: haveImage() ? dataportBottom().toFixed(0) : '-'"></span>
-						</div>
-						<div>
-							<span>Zoom factor:  </span>
-							<span data-bind="text: haveImage() ? scaleFactor().toFixed(4) : '-'"></span>
-						</div>
-					</div>
-				</div>
-				
-				
 				<div class="col-sm-4 col-md-4 col-lg-4"  >
 					<div id="SelClassifier">
-						<h4>Apply Classifier : </h4>
+						<h5>Apply Classifier : </h5>
 						<select id="classifier_sel"></select>
 					</div>
 				</div>
-				
-				
+
+
+				<div class="col-sm-4 col-md-4 col-lg-4" id="legend">
+					<ul>
+						<li id="negLegend">Neg Class
+							<svg width="20" height="20">
+								<rect width="15" height = "15" style="fill:deeppink;stroke-width:3;stroke:rgb(0,0,0)"/>
+							</svg>
+
+						<li id="posLegend">Pos Class
+					</ul>
+				</div>
+								
 			</div>  <!-- First row -->
 
 
 
-			<div class="row top-buffer"></div>   <!-- A little space between -->
+<!--			<div class="row top-buffer"></div>   <!-- A little space between --> 
 
 
 			<div class="row">	<!-- Buttons -->

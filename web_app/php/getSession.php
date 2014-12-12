@@ -12,15 +12,14 @@
 		$sessionInfo['posClass'] = $_SESSION['posClass'];
 		$sessionInfo['negClass'] = $_SESSION['negClass'];
 		$sessionInfo['dataset'] = $_SESSION['dataset'];	
+	} else {
+		$sessionInfo['uid'] = null;
+		$sessionInfo['dataset'] = null;
 	}
 
 	$sessionInfo['alServer'] = $host;
 	$sessionInfo['alServerPort'] = $port;
 	$sessionInfo['IIPServer'] = $IIPServer;
-	
-	
-//	$sessionInfo['slideHost'] = $SlideHost;
-//	$sessionInfo['slidePath'] = $SlidePath;
 	
 	echo json_encode($sessionInfo);
 ?>

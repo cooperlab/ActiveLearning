@@ -144,7 +144,9 @@ function showBoundaries(nuclei)
 				if( overlay != null ) {
 					x = nuclei[obj]['centX'] - 40.0; //(40.0 * slideScale);
 					y = nuclei[obj]['centY'] - 40.0; //(40.0 * slideScale);
-		
+					console.log("Centroid  "+nuclei[obj]['centX']+", "+nuclei[obj]['centY']);
+					console.log("Translating by  -"+x+", -"+y);
+
 					ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
 					ele.setAttribute('points', nuclei[obj]['boundary']);
 					ele.setAttribute('id', 'boundary');

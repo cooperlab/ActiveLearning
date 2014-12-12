@@ -296,6 +296,8 @@ function updateSeg() {
        	 	url: "db/getnuclei.php",
        	 	dataType: "json",
 			data: { slide: 	curSlide,
+					trainset: "none",
+					dataset: "none",
 					left:	statusObj.dataportLeft(),
 					right:	statusObj.dataportRight(),
 					top:	statusObj.dataportTop(),

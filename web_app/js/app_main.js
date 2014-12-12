@@ -22,22 +22,28 @@ $(function() {
 		dataType: "json",
 		success: function(data) {
 			
-			if( data.length > 0 ) {
-				uid = data[0];
-				classifier = data[1];
-				posClass = data[2];
-				negClass = data[3];
-			}
+			uid = data['uid'];
+			classifier = data['className'];
+			posClass = data['posClass'];
+			negClass = data['negClass'];
+			curDataset = data['dataset'];
+			IIPServer = data['IIPServer'];
 
-			if( uid == "" ) {
-				$('#nav_grid').hide();
+			if( uid === null ) {
+				$('#nav_select').hide();
+				$('#nav_visualize').hide();
 			} else {
 				// There's an active session, disable the "start session" 
 				// form.
 				//
 				$('#beginSession').attr('disabled', 'true');
-				// TODO - Populate the text fields with the session values
-				// and disable them. This way we can see the criteria for the
+				$('#trainset').attr('disabled', 'true');
+				$('#datasetSel').attr('disabled', 'true');
+				$('#posClass').attr('disabled', 'true');
+				$('#negClass').attr('disabled', 'true');
+				
+				// TODO - Populate the text fields with the session values.
+				// This way we can see the criteria for the
 				// current session
 			}
 		}
