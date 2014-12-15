@@ -19,8 +19,8 @@
  	$boxTop = $cellY - 10;
 	$boxBottom = $cellY + 10;
 
-	$dbConn = guestConnect();
-
+	$dbConn = boundaryConnect();
+	
 	$sql = 'SELECT boundary, id, centroid_x, centroid_y, '.
 		   '(pow(centroid_x -'.$cellX.',2) + pow(centroid_y -'.$cellY.',2)) AS dist '.
 		   'FROM boundaries '.
@@ -33,7 +33,9 @@
 		$jsonData = mysqli_fetch_row($result);	
 		mysqli_free_result($result);
 	}		
-	
+	mysqli_close($dbConn);
+
+	$dbConn = guestConnect();
 	$sql = 'SELECT x_size, y_size, scale FROM slides WHERE name="'.$slide.'"';
 	if( $result = mysqli_query($dbConn, $sql) ) {
 		$sizes = mysqli_fetch_row($result);

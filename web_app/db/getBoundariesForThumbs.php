@@ -4,7 +4,7 @@
 
 
 	$nuclei = $_POST['nuclei'];	
-	$dbConn = guestConnect();
+	$dbConn = boundaryConnect();
 	
 	for($i = 0; $i < count($nuclei); $i++) {
 		$sql = 'SELECT boundary  FROM boundaries WHERE slide="'.$nuclei[$i]['slide'].
