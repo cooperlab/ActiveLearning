@@ -23,7 +23,6 @@
 	$trainSet = $_POST['trainset'];
 
 
-	write_log("DEBUG", "trainset: ".$trainSet);
 	
 	// Get labels for the objects within the viewport
 	if( $trainSet != "none" ) {
@@ -92,7 +91,7 @@
 
 	$dbConn = boundaryConnect();
 	$sql = 'SELECT boundary, id, centroid_x, centroid_y from boundaries where slide="'.$slide.'" AND centroid_x BETWEEN '.$left.' AND '.$right.' AND centroid_y BETWEEN '.$top.' AND '.$bottom.' LIMIT 15000';
-  	
+
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
 		$jsonData = array();		

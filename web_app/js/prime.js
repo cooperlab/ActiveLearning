@@ -80,13 +80,11 @@ $(function() {
 		osdCanvas = $(viewer.canvas);
 		statusObj.haveImage(false);
 		
-		viewer.drawer.clearOverlays();
         osdCanvas.off('mouseenter.osdimaginghelper', onMouseEnter);
         osdCanvas.off('mousemove.osdimaginghelper', onMouseMove);
 		osdCanvas.off('mouseleave.osdimaginghelper', onMouseLeave);
 
 		osdCanvas = null;
-		curSlide = "";
 		posSel = negSel = totalSel = 0;
 	});
 
@@ -223,7 +221,8 @@ function updateSlideView() {
 //
 //
 function updateSlide() {
-	curSlide = $('#slide_sel').val();
+
+	curSlide = $('#slideSel').val();
 	updateSlideView();
 }
 
