@@ -22,7 +22,12 @@ m_yCentroid(NULL),
 m_slideIdx(NULL),
 m_slides(NULL),
 m_haveDbIds(false),
-m_dbIds(NULL)
+m_dbIds(NULL),
+m_haveIters(false),
+m_iteration(NULL),
+m_means(NULL),
+m_stdDevs(NULL),
+m_created(false)
 {
 
 }
@@ -67,12 +72,41 @@ void MData::Cleanup(void)
 		m_slideIdx = NULL;
 	}
 
-	if( m_slides ) {
-		// Release mem allocated by H5Dread
-		H5Dvlen_reclaim(m_memType, m_space, H5P_DEFAULT, m_slides);
+	if( m_dbIds ) {
+		free(m_dbIds);
+		m_dbIds = NULL;
+	}
+
+	if( m_iteration ) {
+		free(m_iteration);
+		m_iteration = NULL;
+	}
+
+	if( m_means ) {
+		free(m_means);
+		m_means = NULL;
+	}
+
+	if( m_stdDevs ) {
+		free(m_stdDevs);
+		m_stdDevs = NULL;
+	}
+
+	if( m_created ) {
+		for(int i = 0; i < m_numSlides; i++) {
+			free(m_slides[i]);
+		}
 		free(m_slides);
 		m_slides = NULL;
+	} else {
+		if( m_slides ) {
+			// Release mem allocated by H5Dread
+			H5Dvlen_reclaim(m_memType, m_space, H5P_DEFAULT, m_slides);
+			free(m_slides);
+			m_slides = NULL;
+		}
 	}
+	m_numSlides = 0;
 }
 
 
@@ -204,6 +238,36 @@ bool MData::Load(string fileName)
 		}
 	}
 
+	// Get means
+	//
+	if( result ) {
+		// Allocate buffer
+		m_means = (float*)malloc(dims[0] * sizeof(float));
+		if( m_means == NULL ) {
+			result = false;
+		} else {
+			status = H5LTread_dataset_float(fileId, "/mean", m_means);
+			if( status < 0 ) {
+				result = false;
+			}
+		}
+	}
+
+	// Get standard deviations
+	//
+	if( result ) {
+		// Allocate buffer
+		m_stdDevs = (float*)malloc(dims[0] * sizeof(float));
+		if( m_stdDevs == NULL ) {
+			result = false;
+		} else {
+			status = H5LTread_dataset_float(fileId, "/std_dev", m_stdDevs);
+			if( status < 0 ) {
+				result = false;
+			}
+		}
+	}
+
 	if( slidesExist ) {
 		// Read slide names, do this last because we reuse the dims variable
 		//
@@ -330,7 +394,9 @@ float MData::GetYCentroid(int index)
 
 
 bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
-					int *ids, char **slides, int *slideIdx, int slideCnt)
+					int *ids, int *iteration, float *means, float *stdDev,
+					float *xCentroid, float *yCentroid, char **slides,
+					int *slideIdx, int numSlides)
 {
 	bool 	result = true;
 	float	**dataSetIdx = NULL;
@@ -340,6 +406,7 @@ bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 
 	m_numObjs = numObjs;
 	m_numDim = numDims;
+	m_created = true;
 
 	// Allocate buffer for objects
 	m_objects = (float**)malloc(numObjs * sizeof(float*));
@@ -365,7 +432,7 @@ bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 			m_haveLabels = true;
 			memcpy(m_labels, labels, numObjs * sizeof(int));
 		} else {
-			result = true;
+			result = false;
 		}
 	}
 
@@ -375,10 +442,127 @@ bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 		if( m_dbIds != NULL ) {
 			m_haveDbIds = true;
 			memcpy(m_dbIds, ids, numObjs * sizeof(int));
+		} else {
+			result = false;
 		}
 	}
-	// TODO - Save slide names and slide indices
 
+	if( result && iteration != NULL ) {
+		m_iteration = (int*)malloc(numObjs * sizeof(int));
+		if( m_iteration != NULL ) {
+			m_haveIters = true;
+			memcpy(m_iteration, iteration, numObjs * sizeof(int));
+		} else {
+			result = false;
+		}
+	}
+
+	if( result && means != NULL ) {
+		m_means = (float*)malloc(numObjs * sizeof(float));
+		if( m_means != NULL ) {
+			memcpy(m_means, means, numObjs * sizeof(float));
+		} else {
+			result = false;
+		}
+	}
+
+	if( result && stdDev != NULL ) {
+		m_stdDevs = (float*)malloc(numObjs * sizeof(float));
+		if( m_stdDevs != NULL ) {
+			memcpy(m_stdDevs, stdDev, numObjs * sizeof(float));
+		} else {
+			result = false;
+		}
+	}
+
+	if( result && xCentroid != NULL ) {
+		m_xCentroid = (float*)malloc(numObjs * sizeof(float));
+		if( m_xCentroid != NULL ) {
+			memcpy(m_xCentroid, xCentroid, numObjs * sizeof(float));
+		} else {
+			result = false;
+		}
+	}
+
+	if( result && yCentroid != NULL ) {
+		m_yCentroid = (float*)malloc(numObjs * sizeof(float));
+		if( m_yCentroid != NULL ) {
+			memcpy(m_yCentroid, yCentroid, numObjs * sizeof(float));
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		result = CreateSlideData(slides, slideIdx, numSlides, numObjs);
+	}
+
+	return result;
+}
+
+
+
+
+
+bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int numObjs)
+{
+	bool result = true;
+	set<int>	usedSlides;
+	set<int>::iterator it;
+	int			*crossRef = NULL, *newSlideList = NULL;
+	char		**newSlides;
+
+	// slides may be a superset of what is actually needed. Iterate through slideIdx
+	// to get the slides that are actually needed.
+	//
+	for(int i = 0; i < numObjs; i++) {
+		usedSlides.insert(slideIdx[i]);
+	}
+	crossRef = (int*)malloc(numObjs * sizeof(int));
+	newSlideList = (int*)malloc(numObjs * sizeof(int));
+	if( crossRef == NULL || newSlideList == NULL ) {
+		result = false;
+	}
+
+	// Store the new index at the position of the old index
+	int pos = 0;
+	for(it = usedSlides.begin(); it != usedSlides.end(); it++) {
+		crossRef[*it] = pos++;
+	}
+
+	// Allocate memory for the new string pointers
+	if( result ) {
+		newSlides = (char**)malloc(usedSlides.size() * sizeof(char*));
+		if( newSlides == NULL ) {
+			result = false;
+		}
+	}
+
+	// Copy the slide names
+	if( result ) {
+		for(it = usedSlides.begin(); it != usedSlides.end(); it++) {
+			pos = crossRef[*it];
+			newSlides[pos] = (char*)malloc(strlen(slides[*it]));
+			if( newSlides[pos] == false ) {
+				result = false;
+				break;
+			}
+			strcpy(newSlides[pos], slides[*it]);
+		}
+	}
+
+	// Create slide index
+	if( result ) {
+		for(int i = 0; i < numObjs; i++) {
+			newSlideList[i] = crossRef[slideIdx[i]];
+		}
+	}
+
+	if( result ) {
+		m_slides = newSlides;
+		m_slideIdx = newSlideList;
+		m_numSlides = usedSlides.size();
+	}
 	return result;
 }
 
@@ -422,6 +606,78 @@ bool MData::SaveAs(string filename)
 			result = false;
 		}
 	}
+
+	if( m_haveIters && result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/sample_iter", 2, dims, H5T_NATIVE_INT, m_iteration);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/x_centroid", 2, dims, H5T_NATIVE_FLOAT, m_xCentroid);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/y_centroid", 2, dims, H5T_NATIVE_FLOAT, m_yCentroid);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/slideIdx", 2, dims, H5T_NATIVE_INT, m_slideIdx);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		hsize_t size = m_numSlides;
+		hid_t	dSpace = H5Screate_simple(1, &size, NULL),
+				dType, dataSet;
+		if( dSpace < 0 ) {
+			result = false;
+		} else {
+			dType = H5Tcopy(H5T_C_S1);
+			H5Tset_size(dType, H5T_VARIABLE);
+			dataSet = H5Dcreate(fileId, "slides", dType, dSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+			if( dataSet < 0 ) {
+				result = false;
+			} else {
+				H5Dwrite(dataSet, dType, dSpace, H5S_ALL, H5P_DEFAULT, m_slides);
+				H5Dclose(dataSet);
+				H5Sclose(dSpace);
+				H5Tclose(dType);
+			}
+		}
+	}
+
+	if( result ) {
+		dims[0] = m_numDim;
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/mean", 2, dims, H5T_NATIVE_FLOAT, m_means);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		dims[0] = m_numDim;
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/std_dev", 2, dims, H5T_NATIVE_FLOAT, m_stdDevs);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
 	if( result )
 		result = SaveProvenance(fileId);
 
@@ -487,4 +743,21 @@ bool MData::SaveProvenance(hid_t fileId)
 		}
 	}
 	return result;
+}
+
+
+
+
+
+int MData::GetSlideIdx(const char *slide)
+{
+	int		idx = 0;
+	string	slideName = slide;
+
+	while( idx < m_numSlides ) {
+		if( slideName.compare(m_slides[idx]) == 0 )
+			break;
+		idx++;
+	}
+	return idx;
 }
