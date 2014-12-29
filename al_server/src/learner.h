@@ -39,11 +39,16 @@ protected:
 	vector<int>	m_curSet;
 	vector<float> m_curScores;
 
-
+	// Training set info
+	//
 	int			*m_labels;
 	int			*m_ids;
 	float		*m_trainSet;
 	int			*m_sampleIter;	// Iteration sample was added
+	int			*m_slideIdx;
+	float		*m_xCentroid;
+	float		*m_yCentroid;
+
 	int			m_iteration;
 	float		m_curAccuracy;
 

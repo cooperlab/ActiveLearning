@@ -2,7 +2,6 @@
 #include <ctime>
 #include <cstring>
 #include <unistd.h>
-#include <iostream>
 #include <jansson.h>
 #include <sys/stat.h>
 #include <algorithm>
@@ -33,7 +32,10 @@ m_sampler(NULL),
 m_dataPath(dataPath),
 m_outPath(outPath),
 m_sampleIter(NULL),
-m_curAccuracy(0.0f)
+m_slideIdx(NULL),
+m_curAccuracy(0.0f),
+m_xCentroid(NULL),
+m_yCentroid(NULL)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -96,6 +98,16 @@ void Learner::Cleanup(void)
 	if( m_sampleIter ) {
 		free(m_sampleIter);
 		m_sampleIter = NULL;
+	}
+
+	if( m_xCentroid ) {
+		free(m_xCentroid);
+		m_xCentroid = NULL;
+	}
+
+	if( m_yCentroid ) {
+		free(m_yCentroid);
+		m_yCentroid = NULL;
 	}
 }
 
@@ -409,6 +421,8 @@ bool Learner::Submit(const int sock, json_t *obj)
 	//
 	m_UID[UID_LENGTH] = 0;
 
+	// Check for valid UID
+	//
 	if( strlen(m_UID) == 0 ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) No active session");
 		result = false;
@@ -424,6 +438,8 @@ bool Learner::Submit(const int sock, json_t *obj)
 		}
 	}
 
+	// Sanity check the itereation
+	//
 	if( result ) {
 		value = json_object_get(obj, "iteration");
 		if( value == NULL ) {
@@ -447,7 +463,6 @@ bool Learner::Submit(const int sock, json_t *obj)
 			result = false;
 		}
 	}
-
 
 	if( result ) {
 		// Make room for the new samples
@@ -505,6 +520,9 @@ bool Learner::Submit(const int sock, json_t *obj)
 				m_labels[pos] = label;
 				m_ids[pos] = id;
 				m_sampleIter[pos] = m_iteration;
+				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
+				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
+				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
 				result = m_dataset->GetSample(idx, &m_trainSet[pos * dims]);
 				m_samples.push_back(idx);
 			} else {
@@ -779,6 +797,7 @@ bool Learner::UpdateBuffers(int updateSize)
 {
 	bool	result = true;
 	int		*newBuff = NULL, newSize = m_samples.size() + updateSize;
+	float	*floatBuff = NULL;
 
 	newBuff = (int*)realloc(m_labels, newSize * sizeof(int));
 	if( newBuff != NULL )
@@ -798,6 +817,30 @@ bool Learner::UpdateBuffers(int updateSize)
 		newBuff = (int*)realloc(m_sampleIter, newSize * sizeof(int));
 		if( newBuff != NULL )
 			m_sampleIter = newBuff;
+		else
+			result = false;
+	}
+
+	if( result ) {
+		floatBuff = (float*)realloc(m_xCentroid, newSize * sizeof(float));
+		if( floatBuff != NULL )
+			m_xCentroid = floatBuff;
+		else
+			result = false;
+	}
+
+	if( result ) {
+		floatBuff = (float*)realloc(m_yCentroid, newSize * sizeof(float));
+		if( floatBuff != NULL )
+			m_yCentroid = floatBuff;
+		else
+			result = false;
+	}
+
+	if( result ) {
+		newBuff = (int*)realloc(m_slideIdx, newSize * sizeof(int));
+		if( newBuff != NULL )
+			m_slideIdx = newBuff;
 		else
 			result = false;
 	}
@@ -848,7 +891,9 @@ bool Learner::SaveTrainingSet(string fileName)
 	if( trainingSet != NULL ) {
 
 		result = trainingSet->Create(m_trainSet, m_samples.size(), m_dataset->GetDims(),
-							m_labels, m_ids, NULL, NULL, 0);
+							m_labels, m_ids, m_sampleIter, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
+							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
+							m_dataset->GetNumSlides());
 	}
 
 	if( result ) {
@@ -1090,7 +1135,6 @@ bool Learner::SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
 		}
 
 		if( result ) {
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "(SendClassifyResult) Dumping JSON object");
 			char *jsonObj = json_dumps(root, 0);
 
 			if( jsonObj == NULL ) {
@@ -1099,7 +1143,6 @@ bool Learner::SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
 			}
 
 			if( result ) {
-				gLogger->LogMsg(EvtLogger::Evt_INFO, "(SendClassifyResult) Sending JSON object");
 				size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
 
 				if( bytesWritten != strlen(jsonObj) ) {

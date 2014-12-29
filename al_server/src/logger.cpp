@@ -1,5 +1,7 @@
 #include <fstream>
+#include <iostream>
 #include <ctime>
+#include <cstdarg>
 #include <sys/time.h>
 #include "logger.h"
 
@@ -24,7 +26,29 @@ EvtLogger::~EvtLogger(void)
 
 
 
-// TODO - Add a formatting capable log method
+
+
+
+
+bool EvtLogger::LogMsgv(LogType type, const char* msg, ...)
+{
+	bool	result = true;
+	char	buffer[1024];
+
+	va_list	args;
+
+	va_start(args, msg);
+	vsnprintf(buffer, 1024, msg, args);
+	va_end(args);
+
+	result = LogMsg(type, buffer);
+
+	return result;
+}
+
+
+
+
 
 
 
