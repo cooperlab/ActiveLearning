@@ -29,8 +29,6 @@
 
 		$dataSet = $_POST['dataset'];
 
-		write_log("DEBUG", "Applying classifier ".$trainSet." to ".$dataSet);
-
 		// Get the dataset file from the database
 		//
 		$dbConn = guestConnect();
@@ -42,8 +40,6 @@
 			mysqli_free_result($result);
 		}
 		mysqli_close($dbConn);
-
-		write_log("DEBUG", "Training set filename: ".$featureFile[0]);
 		
 		// Send command to al server
 		$cmd =  array( "command" => "apply", 
@@ -105,6 +101,7 @@
 				$tag = $array[2]."_".$array[3];
 				$obj[] = $colors[$classification[$tag]];				
 			} else {
+				// Default to aqua if a classifier is not being applied
 				$obj[] = "aqua";
 			}
 			$jsonData[] = $obj;
