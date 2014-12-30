@@ -92,6 +92,11 @@ void MData::Cleanup(void)
 		m_stdDevs = NULL;
 	}
 
+	// If data was loaded from an existing file, HDF5 will allocate the
+	// buffers for the variable length strings (sides dataset). If we
+	// used the create method to load data, we must free each string
+	// buffer.
+	//
 	if( m_created ) {
 		for(int i = 0; i < m_numSlides; i++) {
 			free(m_slides[i]);

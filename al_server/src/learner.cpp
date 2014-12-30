@@ -251,7 +251,6 @@ bool Learner::StartSession(const int sock, json_t *obj)
 
 	if( result ) {
 		m_sampler = new UncertainSample(m_classifier, m_dataset);
-		//m_sampler = new RandomSample(m_dataset);
 		if( m_sampler == NULL ) {
 			result = false;
 		}
@@ -340,8 +339,10 @@ bool Learner::Select(const int sock, json_t *obj)
 		float	*selScores = NULL;
 
 		if( m_iteration != reqIteration ) {
+			double	start = gLogger->WallTime();
 			// Get new samples
 			m_sampler->SelectBatch(8, selIdx, selScores);
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Select took %f", gLogger->WallTime() - start);
 		}
 
 		for(int i = 0; i < 8; i++) {

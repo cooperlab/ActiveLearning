@@ -2,7 +2,7 @@
 #define _LOGGER_H_
 
 #include <fstream>
-
+#include <pthread.h>
 
 
 
@@ -23,7 +23,14 @@ public:
 protected:
 
 	std::ofstream	m_logFile;
+	std::string		m_fqfn;
 
+	static void *ThreadEntry(void *self);
+	void		Monitor(void);
+
+private:
+
+	pthread_t	m_threadId;
 };
 
 

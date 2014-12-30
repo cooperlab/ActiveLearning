@@ -2,18 +2,53 @@
 #include <iostream>
 #include <ctime>
 #include <cstdarg>
+#include <cstdio>
+#include <unistd.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include "logger.h"
 
 
 using namespace std;
 
 
+#define LOGFILE_PATH_LENGTH		1024
+
+
+
+
 
 EvtLogger::EvtLogger(string logFile)
 {
+	// Check for existing file first
+	struct stat buffer;
+
+	if( stat(logFile.c_str(), &buffer) == 0 ) {
+		// Check last modification day, rename if not today
+		//
+		time_t	now = time(0);
+		tm	*ltime = localtime(&buffer.st_mtime);
+		int  todayDay, modDay = ltime->tm_wday;
+
+		ltime = localtime(&now);
+		todayDay = ltime->tm_wday;
+
+		if( modDay != todayDay ) {
+			char newName[LOGFILE_PATH_LENGTH];
+			// Rename the file with the days since sunday appended
+			// to the end.
+			//
+			snprintf(newName, LOGFILE_PATH_LENGTH, "%s.%d", logFile.c_str(), modDay);
+			rename(logFile.c_str(), newName);
+		}
+	}
 	m_logFile.open(logFile.c_str(), std::ofstream::out | std::ofstream::app);
+
+	// Start log monitor
+	pthread_create(&m_threadId, NULL, EvtLogger::ThreadEntry, (void*)this);
 }
+
+
 
 
 
@@ -101,3 +136,50 @@ double EvtLogger::WallTime(void)
                ((double)etstart.tv_usec) / 1000000.0;  /* in microseconds */
     return now_time;
 }
+
+
+
+
+
+
+void *EvtLogger::ThreadEntry(void *self)
+{
+	EvtLogger *logger = (EvtLogger*)self;
+	logger->Monitor();
+
+	return NULL;
+}
+
+
+
+
+
+
+void EvtLogger::Monitor(void)
+{
+	unsigned	secondsTilMidnight;
+	time_t		now;
+	tm			*ltime;
+
+	while(1) {
+		// Sleep until midnight
+		now = time(0);
+		ltime = localtime(&now);
+
+		secondsTilMidnight = (23 - ltime->tm_hour) * 3600;
+		secondsTilMidnight += ((59 - ltime->tm_min) * 60);
+		secondsTilMidnight += (59 - ltime->tm_sec);
+
+		sleep(secondsTilMidnight);
+
+		// Archive current log file
+		m_logFile.close();
+		char	newName[LOGFILE_PATH_LENGTH];
+
+		snprintf(newName, LOGFILE_PATH_LENGTH, "%s.%d", m_fqfn.c_str(), ltime->tm_wday);
+		rename(m_fqfn.c_str(), newName);
+
+		m_logFile.open(m_fqfn.c_str(), std::ofstream::out | std::ofstream::trunc);
+	}
+}
+
