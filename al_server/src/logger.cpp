@@ -18,7 +18,8 @@ using namespace std;
 
 
 
-EvtLogger::EvtLogger(string logFile)
+EvtLogger::EvtLogger(string logFile) :
+m_fqfn(logFile)
 {
 	// Check for existing file first
 	struct stat buffer;
