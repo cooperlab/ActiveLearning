@@ -515,7 +515,7 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 	set<int>	usedSlides;
 	set<int>::iterator it;
 	int			*crossRef = NULL, *newSlideList = NULL;
-	char		**newSlides;
+	char		**newSlides = NULL;
 
 	// slides may be a superset of what is actually needed. Iterate through slideIdx
 	// to get the slides that are actually needed.
@@ -523,7 +523,10 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 	for(int i = 0; i < numObjs; i++) {
 		usedSlides.insert(slideIdx[i]);
 	}
-	crossRef = (int*)malloc(numObjs * sizeof(int));
+	
+	// Original slide idx, new index is crossRef[idx]
+	//
+	crossRef = (int*)malloc(numSlides * sizeof(int));
 	newSlideList = (int*)malloc(numObjs * sizeof(int));
 	if( crossRef == NULL || newSlideList == NULL ) {
 		result = false;
@@ -532,6 +535,10 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 	// Store the new index at the position of the old index
 	int pos = 0;
 	for(it = usedSlides.begin(); it != usedSlides.end(); it++) {
+		if( *it >= numSlides ) {
+			result = false;
+			break;
+		}
 		crossRef[*it] = pos++;
 	}
 
@@ -568,6 +575,10 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 		m_slideIdx = newSlideList;
 		m_numSlides = usedSlides.size();
 	}
+	
+	if( crossRef ) 
+		free(crossRef);
+		
 	return result;
 }
 
