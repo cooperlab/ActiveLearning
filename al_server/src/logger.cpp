@@ -19,34 +19,38 @@ using namespace std;
 
 
 EvtLogger::EvtLogger(string logFile) :
-m_fqfn(logFile)
+m_fqfn(logFile),
+m_curFileDay(-1)
 {
-	// Check for existing file first
-	struct stat buffer;
 
-	if( stat(logFile.c_str(), &buffer) == 0 ) {
-		// Check last modification day, rename if not today
-		//
+	// Init file access mutex
+	if( pthread_mutex_init(&m_fileMtx, NULL) == 0 ) {
+
+		// Check for existing file first
+		struct stat buffer;
 		time_t	now = time(0);
-		tm	*ltime = localtime(&buffer.st_mtime);
-		int  todayDay, modDay = ltime->tm_wday;
+		tm	*ltime = localtime(&now);
+		
+		m_curFileDay = ltime->tm_wday;
 
-		ltime = localtime(&now);
-		todayDay = ltime->tm_wday;
-
-		if( modDay != todayDay ) {
-			char newName[LOGFILE_PATH_LENGTH];
-			// Rename the file with the days since sunday appended
-			// to the end.
+		if( stat(logFile.c_str(), &buffer) == 0 ) {
+			// Check last modification day, rename if not today
 			//
-			snprintf(newName, LOGFILE_PATH_LENGTH, "%s.%d", logFile.c_str(), modDay);
-			rename(logFile.c_str(), newName);
-		}
-	}
-	m_logFile.open(logFile.c_str(), std::ofstream::out | std::ofstream::app);
+			ltime = localtime(&buffer.st_mtime);
+			int  modDay = ltime->tm_wday;
 
-	// Start log monitor
-	pthread_create(&m_threadId, NULL, EvtLogger::ThreadEntry, (void*)this);
+
+			if( modDay != m_curFileDay ) {
+				char newName[LOGFILE_PATH_LENGTH];
+				// Rename the file with the days since sunday appended
+				// to the end.
+				//
+				snprintf(newName, LOGFILE_PATH_LENGTH, "%s.%d", logFile.c_str(), modDay);
+				rename(logFile.c_str(), newName);
+			}
+		}
+		m_logFile.open(logFile.c_str(), std::ofstream::out | std::ofstream::app);
+	}
 }
 
 
@@ -58,6 +62,8 @@ EvtLogger::~EvtLogger(void)
 {
 	if( m_logFile.is_open() )
 		m_logFile.close();
+		
+	pthread_mutex_destroy(&m_fileMtx);
 }
 
 
@@ -91,9 +97,13 @@ bool EvtLogger::LogMsgv(LogType type, const char* msg, ...)
 bool EvtLogger::LogMsg(LogType type, string msg)
 {
 	bool	result = false;
-	time_t	now = time(0);
-
+	time_t	now;
+		
 	if( m_logFile.is_open() ) {
+	
+		pthread_mutex_lock(&m_fileMtx);
+		now = time(0);
+
 		tm	*ltm = localtime(&now);
 		char	timeBuff[100];
 		string	typeName;
@@ -112,14 +122,23 @@ bool EvtLogger::LogMsg(LogType type, string msg)
 			typeName = "[?????]";
 			break;
 		}
+		
+		// Archive the file for each day
+		if( ltm->tm_wday != m_curFileDay ) {
+			Archive();
+		}
+		
 		snprintf(timeBuff, 100, "%02d-%02d-%d %02d:%02d:%02d",
 				ltm->tm_mon + 1, ltm->tm_mday, 1900 + ltm->tm_year,
 				ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
 		m_logFile << typeName << " " << timeBuff << " - " << msg << endl;
 		result = true;
+		
+		pthread_mutex_unlock(&m_fileMtx);
 	}
 	return result;
 }
+
 
 
 
@@ -143,44 +162,19 @@ double EvtLogger::WallTime(void)
 
 
 
-void *EvtLogger::ThreadEntry(void *self)
+
+void EvtLogger::Archive(void)
 {
-	EvtLogger *logger = (EvtLogger*)self;
-	logger->Monitor();
+	time_t		now = time(0);
+	tm			*ltime = localtime(&now);
 
-	return NULL;
-}
+	m_logFile.close();
+	char	newName[LOGFILE_PATH_LENGTH];
 
+	snprintf(newName, LOGFILE_PATH_LENGTH, "%s.%d", m_fqfn.c_str(), m_curFileDay);
+	rename(m_fqfn.c_str(), newName);
 
-
-
-
-
-void EvtLogger::Monitor(void)
-{
-	unsigned	secondsTilMidnight;
-	time_t		now;
-	tm			*ltime;
-
-	while(1) {
-		// Sleep until midnight
-		now = time(0);
-		ltime = localtime(&now);
-
-		secondsTilMidnight = (23 - ltime->tm_hour) * 3600;
-		secondsTilMidnight += ((59 - ltime->tm_min) * 60);
-		secondsTilMidnight += (59 - ltime->tm_sec);
-
-		sleep(secondsTilMidnight);
-
-		// Archive current log file
-		m_logFile.close();
-		char	newName[LOGFILE_PATH_LENGTH];
-
-		snprintf(newName, LOGFILE_PATH_LENGTH, "%s.%d", m_fqfn.c_str(), ltime->tm_wday);
-		rename(m_fqfn.c_str(), newName);
-
-		m_logFile.open(m_fqfn.c_str(), std::ofstream::out | std::ofstream::trunc);
-	}
+	m_curFileDay = ltime->tm_wday;
+	m_logFile.open(m_fqfn.c_str(), std::ofstream::out | std::ofstream::trunc);
 }
 

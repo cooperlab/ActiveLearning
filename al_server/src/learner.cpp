@@ -231,8 +231,10 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		string fqFileName = m_dataPath + string(fileName);
 
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
-
+		double	start = gLogger->WallTime();
 		result = m_dataset->Load(fqFileName);
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
+		
 	}
 
 	// Create classifier and sampling objects
@@ -475,7 +477,8 @@ bool Learner::Submit(const int sock, json_t *obj)
 		int		id, label, idx, dims = m_dataset->GetDims();
 		float	centX, centY;
 		const char *slide;
-
+		double	start = gLogger->WallTime();
+		
 		json_array_foreach(sampleArray, index, jsonObj) {
 			value = json_object_get(jsonObj, "id");
 			id = json_integer_value(value);
@@ -537,6 +540,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			if( !result )
 				break;
 		}
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Submit took %f", gLogger->WallTime() - start);
 	}
 	
 	// Send result back to client
@@ -556,10 +560,13 @@ bool Learner::Submit(const int sock, json_t *obj)
 			int	*ptr = &m_samples[0];
 			result  = m_sampler->Init(m_samples.size(), ptr);
 		}
-
+		
+		double	start = gLogger->WallTime();
+		
 		m_iteration++;
 		result = m_classifier->Train(m_trainSet, m_labels, m_samples.size(), m_dataset->GetDims());
-
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Classifier training took %f", gLogger->WallTime() - start);
+		
 		if( result ) {
 			m_curAccuracy = CalcAccuracy();
 		}
@@ -629,6 +636,8 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	}
 
 	if( result ) {
+		double	start = gLogger->WallTime();
+		
 		// Iteration count starts form 0.
 		json_object_set(root, "iterations", json_integer(m_iteration));
 		json_object_set(root, "filename", json_string(fileName.c_str()));
@@ -652,6 +661,8 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
 		}
+		
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Finalize took %f", gLogger->WallTime() - start);
 	}
 
 	if( result ) {
@@ -741,7 +752,9 @@ bool Learner::Visualize(const int sock, json_t *obj)
 	if( result ) {
 		int	*sampleIdx = NULL, totalSamp;
 		float *sampleScores = NULL;
-
+		double	start = gLogger->WallTime();
+		
+		
 		totalSamp = strata * groups * 2;
 		result = m_sampler->GetVisSamples(strata, groups, sampleIdx, sampleScores);
 
@@ -774,6 +787,7 @@ bool Learner::Visualize(const int sock, json_t *obj)
 				free(sampleScores);
 			}
 		}
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Visualize took %f", gLogger->WallTime() - start);
 	}
 
 	if( result ) {

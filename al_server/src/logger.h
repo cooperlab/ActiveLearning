@@ -24,13 +24,11 @@ protected:
 
 	std::ofstream	m_logFile;
 	std::string		m_fqfn;
+	pthread_mutex_t	m_fileMtx;
+	int				m_curFileDay;
 
-	static void *ThreadEntry(void *self);
-	void		Monitor(void);
-
-private:
-
-	pthread_t	m_threadId;
+	void 	Archive(void);
+	
 };
 
 
