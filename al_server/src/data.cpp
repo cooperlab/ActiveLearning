@@ -555,7 +555,7 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 		for(it = usedSlides.begin(); it != usedSlides.end(); it++) {
 			pos = crossRef[*it];
 			newSlides[pos] = (char*)malloc(strlen(slides[*it]));
-			if( newSlides[pos] == false ) {
+			if( newSlides[pos] == NULL ) {
 				result = false;
 				break;
 			}

@@ -5,18 +5,17 @@ if( CMAKE_COMPILER_IS_GNUCC )
 	message(STATUS "Checking compiler version...")
 	EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
 
-	if( GCC_VERSION VERSION_LESS "4.6" )
-		message(FATAL_ERROR "gcc version 4.6 or greater required")
-	else( GCC_VERSION VERSION_LESS "4.6" )
+	if( GCC_VERSION VERSION_LESS "4.8" )
+		message(FATAL_ERROR "gcc version 4.8 or greater required")
+	else( GCC_VERSION VERSION_LESS "4.8" )
 		message(STATUS "Compiler Ok") 
-	endif( GCC_VERSION VERSION_LESS "4.6" )
+	endif( GCC_VERSION VERSION_LESS "4.8" )
 endif( CMAKE_COMPILER_IS_GNUCC )
 
 
 set(CMAKE_DEBUG_POSTFIX "_d")
-#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fopenmp")
 
-
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++11")
 
 if( CMAKE_BUILD_TYPE STREQUAL Debug ) 
 	set(BUILD_POSTFIX "_d")

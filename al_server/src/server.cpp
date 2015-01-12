@@ -238,7 +238,10 @@ int main(int argc, char *argv[])
 			serv_addr.sin_addr.s_addr = inet_addr(interface.c_str());
 			serv_addr.sin_port = htons(port);
 
-			bind(listenFD, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr_in));
+			// Need to specify global namespace when using C++11, as std::bind was
+			// added and is not the networking bind.
+			//
+			::bind(listenFD, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr_in));
 			listen(listenFD, 10);
 
 			struct sockaddr_in	peer;
