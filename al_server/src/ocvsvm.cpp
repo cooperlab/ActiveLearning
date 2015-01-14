@@ -1,7 +1,6 @@
-#include <iostream>
+#include <thread>
 
 #include "ocvsvm.h"
-
 
 
 
@@ -113,6 +112,7 @@ float OCVBinarySVM::Score(float *obj, int numDims)
 
 
 
+
 bool OCVBinarySVM::ScoreBatch(float *dataset, int numObjs,
 							int numDims, float *scores)
 {
@@ -120,13 +120,55 @@ bool OCVBinarySVM::ScoreBatch(float *dataset, int numObjs,
 
 	if( m_trained && scores != NULL ) {
 		Mat	data(numObjs, numDims, CV_32F, dataset);
+		vector<std::thread> workers;
+		unsigned	numThreads = thread::hardware_concurrency();
+		int			offset, objCount, remain, objsPer;
 
-		for(int i = 0; i < numObjs; i++) {
-			// liopencv seems to return a negated score, compensate appropriately
-			scores[i] = -m_svm.predict(data.row(i), true);
+		remain = numObjs % numThreads;
+		objsPer = numObjs / numThreads;
+
+		// numThreads - 1 because main thread (current) will process also
+		//
+		for(int i = 0; i < numThreads - 1; i++) {
+
+			objCount = objsPer + ((i <  remain) ? 1 : 0);
+			offset = (i < remain) ? i * (objsPer + 1) :
+						(remain * (objsPer + 1)) + ((i - remain) * objsPer);
+
+			workers.push_back(std::thread(&OCVBinarySVM::ScoreWorker, this,
+							  std::ref(data), offset, objCount, numDims, scores));
+		}
+
+		// Main thread's workload
+		//
+		objCount = objsPer;
+		offset = (remain * (objsPer + 1)) + ((numThreads - remain - 1) * objsPer);
+
+		ScoreWorker(data, offset, objCount, numDims, scores);
+
+		for( auto &t : workers ) {
+			t.join();
 		}
 		result = true;
 	}
 	return result;
+}
+
+
+
+
+
+
+void OCVBinarySVM::ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results)
+{
+	if( m_trained && results != NULL ) {
+
+		for(int i = offset; i < (offset + numObjs); i++) {
+
+			// liopencv seems to return a negated score, compensate appropriately
+			//
+			results[i] = -m_svm.predict(data.row(i), true);
+		}
+	}
 }
 

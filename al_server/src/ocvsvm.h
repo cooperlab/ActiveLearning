@@ -42,6 +42,8 @@ protected:
 
 	CvSVMParams		m_params;
 	CvSVM			m_svm;
+
+	void	ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results);
 };
 
 
