@@ -15,7 +15,7 @@ var lastScaleFactor = 0;
 var	sampleDataJson = "";
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
 var curDataset;
-var curSlide = "", curBox = -1;
+var curBox = -1;
 var curX = 0, curY = 0;
 
 var boundaryOn = true;
@@ -104,7 +104,7 @@ $(function() {
         osdCanvas.off('mouseleave.osdimaginghelper', onMouseLeave);
 
 		osdCanvas = null;
-		curSlide = "";
+		statusObj.curSlide("");
 		
 	});
 
@@ -233,13 +233,13 @@ function thumbSingleClick(box) {
 		curX = Math.round(sampleDataJson['samples'][index]['centX']);
 		curY = Math.round(sampleDataJson['samples'][index]['centY']);
 		
-		if( curSlide == "" ) {
-			curSlide = newSlide;
+		if( statusObj.curSlide() == "" ) {
+			statusObj.curSlide(newSlide);
 			updateSlideView();
  		} else {
- 			if( curSlide != newSlide ) {
+ 			if( statusObj.curSlide() != newSlide ) {
 				viewer.close();
-				curSlide = newSlide;
+				statusObj.curSlide(newSlide);
 				updateSlideView();
 			} else {
 				// On same slide,, no need to load it again
@@ -273,7 +273,7 @@ function updateSlideView() {
 		type: "POST",
 		url: "db/getPyramidPath.php",
 		dataType: "json",
-		data: { slide: curSlide },
+		data: { slide: statusObj.curSlide() },
 		success: function(data) {
 		
 			if( data[0] === null ) {
@@ -283,7 +283,7 @@ function updateSlideView() {
 				// this code to be removed.
 				//
 				var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
-				var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
+				var slideUrl = dataviewUrl+'?slide_name_filter=' + statusObj.curSlide();
 				
 				$.ajax({ 
 					type: 	"GET",
@@ -347,11 +347,11 @@ function updateSamples() {
 
 			// Clear the slide viewer if there's something showing
 			//		
-			if( curSlide != "" ) {
-				console.log("Clearing viewer :"+curSlide);
+			if( statusObj.curSlide() != "" ) {
+				console.log("Clearing viewer :"+status.obj.curSlide());
 
 				viewer.close();
-				curSlide = "";
+				statusObj.curSlide("");
 			};
 	
 			var slide, centX, centY, sizeX, sizeY, loc, thumbNail, scale;
@@ -651,7 +651,8 @@ var statusObj = {
 	dataportBottom: ko.observable(0),
 	iteration:	ko.observable(0),
 	accuracy:	ko.observable(0.0),
-	imgReady: ko.observable(false)
+	imgReady: ko.observable(false),
+	curSlide: ko.observable("")
 };
 
 

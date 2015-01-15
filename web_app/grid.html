@@ -57,6 +57,11 @@
 							<span>Image Y:  </span>
 							<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgY().toFixed(0) : '-'"></span>
 						</div>
+						<div> 
+							<strong>Slide:</strong>
+							<span data-bind="text:haveImage() ? curSlide() : '-'"></span>
+						</div>
+
 					</div>
 				</div>
 			</div>
