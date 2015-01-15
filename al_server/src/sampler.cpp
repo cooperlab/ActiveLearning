@@ -260,12 +260,13 @@ bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *
 	idxScores = (float*)calloc(nStrata * nGroups * 2, sizeof(float));
 
 	// Score the unlabeled data and split into 2 classes
-	if( scores && idx ) {
+	if( scores && idxScores && idx && checkSet ) {
 
 		vector<ScoreIdx> neg, pos;
 		ScoreIdx	temp;
 
 		if( m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+
 			for(int i = 0; i < m_remaining; i++) {
 				if( scores[i] < 0 ) {
 					temp.score = scores[i];
