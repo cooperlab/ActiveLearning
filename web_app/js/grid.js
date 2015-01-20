@@ -348,7 +348,7 @@ function updateSamples() {
 			// Clear the slide viewer if there's something showing
 			//		
 			if( statusObj.curSlide() != "" ) {
-				console.log("Clearing viewer :"+status.obj.curSlide());
+				console.log("Clearing viewer :"+statusObj.curSlide());
 
 				viewer.close();
 				statusObj.curSlide("");
