@@ -296,12 +296,25 @@ bool MData::Load(string fileName)
 			if( status < 0 ) {
 				result = false;
 			} else {
-				this->m_numSlides = dims[0];
+				m_numSlides = dims[0];
 				H5Dclose(dset);
 				H5Tclose(fileType);
 			}
 		}
+
+		if( result ) {
+			m_dataIdx = (int*)malloc(m_numSlides * sizeof(int));
+			if( m_dataIdx == NULL ) {
+				result = false;
+			} else {
+				status = H5LTread_dataset_int(fileId, "/dataIdx", m_dataIdx);
+				if( status < 0 ) {
+					result = false;
+				}
+			}
+		}
 	}
+
 	if( fileId > 0 )
 		H5Fclose(fileId);
 
@@ -775,5 +788,56 @@ int MData::GetSlideIdx(const char *slide)
 			break;
 		idx++;
 	}
+	return idx;
+}
+
+
+
+
+
+
+
+
+float *MData::GetSlideData(const string slide, int& numSlideObjs)
+{
+	float	*data = NULL;
+
+	for(int i = 0; i < m_numSlides; i++) {
+		if( slide.compare(m_slides[i]) == 0 ) {
+			data = m_objects[m_dataIdx[i]];
+
+			if( i + 1 < m_numSlides ) {
+				numSlideObjs = m_dataIdx[i + 1] - m_dataIdx[i];
+			} else {
+				numSlideObjs = m_numObjs - m_dataIdx[i];
+			}
+			break;
+		}
+	}
+	return data;
+}
+
+
+
+
+
+
+int MData::GetSlideOffset(const string slide, int& numSlideObjs)
+{
+	int		idx = -1;
+
+	for(int i = 0; i < m_numSlides; i++) {
+		if( slide.compare(m_slides[i]) == 0 ) {
+			idx = m_dataIdx[i];
+
+			if( i + 1 < m_numSlides ) {
+				numSlideObjs = m_dataIdx[i + 1] - m_dataIdx[i];
+			} else {
+				numSlideObjs = m_numObjs - m_dataIdx[i];
+			}
+			break;
+		}
+	}
+
 	return idx;
 }

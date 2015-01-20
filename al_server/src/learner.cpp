@@ -950,6 +950,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	if( strlen(m_UID) == 0 ) {
 		// No session active, load specified training set.
 		//result = ApplyGeneralClassifier(sock, obj);
+		result = false;
 	} else {
 		// Session in progress, use current training set.
 		value = json_object_get(obj, "uid");
@@ -1090,7 +1091,7 @@ bool Learner::ApplySessionClassifier(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		float 	**ptr, *test;
+		float 	*ptr;
 		int 	*labels = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int)), dims;
 
 		if( labels == NULL ) {
@@ -1099,11 +1100,11 @@ bool Learner::ApplySessionClassifier(const int sock, json_t *obj)
 		}
 
 		if( result ) {
-			ptr = m_dataset->GetData();
-			test = ptr[0];
-			dims = m_dataset->GetDims();
+			int	 slideObjs;
 
-			result = m_classifier->ClassifyBatch(test, m_dataset->GetNumObjs(), dims, labels);
+			ptr = m_dataset->GetSlideData(slideName, slideObjs);
+			dims = m_dataset->GetDims();
+			result = m_classifier->ClassifyBatch(ptr, slideObjs, dims, labels);
 		}
 
 		if( result ) {
@@ -1134,9 +1135,11 @@ bool Learner::SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
 	}
 
 	if( result ) {
-		char tag[25];
+		char	tag[25];
+		int		offset, slideObjs;
+		offset = m_dataset->GetSlideOffset(slide, slideObjs);
 
-		for(int i = 0; i < m_dataset->GetNumObjs(); i++) {
+		for(int i = offset; i < offset + slideObjs; i++) {
 
 			if( slide.compare(m_dataset->GetSlide(i)) == 0 &&
 				m_dataset->GetXCentroid(i) >= xMin && m_dataset->GetXCentroid(i) <= xMax &&
@@ -1145,7 +1148,7 @@ bool Learner::SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
 				snprintf(tag, 24, "%.1f_%.1f",
 						m_dataset->GetXCentroid(i), m_dataset->GetYCentroid(i));
 
-				json_object_set(root, tag, json_integer((results[i] == -1) ? 0 : 1 ));
+				json_object_set(root, tag, json_integer((results[i - offset] == -1) ? 0 : 1 ));
 			}
 		}
 

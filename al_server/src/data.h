@@ -45,6 +45,10 @@ public:
 		float	*GetMeans(void) { return m_means; }
 		float	*GetStdDevs(void)  { return m_stdDevs; }
 
+		float 	*GetSlideData(const string slide, int& numSlideObjs);
+		int		GetSlideOffset(const string slide, int& numSlideObjs);
+
+
 protected:
 
 		float	**m_objects;
@@ -67,6 +71,8 @@ protected:
 
 		bool 	m_created;
 
+		int		*m_dataIdx;		// Index where the corresponding slide's feature
+								// data starts.
 		// Normalization parameters
 		//
 		float	*m_means;
@@ -78,6 +84,7 @@ protected:
 		void 	Cleanup(void);
 		bool	SaveProvenance(hid_t fileId);
 		bool	CreateSlideData(char **slides, int *slideIdx, int numSlides, int numObjs);
+
 };
 
 
