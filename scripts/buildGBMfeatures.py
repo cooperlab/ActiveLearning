@@ -17,7 +17,7 @@ if len(sys.argv) != 3:
 # TCGA gbm dataset has 48 dimensions
 dims = 48
 
-
+totalRejects = 0;
 slideCnt = 0
 objectCnt = 0
 
@@ -77,7 +77,6 @@ for slide in slides:
 			#
 			#
 			values = string.split(data[obj], '\t')
-			print "centroid", values[1], values[2], "at", objectCnt + obj
 			scale = float(values[3])
 
 			# First 5 elements are not features, adjust acordingly
@@ -104,7 +103,8 @@ for slide in slides:
 		if rejected > 0:
 			print "Adjusting for rejects"
 			newCnt = newCnt - rejected
-
+			totalRejects = totalRejects + rejected
+			
 			# Resize datasets 
 			features.resize((newCnt, dims))
 			x_centroids.resize((newCnt,))
@@ -116,5 +116,6 @@ for slide in slides:
 				
 	slideCnt = slideCnt + 1
 		
-	
+print "Total rejects:", totalRejects
+
 outFile.close()

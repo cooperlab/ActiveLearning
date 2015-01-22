@@ -3,6 +3,9 @@
 
 import sys
 import string
+import numpy as np
+
+dims = 48
 
 
 if len(sys.argv) != 2:
@@ -13,9 +16,18 @@ if len(sys.argv) != 2:
 data = open(sys.argv[1], 'r').readlines()
 data = data[1:]   		# Remove header
 
+
 for nuclei in data:
 
 	items = string.split(nuclei, '\t')
+
+	#
+	##	Check for valid features, skip if not
+	#	
+	objFeatures = np.array([float(i) for i in items[5:dims + 5]])
+	if np.isnan(np.sum(objFeatures)) == True:
+		continue
+			
 	#
 	# Remove extra from slide name
 	nameSplit = string.split(items[0], '.')
