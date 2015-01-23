@@ -14,7 +14,7 @@ if [ -z "$2" ]; then
 fi
 
 
-for slide in $( find $1 -maxdepth 1 -type d); do
+for slide in $( find -L $1 -maxdepth 1 -type d); do
     echo $slide
         for tile in $( ls $slide/*.seg*.txt ); do
 		echo $tile
