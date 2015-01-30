@@ -26,7 +26,7 @@ x_centroids = outFile.create_dataset("x_centroid", (0,), maxshape=(1000000000,))
 y_centroids = outFile.create_dataset("y_centroid", (0,), maxshape=(1000000000,))
 slideIdx = outFile.create_dataset("slideIdx", (0,), maxshape=(1000000000,), dtype='i4')
 dt = h5py.special_dtype(vlen=bytes)
-slideNames = outFile.create_dataset("slides", (0,), maxshape=(1000,), dtype=dt) 
+slideNames = outFile.create_dataset("slides", (0,), maxshape=(10000,), dtype=dt) 
 dataIdx = outFile.create_dataset("dataIdx", (0,), maxshape=(10000,), dtype='i4')
 features = outFile.create_dataset("features", (0,dims), maxshape=(1000000000,dims))
 
