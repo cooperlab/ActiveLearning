@@ -140,7 +140,10 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 
 			gLogger->LogMsg(EvtLogger::Evt_INFO, "Processing: " + string(command));
 
-			// TODO - Get rid of hard-coded commands
+			// 	Be careful with command names that can be a prefix of another.
+			// 	i.e. init can be a prefix of initPicker. If you want to do this
+			//	check for the prefix only version ("init" in the previous example)
+			//	before the others.
 			//
 			if( strncmp(command, "init", 4) == 0 ) {
 				result = StartSession(sock, root);
@@ -158,6 +161,14 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 				result = ApplyClassifier(sock, root);
 			} else if( strncmp(command, "visualize", 9) == 0 ) {
 				result = Visualize(sock, root);
+			} else if( strncmp(command, "pickerInit", 10) == 0) {
+				result = InitPicker(sock, root);
+			} else if( strncmp(command, "pickerAdd", 9) == 0) {
+				result = AddObjects(sock, root);
+			} else if( strncmp(command, "pickerCnt", 9) == 0) {
+				result = PickerStatus(sock, root);
+			} else if( strncmp(command, "pickerSave", 10) == 0) {
+				result = PickerFinalize(sock, root);
 			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
@@ -1313,3 +1324,359 @@ bool Learner::CreateSet(vector<int> folds, int fold, float *&trainX, int *&train
 
 	return result;
 }
+
+
+
+
+
+
+
+
+bool Learner::InitPicker(const int sock, json_t *obj)
+{
+	bool	result = true, uidUpdated = false;
+	json_t	*jsonObj;
+	const char *fileName, *uid, *testSetName;
+
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+
+	if( strlen(m_UID) > 0 ) {
+		gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
+ 		result = false;
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "features");
+		fileName = json_string_value(jsonObj);
+		if( fileName == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "uid");
+		uid = json_string_value(jsonObj);
+		if( uid == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		strncpy(m_UID, uid, UID_LENGTH);
+		uidUpdated = true;
+		m_dataset = new MData();
+		if( m_dataset == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "name");
+		testSetName = json_string_value(jsonObj);
+		if( testSetName != NULL ) {
+			m_classifierName = testSetName;			// Just reuse m_classifierName
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		string fqFileName = m_dataPath + string(fileName);
+
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
+		double	start = gLogger->WallTime();
+		result = m_dataset->Load(fqFileName);
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
+
+	}
+
+
+	// Send result back to client
+	//
+	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
+								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+
+	if( bytesWritten != sizeof(failResp) - 1 )
+		result = false;
+
+	if( !result && uidUpdated ){
+		// Initialization failed, clear current UID
+		memset(m_UID, 0, UID_LENGTH + 1);
+	}
+
+
+	return result;
+}
+
+
+
+
+
+bool Learner::AddObjects(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*sampleArray, *value, *jsonObj;
+
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+
+	// Check for valid UID
+	//
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(AddObjects) No active session");
+		result = false;
+	} else {
+		value = json_object_get(obj, "uid");
+		const char *uid = json_string_value(value);
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(AddObjects) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(AddObjects) Invalid UID");
+			result = false;
+		}
+	}
+
+
+	if( result ) {
+		sampleArray = json_object_get(obj, "samples");
+		if( !json_is_array(sampleArray) ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		// Make room for the new samples
+		result = UpdateBuffers(json_array_size(sampleArray));
+	}
+
+	if( result ) {
+		size_t	index;
+		int		id, label, idx, dims = m_dataset->GetDims();
+		float	centX, centY;
+		const char *slide;
+
+
+		json_array_foreach(sampleArray, index, jsonObj) {
+			value = json_object_get(jsonObj, "id");
+			id = json_integer_value(value);
+
+			// The dynamic typing in PHP or javascript can make a float
+			// an int if it has no decimal portion. Since the centroids can
+			// be whole numbers, we need to check if they are real, if not
+			// we just assume they are integer
+			//
+			value = json_object_get(jsonObj, "centX");
+			if( json_is_real(value) )
+				centX = (float)json_real_value(value);
+			else
+				centX = (float)json_integer_value(value);
+
+			value = json_object_get(jsonObj, "centY");
+			if( json_is_real(value) )
+				centY = (float)json_real_value(value);
+			else
+				centY = (float)json_integer_value(value);
+
+			value = json_object_get(jsonObj, "label");
+			label = json_integer_value(value);
+
+			//
+			// FIXME!!! - Need to handle slide names that are numbers better
+			//
+			value = json_object_get(jsonObj, "slide");
+			if( json_is_string(value) )
+				slide = json_string_value(value);
+			else {
+				char name[255];
+				int num = json_integer_value(value);
+				sprintf(name, "%d", num);
+				slide = name;
+			}
+
+			// Get the dataset index for this object
+			idx = m_dataset->FindItem(centX, centY, slide);
+ 			int	pos = m_samples.size();
+
+			if( idx != -1 ) {
+				m_labels[pos] = label;
+				m_ids[pos] = id;
+				m_sampleIter[pos] = m_iteration;
+				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
+				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
+				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
+				result = m_dataset->GetSample(idx, &m_trainSet[pos * dims]);
+				m_samples.push_back(idx);
+			} else {
+				gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
+				result = false;
+			}
+
+			// Something is wrong, stop processing
+			if( !result )
+				break;
+		}
+	}
+
+	json_t *root = NULL;
+
+	if( result ) {
+		root = json_object();
+
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(AddObjects) Error creating JSON object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+
+		json_object_set(root, "count", json_integer(m_samples.size()));
+		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
+
+		// Send result back to client
+		//
+		char *jsonObj = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+	}
+	return result;
+}
+
+
+
+
+
+
+bool Learner::PickerStatus(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*value, *root = NULL;
+
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+
+	// Check for valid UID
+	//
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(PickerStatus) No active session");
+		result = false;
+	} else {
+		value = json_object_get(obj, "uid");
+		const char *uid = json_string_value(value);
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(PickerStatus) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(PickerStatus) Invalid UID");
+			result = false;
+		}
+	}
+
+
+	if( result ) {
+		root = json_object();
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(PickerStatus) Error creating JSON object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		json_object_set(root, "count", json_integer(m_samples.size()));
+		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
+
+		// Send result back to client
+		//
+		char *jsonObj = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+	}
+	return true;
+}
+
+
+
+
+
+
+
+bool Learner::PickerFinalize(const int sock, json_t *obj)
+{
+	bool	result = false;
+	MData 	*testSet = new MData();
+	string 	fileName = m_classifierName + ".h5", fqfn;
+
+	if( testSet != NULL ) {
+
+		fqfn = m_dataPath + fileName;
+		struct stat buffer;
+		if( stat(fqfn.c_str(), &buffer) == 0 ) {
+			string 	tag = &m_UID[UID_LENGTH - 3];
+
+			fileName = m_classifierName + "_" + tag + ".h5";
+		}
+
+		result = testSet->Create(m_trainSet, m_samples.size(), m_dataset->GetDims(),
+							m_labels, m_ids, NULL, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
+							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
+							m_dataset->GetNumSlides());
+	}
+
+	if( result ) {
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving test set to: " + m_outPath + fileName);
+		result = testSet->SaveAs(m_outPath + fileName);
+	}
+
+	if( testSet != NULL )
+		delete testSet;
+
+	json_t	*root;
+
+	if( result ) {
+		root = json_object();
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(PickerStatus) Error creating JSON object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		fqfn = m_dataPath + fileName;
+		json_object_set(root, "filename", json_string(fqfn.c_str()));
+		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
+
+		// Send result back to client
+		//
+		char *jsonObj = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+	}
+
+	return result;
+}
+

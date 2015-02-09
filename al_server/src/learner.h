@@ -62,6 +62,10 @@ protected:
 	bool	FinalizeSession(const int sock, json_t *obj);
 	bool	ApplyClassifier(const int sock, json_t *obj);
 	bool	Visualize(const int sock, json_t *obj);
+	bool	InitPicker(const int sock, json_t *obj);
+	bool	AddObjects(const int sock, json_t *obj);
+	bool	PickerStatus(const int sock, json_t *obj);
+	bool	PickerFinalize(const int sock, json_t *obj);
 
 	bool	ApplyGeneralClassifier(const int sock, json_t *obj);
 	bool	ApplySessionClassifier(const int sock, json_t *obj);
@@ -81,6 +85,7 @@ protected:
 
 	bool	LoadDataset(string dataSetFileName);
 	bool	LoadTrainingSet(string trainingSetName);
+
 
 };
 
