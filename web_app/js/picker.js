@@ -172,7 +172,7 @@ $(function() {
 			} else if( clickCount === 2 ) {
 				clearTimeout(singleClickTimer);
 				clickCount = 0;
-				// Call double click function here
+				thumbDoubleClick(entry);
 			}
 		}, false);
 	});	
@@ -235,7 +235,6 @@ function updateSlideView() {
 				var pos = pyramid.indexOf('?');
 				pyramid = pyramid.substring(pos + 1);
 
-				console.log("Loading: " + IIPServer + pyramid);
 				viewer.open(IIPServer + pyramid);			
 			}, 
 			error: function() {
@@ -245,7 +244,6 @@ function updateSlideView() {
 	} else {
 		// Zoomer needs '.dzi' appended to the end of the file
 		pyramid = "DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')]+".dzi";
-		console.log("Loading: " + IIPServer + pyramid);
 		viewer.open(IIPServer + pyramid);	
 	}
 }
@@ -333,8 +331,9 @@ function updateSeg() {
 			type: "POST",
        	 	url: "db/getnuclei.php",
        	 	dataType: "json",
-			data: { slide: 	curSlide,
-					trainset: "none",
+			data: { uid: 	uid,
+					slide: 	curSlide,
+					trainset: "PICKER",
 					dataset: "none",
 					left:	statusObj.dataportLeft(),
 					right:	statusObj.dataportRight(),
@@ -364,7 +363,7 @@ function updateSeg() {
 						
 						ele.setAttribute('points', data[cell][0]);
 						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', 'aqua');
+						ele.setAttribute('stroke', data[cell][2]);
 						ele.setAttribute('fill', 'none');
 						
 						segGrp.appendChild(ele);
@@ -420,9 +419,6 @@ function nucleiSelect() {
 							var box = "#box_" + statusObj.totalSel(), thumbTag = "#thumb_" + statusObj.totalSel(),
 								labelTag = "#label_" + statusObj.totalSel(), loc;
 
-							console.log("thumbTag: "+thumbTag);
-							console.log("box: "+box);
-
 							$(box).show();
 							centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
 							centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
@@ -440,8 +436,6 @@ function nucleiSelect() {
 								thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+SlideLocPre+loc+SlideLocSuffix;						
 							}
 						
-							console.log("Thumbnail: "+thumbNail);
-						
 							$(thumbTag).attr("src", thumbNail);
 
 					} else {
@@ -456,7 +450,7 @@ function nucleiSelect() {
 
 
 //
-//	A double click in the thumbnail box toggles the current classification
+//	A single click in the thumbnail box toggles the current classification
 //	of the object.
 //
 //
@@ -471,6 +465,39 @@ function thumbSingleClick(box) {
 		selectedJSON[index]['label'] = 1;
 	}
 	updateClassStatus(index);
+};
+
+
+
+
+//
+//	A double click in the thumbnail box removes it from the list
+//
+//
+function thumbDoubleClick(box) {
+
+	var index = boxes.indexOf(box) + 1;
+	var	src, dest;
+
+	selectedJSON.splice(index - 1, 1);
+	
+	for(i = index; i < statusObj.totalSel(); i++) {
+
+		dest = "#thumb_" + i;
+		src = "#thumb_" + (parseInt(i) + 1);
+
+		$(dest).attr("src", $(src).attr("src"))
+		
+		updateClassStatus(i - 1);
+	}
+	dest = "#label_" + statusObj.totalSel();
+	$(dest).text("Class");
+	$(dest).css('background', '#FFFFFF');
+
+	dest = "#box_" + statusObj.totalSel();
+	$(dest).hide();
+	
+	statusObj.totalSel(statusObj.totalSel() - 1)
 };
 
 
@@ -595,7 +622,7 @@ function addObjects() {
 	valid = true;
 
 	for( i = 0; i < statusObj.totalSel(); i++ ) {
-		console.log("Obj: " + i + " label: " + selectedJSON[i]['label']);
+
 		if( selectedJSON[i]['label'] === 0 ) {
 
 			window.alert("Need to set class for all selected objects");
@@ -620,7 +647,7 @@ function addObjects() {
 					// Cleanup grid
 					for(i = 0; i < statusObj.totalSel(); i++ ) {
 						boxTag = "#box_" + (parseInt(i) + 1);
-						console.log("Removing: " + boxTag);
+
 						$(boxTag).hide();
 		
 						labelTag = "#label_"+(parseInt(i)+1);
@@ -632,6 +659,9 @@ function addObjects() {
 					$('#addBtn').attr('disabled', 'true');
 					// We have objects added to the test set, enable save
 					$('#saveBtn').removeAttr('disabled');
+					
+					// Refresh boundaries to highligh those just added
+					updateSeg();
 
 				} else {
 					// TODO - Indicate failure
@@ -696,7 +726,6 @@ function setSelectMode() {
 
 
 function cancelSession() {
-	console.log("Canceling");
 	
 	$.ajax({
 		url: "php/cancelSession.php",

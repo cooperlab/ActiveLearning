@@ -1,6 +1,8 @@
 <?php
 
 	require 'hostspecs.php';
+	require '../db/logging.php';		// Also includes connect.php
+
 	session_start();
 	
 	$end_data =  array( "command" => "pickerSave", 
@@ -25,8 +27,9 @@
 	socket_close($socket);
 
 	echo $response;
-	
+
 	// Cleanup session variables
 	//
-	session_destroy();	
+	session_unset();
+	session_destroy();
 ?>

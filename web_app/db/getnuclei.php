@@ -2,8 +2,6 @@
 	require 'logging.php';		// Also includes connect.php
 	require '../php/hostspecs.php';
 
-	$colors = array('deeppink', 'lime');
-	
 
 	// 	Retrieve a list of nuclei boundaries within the given rectangle
 	//	Return as an array of JSON objects, where each object is ordered:
@@ -23,9 +21,14 @@
 	$trainSet = $_POST['trainset'];
 
 
-	
 	// Get labels for the objects within the viewport
 	if( $trainSet != "none" ) {
+
+		if( $trainSet === "PICKER" ) {
+			$colors = array('aqua', 'yellow');
+		} else {
+			$colors = array('deeppink', 'lime');
+		}
 
 		$dataSet = $_POST['dataset'];
 
