@@ -20,7 +20,8 @@ using namespace std;
 
 EvtLogger::EvtLogger(string logFile) :
 m_fqfn(logFile),
-m_curFileDay(-1)
+m_curFileDay(-1),
+m_curFileDayOfYear(-1)
 {
 
 	// Init file access mutex
@@ -30,17 +31,17 @@ m_curFileDay(-1)
 		struct stat buffer;
 		time_t	now = time(0);
 		tm	*ltime = localtime(&now);
-		
+
+		m_curFileDayOfYear = ltime->tm_yday;
 		m_curFileDay = ltime->tm_wday;
 
 		if( stat(logFile.c_str(), &buffer) == 0 ) {
 			// Check last modification day, rename if not today
 			//
 			ltime = localtime(&buffer.st_mtime);
-			int  modDay = ltime->tm_wday;
+			int  modDayOfYear = ltime->tm_yday, modDay = ltime->tm_wday;
 
-
-			if( modDay != m_curFileDay ) {
+			if( modDayOfYear != m_curFileDayOfYear ) {
 				char newName[LOGFILE_PATH_LENGTH];
 				// Rename the file with the days since sunday appended
 				// to the end.
@@ -124,7 +125,7 @@ bool EvtLogger::LogMsg(LogType type, string msg)
 		}
 		
 		// Archive the file for each day
-		if( ltm->tm_wday != m_curFileDay ) {
+		if( ltm->tm_yday != m_curFileDayOfYear ) {
 			Archive();
 		}
 		
@@ -175,6 +176,8 @@ void EvtLogger::Archive(void)
 	rename(m_fqfn.c_str(), newName);
 
 	m_curFileDay = ltime->tm_wday;
+	m_curFileDayOfYear = ltime->tm_yday;
+
 	m_logFile.open(m_fqfn.c_str(), std::ofstream::out | std::ofstream::trunc);
 }
 

@@ -35,7 +35,8 @@ m_sampleIter(NULL),
 m_slideIdx(NULL),
 m_curAccuracy(0.0f),
 m_xCentroid(NULL),
-m_yCentroid(NULL)
+m_yCentroid(NULL),
+m_pickerMode(false)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -109,6 +110,8 @@ void Learner::Cleanup(void)
 		free(m_yCentroid);
 		m_yCentroid = NULL;
 	}
+
+	m_pickerMode = false;
 }
 
 
@@ -971,7 +974,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 			result = false;
 		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Invalid UID");
-			result = false;		
+			result = false;
 		}
 
 		if( result ) {
@@ -1111,11 +1114,26 @@ bool Learner::ApplySessionClassifier(const int sock, json_t *obj)
 		}
 
 		if( result ) {
-			int	 slideObjs;
 
-			ptr = m_dataset->GetSlideData(slideName, slideObjs);
-			dims = m_dataset->GetDims();
-			result = m_classifier->ClassifyBatch(ptr, slideObjs, dims, labels);
+			if( m_pickerMode ) {
+				int	 slideObjs, offset;
+
+				offset = m_dataset->GetSlideOffset(slideName, slideObjs);
+
+				memset(labels, -1, m_dataset->GetNumObjs() * sizeof(int));
+				vector<int>::iterator	it;
+
+				for(it = m_samples.begin(); it != m_samples.end(); it++) {
+					labels[*it - offset] = 1;
+				}
+
+			} else {
+				int	 slideObjs;
+
+				ptr = m_dataset->GetSlideData(slideName, slideObjs);
+				dims = m_dataset->GetDims();
+				result = m_classifier->ClassifyBatch(ptr, slideObjs, dims, labels);
+			}
 		}
 
 		if( result ) {
@@ -1392,6 +1410,7 @@ bool Learner::InitPicker(const int sock, json_t *obj)
 		result = m_dataset->Load(fqFileName);
 		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
 
+		m_pickerMode = true;
 	}
 
 
@@ -1661,7 +1680,15 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		fqfn = m_dataPath + fileName;
+		// This session is done, clear the UID and cleanup associated
+		// data
+		//
+		memset(m_UID, 0, UID_LENGTH + 1);
+		Cleanup();
+	}
+
+	if( result ) {
+
 		json_object_set(root, "filename", json_string(fqfn.c_str()));
 		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
 

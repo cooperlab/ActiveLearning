@@ -26,6 +26,7 @@ protected:
 	std::string		m_fqfn;
 	pthread_mutex_t	m_fileMtx;
 	int				m_curFileDay;
+	int				m_curFileDayOfYear;
 
 	void 	Archive(void);
 	

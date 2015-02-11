@@ -55,6 +55,9 @@ protected:
 	Classifier 	*m_classifier;
 	Sampler		*m_sampler;
 
+	bool		m_pickerMode;
+
+
 	bool	StartSession(const int sock, json_t *obj);
 	bool	Select(const int sock, json_t *obj);
 	bool	Submit(const int sock, json_t *obj);
