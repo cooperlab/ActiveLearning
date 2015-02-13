@@ -8,6 +8,7 @@
 
 #include "data.h"
 #include "ocvsvm.h"
+#include "ocvrandforest.h"
 #include "sampler.h"
 
 

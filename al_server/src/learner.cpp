@@ -259,7 +259,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		snprintf(msg, 100, "Loaded... %d objects of %d dimensions", m_dataset->GetNumObjs(), m_dataset->GetDims());
 		gLogger->LogMsg(EvtLogger::Evt_INFO, msg);
 
- 		m_classifier = new OCVBinarySVM();
+ 		m_classifier = new OCVBinaryRF();
 		if( m_classifier == NULL ) {
 			result = false;
 		}
@@ -388,6 +388,7 @@ bool Learner::Select(const int sock, json_t *obj)
 			json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
 			json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
 			json_object_set(sample, "label", json_integer((score < 0) ? -1 : 1));
+			json_object_set(sample, "score", json_real(score));
 			json_object_set(sample, "maxX", json_integer(0));
 			json_object_set(sample, "maxY", json_integer(0));
 			json_object_set(sample, "boundary", json_string(""));
@@ -1039,7 +1040,7 @@ bool Learner::ApplyGeneralClassifier(const int sock, json_t *obj)
 	}
 
 	if( result ) {
- 		classifier = new OCVBinarySVM();
+ 		classifier = new OCVBinaryRF();
 		if( classifier == NULL ) {
 			result = false;
 		}
@@ -1282,7 +1283,7 @@ bool Learner::LoadTrainingSet(string trainingSetName)
 float Learner::CalcAccuracy(void)
 {
 	float		result = -1.0f;
-	Classifier	*classifier = new OCVBinarySVM();
+	Classifier	*classifier = new OCVBinaryRF();
 
 	if( classifier ) {
 		vector<int>::iterator  it;

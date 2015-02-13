@@ -1,6 +1,6 @@
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR})
 set(AL_SERVER_VERSION_MAJOR 0)
-set(AL_SERVER_VERSION_MINOR 9)
+set(AL_SERVER_VERSION_MINOR 10)
 
 
 
@@ -89,7 +89,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # Executable
 #
 add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.cpp 
-                sampler.cpp logger.cpp)
+                sampler.cpp ocvrandforest.cpp logger.cpp)
                
 target_link_libraries(al_server ${LIBRARIES})
 set_target_properties(al_server PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)

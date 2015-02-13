@@ -1,5 +1,5 @@
-#if !defined(_OCVSVM_H_)
-#define _OCVSVM_H_
+#if !defined(_OCVRANDFOREST_H_)
+#define _OCVRANDFOREST_H_
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/ml/ml.hpp>
@@ -7,18 +7,17 @@
 #include "classifier.h"
 
 
-
 using namespace cv;
 
 
 
 
-class OCVBinarySVM : public Classifier
+class OCVBinaryRF : public Classifier
 {
 public:
 
-					OCVBinarySVM(void);
-	virtual			~OCVBinarySVM(void);
+				OCVBinaryRF(void);
+	virtual		~OCVBinaryRF(void);
 
 
 	virtual int 	Classify(float *obj, int numDims);
@@ -35,18 +34,12 @@ public:
 
 protected:
 
-	static const float		SVM_C;
-	static const float		EPSILON;
-	static const float		GAMMA;
+	float			m_priors[2];
+	CvRTParams		m_params;
+	CvRTrees		m_RF;
 
 
-	CvSVMParams		m_params;
-	CvSVM			m_svm;
-
-	void	ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results);
 };
-
-
 
 
 #endif
