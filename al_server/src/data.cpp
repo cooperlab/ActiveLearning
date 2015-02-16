@@ -302,7 +302,7 @@ bool MData::Load(string fileName)
 			}
 		}
 
-		if( result ) {
+		if( result && H5Lexists(fileId, "/dataIdx", H5P_DEFAULT) ) {
 			m_dataIdx = (int*)malloc(m_numSlides * sizeof(int));
 			if( m_dataIdx == NULL ) {
 				result = false;

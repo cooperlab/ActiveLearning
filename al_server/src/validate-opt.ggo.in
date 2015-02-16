@@ -1,0 +1,9 @@
+package "validate"
+version "@AL_SERVER_VERSION_MAJOR@.@AL_SERVER_VERSION_MINOR@"
+
+description "VALS validation tool"
+
+option "test-file"		f	"File containing test data" string required
+option "train-file"		t	"File containing training data" string required
+option "classifier"		c	"Classifier to use" values="svm","randForest" default="randForest" optional
+
