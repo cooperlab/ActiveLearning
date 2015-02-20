@@ -14,6 +14,9 @@
 	set_time_limit(0);
 	
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
+	// Set a large send buffer...
+	socket_set_option($socket, SOL_SOCKET, SO_SNDBUF, 8192);
+
 	if( $socket === false ) {
 		echo "socket_create failed:  ". socket_strerror(socket_last_error()) . "<br>";
 	}
