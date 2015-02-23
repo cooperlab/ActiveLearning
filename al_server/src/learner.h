@@ -58,6 +58,7 @@ protected:
 
 	bool		m_pickerMode;
 
+	bool		m_debugStarted;
 
 	bool	StartSession(const int sock, json_t *obj);
 	bool	Select(const int sock, json_t *obj);
@@ -70,6 +71,9 @@ protected:
 	bool	AddObjects(const int sock, json_t *obj);
 	bool	PickerStatus(const int sock, json_t *obj);
 	bool	PickerFinalize(const int sock, json_t *obj);
+
+	bool	DebugClassify(const int sock, json_t *obj);
+	bool	DebugApply(ofstream& outFile, int iteratioin);
 
 	bool	ApplyGeneralClassifier(const int sock, json_t *obj);
 	bool	ApplySessionClassifier(const int sock, json_t *obj);
@@ -89,7 +93,6 @@ protected:
 
 	bool	LoadDataset(string dataSetFileName);
 	bool	LoadTrainingSet(string trainingSetName);
-
 
 };
 

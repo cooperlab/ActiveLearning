@@ -1,7 +1,7 @@
-#include <iostream>
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <set>
 #include <cstring>
 #include <cfloat>
 #include <ctime>
@@ -180,6 +180,35 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 			}
 		}
 
+		// Check if the uncertainty score varies... If not we may need to "spread out"
+		// the object selection among the available slides.
+		//
+		if( selScores[0] == selScores[count - 1] ) {
+			vector<int>	minObjs;
+			set<int>	repSlides;
+			int			*slideIdx = m_dataset->GetSlideIndices();
+
+			// All scores have the same uncertainty. Get all objects with a
+			// score equal to the min and TODO select objects from as many slides
+			// as possible. Note - For now we are just selecting randomly from
+			// the objects with the min value.
+			//
+			for(int i = 0; i < m_remaining; i++) {
+				objScore = abs(scores[i]);
+				if( objScore == selScores[0] ) {
+					minObjs.push_back(i);
+					repSlides.insert(slideIdx[m_dataIndex[i]]);
+				}
+			}
+
+			minIdx = 0;
+			for(int i = 0; i < count; i++ ) {
+				int obj = rand() % minObjs.size();
+				picks[minIdx++] = minObjs[obj];
+				minObjs.erase(minObjs.begin() + obj);
+			}
+		}
+
 		// Remove selected objects from remaining set
 		m_remaining--;
 		for(int i = 0; i < count; i++) {
@@ -202,7 +231,8 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 
 
 
-
+// TODO - Create checkset once, then remove the objects that were added to
+//	the training set. More efficient than creating the checkset every time
 
 
 float* UncertainSample::CreateCheckSet(void)

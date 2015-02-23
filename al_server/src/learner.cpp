@@ -5,6 +5,7 @@
 #include <jansson.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <fstream>
 
 #include "learner.h"
 #include "logger.h"
@@ -36,7 +37,8 @@ m_slideIdx(NULL),
 m_curAccuracy(0.0f),
 m_xCentroid(NULL),
 m_yCentroid(NULL),
-m_pickerMode(false)
+m_pickerMode(false),
+m_debugStarted(false)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -112,6 +114,7 @@ void Learner::Cleanup(void)
 	}
 
 	m_pickerMode = false;
+	m_debugStarted = false;
 }
 
 
@@ -126,6 +129,7 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 	json_error_t error;
 
 	data[size] = 0;
+
 	root = json_loads(data, 0, &error);
 	if( !root ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Error parsing json");
@@ -153,7 +157,7 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 			} else if( strncmp(command, "prime", 5) == 0 ) {
 				result = Submit(sock, root);
 			} else if( strncmp(command, "select", 6) == 0 ) {
-				result = this->Select(sock, root);
+				result = Select(sock, root);
 			} else if( strncmp(command, "end", 3) == 0 ) {
 				result = CancelSession(sock, root);
 			} else if( strncmp(command, "submit", 6) == 0 ) {
@@ -172,6 +176,8 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 				result = PickerStatus(sock, root);
 			} else if( strncmp(command, "pickerSave", 10) == 0) {
 				result = PickerFinalize(sock, root);
+			} else if( strncmp(command, "debugApply", 10) == 0) {
+				result = DebugClassify(sock, root);
 			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
@@ -628,7 +634,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 
 
 	if( result ) {
-		fqfn = m_dataPath + fileName;
+		fqfn = m_outPath + fileName;
 		struct stat buffer;
 		if( stat(fqfn.c_str(), &buffer) == 0 ) {
 			string 	tag = &m_UID[UID_LENGTH - 3];
@@ -1707,4 +1713,154 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 
 	return result;
 }
+
+
+
+
+
+
+
+bool Learner::DebugClassify(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*value, *jsonObj;
+	int		iteration;
+
+
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	if( uid == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(DebugClassify) Unable to decode UID");
+		result = false;
+	} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(DebugClassify) Invalid UID");
+		result = false;
+	}
+
+	string 	fileName = m_classifierName + ".csv", fqfn;
+	ofstream	outFile;
+
+	if( result ) {
+		fqfn = m_outPath + fileName;
+		outFile.open(fqfn.c_str(), ofstream::out | ofstream::app);
+
+		if( outFile.is_open() == false ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to open class file");
+			result = false;
+		}
+	}
+
+	value = json_object_get(obj, "iteration");
+	if( value == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode iteration");
+		result = false;
+	} else {
+		iteration = json_integer_value(value);
+	}
+
+	if( result && m_debugStarted == false ) {
+		int numSlides = m_dataset->GetNumSlides();
+		char**	slides = m_dataset->GetSlideNames();
+
+		outFile << "slides,";
+		for(int i = 0; i < numSlides - 1; i++) {
+			outFile << slides[i] << ",";
+		}
+		outFile << slides[numSlides - 1] << endl;
+		m_debugStarted = true;
+	}
+
+	if( result ) {
+		result = DebugApply(outFile, iteration);
+
+	}
+
+	if( outFile.is_open() ) {
+		outFile.close();
+	}
+
+	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
+								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	if( bytesWritten != (sizeof(failResp) - 1) )
+		result = false;
+
+	return result;
+}
+
+
+
+
+
+
+
+bool Learner::DebugApply(ofstream& outFile, int iteration)
+{
+	bool	result = true;
+	char**	slides = m_dataset->GetSlideNames(), buff[50];
+	int		 numSlides = m_dataset->GetNumSlides(), numSlideObjs, offset, dim;
+	float 	*ptr;
+	int 	*labels = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int)),
+			*slidePos = NULL, *slideNeg = NULL;
+
+	slidePos = (int*)malloc(numSlides * sizeof(int));
+	slideNeg = (int*)malloc(numSlides * sizeof(int));
+
+	if( slidePos != NULL && slideNeg != NULL ) {
+
+		float	**data = m_dataset->GetData();
+		int		posCnt, negCnt, dims = m_dataset->GetDims();
+
+		result = m_classifier->ClassifyBatch(data[0], m_dataset->GetNumObjs(), dims, labels);
+
+		if( result ) {
+
+			for(int i = 0; i < numSlides; i++) {
+
+				offset = m_dataset->GetSlideOffset(slides[i], numSlideObjs);
+
+				posCnt = negCnt = 0;
+				for(int j = offset; j < offset + numSlideObjs; j++) {
+					if( labels[j] == 1 ) {
+						posCnt++;
+					} else {
+						negCnt++;
+					}
+				}
+				slidePos[i] = posCnt;
+				slideNeg[i] = negCnt;
+			}
+
+			snprintf(buff, 50, "iter%d-pos,", iteration);
+			outFile << buff;
+			for(int i = 0; i < numSlides - 1; i++) {
+				outFile << slidePos[i] << ",";
+			}
+			outFile << slidePos[numSlides - 1] << endl;
+
+			snprintf(buff, 50, "iter%d-neg,", iteration);
+			outFile << buff;
+			for(int i = 0; i < numSlides - 1; i++) {
+				outFile << slideNeg[i] << ",";
+			}
+			outFile << slideNeg[numSlides - 1] << endl;
+		}
+	} else {
+		result = false;
+	}
+
+	if( labels )
+		free(labels);
+
+	if( slidePos )
+		free(slidePos);
+	if( slideNeg )
+		free(slideNeg);
+
+	return result;
+}
+
 

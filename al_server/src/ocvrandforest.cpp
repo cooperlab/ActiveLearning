@@ -7,22 +7,22 @@
 
 OCVBinaryRF::OCVBinaryRF(void)
 {
-	m_priors[0] = 1.0f;
+	m_priors[0] = 1.0f;		// Each class is of equal importance
 	m_priors[1] = 1.0f;
 
-	m_params.max_depth = 25;
+	m_params.max_depth = 10;
 	m_params.min_sample_count = 5;
 	m_params.regression_accuracy = 0;
 	m_params.use_surrogates = false;
-	m_params.max_categories = 15;
+	m_params.max_categories = 2;
 	m_params.priors = m_priors;
 	m_params.calc_var_importance = false;
-	m_params.nactive_vars = 4;
+	m_params.nactive_vars = 5;
 
 	float 	forestAccuracy = 0.01f;
 	int		maxTrees = 100;
 
-	m_params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER |	CV_TERMCRIT_EPS, maxTrees, forestAccuracy);
+	m_params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER, maxTrees, forestAccuracy);
 }
 
 
