@@ -22,6 +22,7 @@ var clickCount = 0;
 var	selectedJSON = [];
 var pyramids;
 
+var boundsLeft, boundsRight, boundsTop, boundsBottom;
 
 
 
@@ -95,7 +96,17 @@ $(function() {
 		
 			if( statusObj.scaleFactor() > 0.5 ) {
 				$('.overlaySvg').css('visibility', 'visible');
-				updateSeg();
+				var centerX = statusObj.dataportLeft() + 
+							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
+				var centerY = statusObj.dataportTop() + 
+							  ((statusObj.dataportBottom() - statusObj.dataportTop()) / 2);
+				
+				if( centerX < boundsLeft || centerX > boundsRight ||
+					centerY < boundsTop || centerY > boundsBottom ) {
+
+					updateSeg();
+				}
+				
 			} else {
 				$('.overlaySvg').css('visibility', 'hidden');
 			}
@@ -196,7 +207,6 @@ function updateSlideView() {
 				var pos = pyramid.indexOf('?');
 				pyramid = pyramid.substring(pos + 1);
 
-				console.log("Loading: " + IIPServer + pyramid);
 				viewer.open(IIPServer + pyramid);			
 			}, 
 			error: function() {
@@ -206,7 +216,6 @@ function updateSlideView() {
 	} else {
 		// Zoomer needs '.dzi' appended to the end of the file
 		pyramid = "DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')]+".dzi";
-		console.log("Loading: " + IIPServer + pyramid);
 		viewer.open(IIPServer + pyramid);	
 	}
 }
@@ -281,7 +290,7 @@ function updateSeg() {
 		var left, right, top, bottom, width, height;
 
 		// Grab nuclei a viewport width surrounding the current viewport
-		//	+++ FIX ME !!!! +++
+		//
 		width = statusObj.dataportRight() - statusObj.dataportLeft();
 		height = statusObj.dataportBottom() - statusObj.dataportTop();
 		
@@ -297,10 +306,10 @@ function updateSeg() {
 			data: { slide: 	curSlide,
 					trainset: "none",
 					dataset: "none",
-					left:	statusObj.dataportLeft(),
-					right:	statusObj.dataportRight(),
-					top:	statusObj.dataportTop(),
-					bottom:	statusObj.dataportBottom()
+					left:	left,
+					right:	right,
+					top:	top,
+					bottom:	bottom,
 			},
 		
 			success: function(data) {
@@ -308,6 +317,12 @@ function updateSeg() {
 					var ele;
 					var segGrp = document.getElementById('segGrp');
 					var annoGrp = document.getElementById('anno');
+
+					// Save current viewport location
+					boundsLeft = statusObj.dataportLeft();
+					boundsRight = statusObj.dataportRight();
+					boundsTop = statusObj.dataportTop();
+					boundsBottom = statusObj.dataportBottom();
 
 					// If group exists, delete it
 					if( segGrp != null ) {
@@ -352,9 +367,7 @@ function nucleiSelect() {
             },
             success: function(data) {
 					if( data !== null ) {
-											
-						console.log('Selected nuclei: '+data[1]);
-						
+																	
 						if( statusObj.posSel() < 4 ) {
 							statusObj.posSel(statusObj.posSel() + 1); 
 						} else if( statusObj.negSel() < 4 ) {
@@ -385,8 +398,6 @@ function nucleiSelect() {
 						
 						var box = "#box_" + total, thumbTag = "#thumb_" + total,
 							labelTag = "#label_" + total, loc;
-
-						console.log("centX: " + sample['centX'] + ", maxX: " + sample['maxX']);
 						
 						$(box).show();
 						centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
@@ -404,8 +415,6 @@ function nucleiSelect() {
 						} else {
 							thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+SlideLocPre+loc+SlideLocSuffix;						
 						}
-						
-						console.log("Thumbnail: "+thumbNail);
 						
 						$(thumbTag).attr("src", thumbNail);
 
@@ -597,8 +606,6 @@ function setSelectMode() {
 
 
 function cancelSession() {
-	console.log("Canceling");
-	
 	$.ajax({
 		url: "php/cancelSession.php",
 		data: "",

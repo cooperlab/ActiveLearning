@@ -27,7 +27,7 @@
 		if( $trainSet === "PICKER" ) {
 			$colors = array('aqua', 'yellow');
 		} else {
-			$colors = array('deeppink', 'lime');
+			$colors = array('lightgrey', 'lime');
 		}
 
 		$dataSet = $_POST['dataset'];

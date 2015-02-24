@@ -52,7 +52,6 @@ $(function() {
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
 			
-			console.log("grid] IIPServer: "+IIPServer);
 			if( uid == null ) {			
 				window.alert("No session active");
 				window.history.back();
@@ -299,7 +298,6 @@ function updateSlideView() {
 						var pos = pyramid.indexOf('?');
 						pyramid = pyramid.substring(pos + 1);
 
-						console.log("Loading: " + IIPServer + pyramid);
 						viewer.open(IIPServer + pyramid);
 				
 					}, 
@@ -310,7 +308,6 @@ function updateSlideView() {
 			} else {
 				// Zoomer needs '.dzi' appended to the end of the filename
 				pyramid = "DeepZoom="+data[0]+".dzi";
-				console.log("Loading: " + pyramid);
 				viewer.open(IIPServer + pyramid);
 			}
 		}
@@ -348,8 +345,7 @@ function updateSamples() {
 			// Clear the slide viewer if there's something showing
 			//		
 			if( statusObj.curSlide() != "" ) {
-				console.log("Clearing viewer :"+statusObj.curSlide());
-
+			
 				viewer.close();
 				statusObj.curSlide("");
 			};
@@ -384,8 +380,6 @@ function updateSamples() {
 					thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+SlideLocSuffix;						
 				}
 	
-				console.log("Grid thumbnail: "+thumbNail);
-
 				$(thumbTag).attr("src", thumbNail);
 				updateClassStatus(sample);
 
@@ -433,8 +427,6 @@ function updateClassStatus(sample) {
 
 
 function cancelSession() {
-	console.log("Canceling");
-	
 	$.ajax({
 		url: "php/cancelSession.php",
 		data: "",
@@ -451,8 +443,6 @@ function submitLabels() {
 
 	var itemTag;
 
-	console.log("Submitting samples");
-	
 	// Display the progress dialog...
 	$('#progDiag').modal('show');
 	
@@ -467,7 +457,6 @@ function submitLabels() {
 		dataType: "json",
 		data: sampleDataJson,
 		success: function() {
-			console.log("Samples submitted");
 			
 			// Get a new set of samples
 			updateSamples();	
@@ -480,14 +469,11 @@ function submitLabels() {
 
 
 function saveSession() {
-	console.log("Finalizing");
-	
 	$.ajax({
 		url: "php/finishSession.php",
 		data: "",
 		success: function(data) {
 		
-			console.log("Finish result: "+data);
 			window.location = "index.html";
 		},
 	});
@@ -505,7 +491,6 @@ function toggleSegVisibility() {
 	if( boundary != null ) {
 	
 		if( boundaryOn ) {
-//		if( boundary.getAttribute('visibility') == 'visible' ) {
 			$('#toggleBtn').val("Show segmentation");
 			boundary.setAttribute('visibility', 'hidden');
 			boundaryOn = false;
@@ -521,12 +506,10 @@ function toggleSegVisibility() {
 
 function classificationDump() {
 	var itemTag;
-
 	
 	// Display the progress dialog...
 	$('#debugDiag').modal('show');
 	
-
 	$.ajax({
 		type: "POST",
 		url: "php/dumpClass.php",
@@ -534,7 +517,6 @@ function classificationDump() {
 		data: { iteration: statusObj.iteration() },
 		success: function(result) {
 
-			console.log("Debug result: "+result);
 			$('#debugDiag').modal('hide');
 	
 		}

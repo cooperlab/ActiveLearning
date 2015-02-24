@@ -15,7 +15,7 @@ var clickCount = 0;
 // The following only needed for active sessions
 var uid = null, classifier = "", negClass = "", posClass = "";			
 
-
+var boundsLeft, boundsRight, boundsTop, boundsBottom;
 
 
 
@@ -77,7 +77,17 @@ $(function() {
 		
 			if( statusObj.scaleFactor() > 0.5 ) {
 				$('.overlaySvg').css('visibility', 'visible');
-				updateSeg();
+				var centerX = statusObj.dataportLeft() + 
+							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
+				var centerY = statusObj.dataportTop() + 
+							  ((statusObj.dataportBottom() - statusObj.dataportTop()) / 2);
+				
+				if( centerX < boundsLeft || centerX > boundsRight ||
+					centerY < boundsTop || centerY > boundsBottom ) {
+					
+					updateSeg();
+				}
+				 
 			} else {
 				$('.overlaySvg').css('visibility', 'hidden');
 			}
@@ -143,7 +153,6 @@ function updatePyramid() {
 		//
 		var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
 		var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
-		console.log("Slide data: " + slideUrl);
 		
 		$.ajax({ 
 			type: 	"GET",
@@ -158,7 +167,6 @@ function updatePyramid() {
 				var pos = pyramid.indexOf('?');
 				pyramid = pyramid.substring(pos + 1);
 
-				console.log("Loading: " + IIPServer + pyramid);
 				viewer.open(IIPServer + pyramid);
 			}, 
 			error: function() {
@@ -168,7 +176,6 @@ function updatePyramid() {
 	} else {
 		// Zoomer needs '.dzi' appended to the end of the filename
 		pyramid = "DeepZoom="+pyramids[$('#slide_sel').prop('selectedIndex')]+".dzi";
-		console.log("Loading: " + IIPServer + pyramid);
 		viewer.open(IIPServer + pyramid);
 	}
 }
@@ -219,8 +226,6 @@ function updateSlideList() {
 	var slideSel = $("#slide_sel");
 	var slideCntTxt = $("#count_patient");
 
-	console.log("Getting slides for: "+curDataset);
-	
 	// Get the list of slides for the current dataset
 	$.ajax({
 		type: "POST",
@@ -261,8 +266,6 @@ function updateClassifierList() {
 	
 	// First selection should be none
 	classSel.append(new Option('----------------', 'none'));
-	console.log("UID: "+uid);
-	console.log("Current dataset: "+curDataset);
 	
 	if( uid === null ) {
 		$.ajax({
@@ -323,12 +326,10 @@ function updateClassifier() {
 
 	var class_sel = document.getElementById('classifier_sel'),
 		classifier = class_sel.options[class_sel.selectedIndex].value;
-
-	console.log("Classifier changed to: "+classifier);
 	
 	if( class_sel.selectedIndex != 0 ) {
 							
-		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:deeppink;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
+		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lightgrey;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
 		document.getElementById('negLegend').innerHTML = box + " " + negClass;
 		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lime;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
 		document.getElementById('posLegend').innerHTML = box + " " + posClass;
@@ -388,12 +389,11 @@ function onImageViewChanged(event) {
 
 
 //
-//	Retreive the boundaries for nuclei within the viewport bounds.
-//	TODO - Look into expanding the nuclei request to a 'viewport' width
-//			boundary around the view port. Since we are now using the 
-//			'animation-finish' event to trigger the request, it may be
-//			possible to retreive that many boundaries in a sufficient 
-//			amount of time
+//	Retreive the boundaries for nuclei within the viewport bounds and an 
+//	area surrounding the viewport. The are surrounding the viewport is a
+//	border the width and height of the viewport. This allows the user to pan a full
+//	viewport width or height before having to fetch new boundaries.
+//
 //
 function updateSeg() {
 
@@ -402,7 +402,7 @@ function updateSeg() {
 		var left, right, top, bottom, width, height;
 
 		// Grab nuclei a viewport width surrounding the current viewport
-		//	+++ FIX ME !!!! +++
+		//
 		width = statusObj.dataportRight() - statusObj.dataportLeft();
 		height = statusObj.dataportBottom() - statusObj.dataportTop();
 		
@@ -410,11 +410,9 @@ function updateSeg() {
 		right = statusObj.dataportRight() + width;
 		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
 		bottom = statusObj.dataportBottom() + height;
-		
+		 		
 		var class_sel = document.getElementById('classifier_sel'),
 			classifier = class_sel.options[class_sel.selectedIndex].value;
-		console.log("Current classifier: "+classifier);
-		console.log("Current Slide: "+curSlide);
 		
 	    $.ajax({
 			type: "POST",
@@ -422,10 +420,10 @@ function updateSeg() {
        	 	dataType: "json",
 			data: { uid:	uid,
 					slide: 	curSlide,
-					left:	statusObj.dataportLeft(),
-					right:	statusObj.dataportRight(),
-					top:	statusObj.dataportTop(),
-					bottom:	statusObj.dataportBottom(),
+					left:	left,
+					right:	right,
+					top:	top,
+					bottom:	bottom,
 					dataset: curDataset,
 					trainset: classifier
 			},
@@ -435,6 +433,12 @@ function updateSeg() {
 					var ele;
 					var segGrp = document.getElementById('segGrp');
 					var annoGrp = document.getElementById('anno');
+					
+					// Save current viewport location
+					boundsLeft = statusObj.dataportLeft();
+					boundsRight = statusObj.dataportRight();
+					boundsTop = statusObj.dataportTop();
+					boundsBottom = statusObj.dataportBottom();
 
 					// If group exists, delete it
 					if( segGrp != null ) {
