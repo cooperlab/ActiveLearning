@@ -116,8 +116,8 @@ add_dependencies(validate ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c)
 
 target_link_libraries(al_server ${LIBRARIES})
 set_target_properties(al_server PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
-set_target_properties(al_server PROPERTIES OUTPUT_NAME al_serverd${BUILD_POSTFIX})
+set_target_properties(al_server PROPERTIES OUTPUT_NAME al_serverd${CMAKE_DEBUG_POSTFIX})
 
 target_link_libraries(validate ${LIBRARIES})
 set_target_properties(validate PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
-set_target_properties(validate PROPERTIES OUTPUT_NAME validate${BUILD_POSTFIX})
+set_target_properties(validate PROPERTIES OUTPUT_NAME validate${CMAKE_DEBUG_POSTFIX})
