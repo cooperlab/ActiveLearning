@@ -39,6 +39,7 @@ protected:
 	CvRTrees		m_RF;
 
 
+	void	ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results);
 };
 
 

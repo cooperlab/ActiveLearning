@@ -111,6 +111,12 @@ bool HandleRequest(const int fd, Learner *learner)
 
 
 	bytesRx = recv(fd, gBuffer, RX_BUFFER_SIZE, 0);
+	// Make sure we read all the data by looking for the end of the JSON
+	// object
+	//
+	if( gBuffer[bytesRx - 1] != '}' ) {
+		bytesRx += recv(fd, &gBuffer[bytesRx], RX_BUFFER_SIZE - bytesRx, 0);
+	}
 
 	if( bytesRx > 0 ) {
 		result = learner->ParseCommand(fd, gBuffer, bytesRx);
