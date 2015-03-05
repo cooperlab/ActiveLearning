@@ -18,14 +18,14 @@
 	
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
 	if( $socket === false ) {
-		log_error("socket_create failed: ".socket_strerror(socket_last_error());
+		log_error("socket_create failed: ".socket_strerror(socket_last_error()));
 		$prog = false;
 	}
 	
 	if( $prog ) {
 		$result = socket_connect($socket, $addr, $port);
 		if( !$result ) {
-			log_error("socket_connect failed: ".socket_strerror(socket_last_error());
+			log_error("socket_connect failed: ".socket_strerror(socket_last_error()));
 			$prog = false;
 		}
 	}
