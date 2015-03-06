@@ -11,9 +11,10 @@ class EvtLogger
 public:
 	enum LogType {Evt_ERROR, Evt_INFO, Evt_WARN};
 
-			EvtLogger(std::string logFile);
+			EvtLogger(void);
 			~EvtLogger();
 
+	bool	Open(std::string logFile);
 	bool	LogMsg(LogType type, std::string msg);
 	bool	LogMsgv(LogType type, const char *msg, ...);
 	double 	WallTime(void);
@@ -27,6 +28,7 @@ protected:
 	pthread_mutex_t	m_fileMtx;
 	int				m_curFileDay;
 	int				m_curFileDayOfYear;
+	bool			m_isOpen;
 
 	void 	Archive(void);
 	

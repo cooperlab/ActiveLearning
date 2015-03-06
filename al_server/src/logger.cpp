@@ -18,11 +18,34 @@ using namespace std;
 
 
 
-EvtLogger::EvtLogger(string logFile) :
-m_fqfn(logFile),
+EvtLogger::EvtLogger(void) :
+m_fqfn(""),
 m_curFileDay(-1),
-m_curFileDayOfYear(-1)
+m_curFileDayOfYear(-1),
+m_isOpen(false)
 {
+}
+
+
+
+
+
+
+EvtLogger::~EvtLogger(void)
+{
+	if( m_isOpen )
+		m_logFile.close();
+
+	pthread_mutex_destroy(&m_fileMtx);
+}
+
+
+
+
+bool EvtLogger::Open(string logFile)
+{
+	bool	result = true;
+
 
 	// Init file access mutex
 	if( pthread_mutex_init(&m_fileMtx, NULL) == 0 ) {
@@ -51,24 +74,11 @@ m_curFileDayOfYear(-1)
 			}
 		}
 		m_logFile.open(logFile.c_str(), std::ofstream::out | std::ofstream::app);
+		m_isOpen = m_logFile.is_open();
+		m_fqfn = logFile;
 	}
+	return result;
 }
-
-
-
-
-
-
-EvtLogger::~EvtLogger(void)
-{
-	if( m_logFile.is_open() )
-		m_logFile.close();
-		
-	pthread_mutex_destroy(&m_fileMtx);
-}
-
-
-
 
 
 
@@ -76,16 +86,19 @@ EvtLogger::~EvtLogger(void)
 bool EvtLogger::LogMsgv(LogType type, const char* msg, ...)
 {
 	bool	result = true;
-	char	buffer[1024];
 
-	va_list	args;
+	if( m_isOpen ) {
+		char	buffer[1024];
 
-	va_start(args, msg);
-	vsnprintf(buffer, 1024, msg, args);
-	va_end(args);
 
-	result = LogMsg(type, buffer);
+		va_list	args;
 
+		va_start(args, msg);
+		vsnprintf(buffer, 1024, msg, args);
+		va_end(args);
+
+		result = LogMsg(type, buffer);
+	}
 	return result;
 }
 
@@ -98,44 +111,47 @@ bool EvtLogger::LogMsgv(LogType type, const char* msg, ...)
 bool EvtLogger::LogMsg(LogType type, string msg)
 {
 	bool	result = false;
-	time_t	now;
+
+	if( m_isOpen ) {
+		time_t	now;
+
+		if( m_logFile.is_open() ) {
 		
-	if( m_logFile.is_open() ) {
+			pthread_mutex_lock(&m_fileMtx);
+			now = time(0);
+
+			tm	*ltm = localtime(&now);
+			char	timeBuff[100];
+			string	typeName;
 	
-		pthread_mutex_lock(&m_fileMtx);
-		now = time(0);
+			switch( type ) {
+			case Evt_ERROR:
+				typeName = "[ERROR]";
+				break;
+			case Evt_WARN:
+				typeName = "[WARN ]";
+				break;
+			case Evt_INFO:
+				typeName = "[INFO ]";
+				break;
+			default:
+				typeName = "[?????]";
+				break;
+			}
 
-		tm	*ltm = localtime(&now);
-		char	timeBuff[100];
-		string	typeName;
+			// Archive the file for each day
+			if( ltm->tm_yday != m_curFileDayOfYear ) {
+				Archive();
+			}
 
-		switch( type ) {
-		case Evt_ERROR:
-			typeName = "[ERROR]";
-			break;
-		case Evt_WARN:
-			typeName = "[WARN ]";
-			break;
-		case Evt_INFO:
-			typeName = "[INFO ]";
-			break;
-		default:
-			typeName = "[?????]";
-			break;
+			snprintf(timeBuff, 100, "%02d-%02d-%d %02d:%02d:%02d",
+					ltm->tm_mon + 1, ltm->tm_mday, 1900 + ltm->tm_year,
+					ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
+			m_logFile << typeName << " " << timeBuff << " - " << msg << endl;
+			result = true;
+
+			pthread_mutex_unlock(&m_fileMtx);
 		}
-		
-		// Archive the file for each day
-		if( ltm->tm_yday != m_curFileDayOfYear ) {
-			Archive();
-		}
-		
-		snprintf(timeBuff, 100, "%02d-%02d-%d %02d:%02d:%02d",
-				ltm->tm_mon + 1, ltm->tm_mday, 1900 + ltm->tm_year,
-				ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
-		m_logFile << typeName << " " << timeBuff << " - " << msg << endl;
-		result = true;
-		
-		pthread_mutex_unlock(&m_fileMtx);
 	}
 	return result;
 }

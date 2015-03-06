@@ -192,9 +192,11 @@ int main(int argc, char *argv[])
 	short 	port;
 	string 	dataPath, outPath, interface;
 
-	gLogger = new EvtLogger("/var/log/al_server.log");
+	gLogger = new EvtLogger();
 	if( gLogger == NULL ) {
 		status = -1;
+	} else {
+		gLogger->Open("/var/log/al_server.log");
 	}
 
 	if( status == 0 ) {

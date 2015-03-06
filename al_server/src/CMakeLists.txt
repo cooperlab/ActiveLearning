@@ -110,7 +110,7 @@ add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.c
                 sampler.cpp ocvrandforest.cpp logger.cpp)
 
 add_executable(validate validate-main.cpp classifier.cpp ocvsvm.cpp ocvrandforest.cpp 
-                data.cpp val-cmdline.c)
+                data.cpp logger.cpp val-cmdline.c)
 add_dependencies(validate ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c)
 
 

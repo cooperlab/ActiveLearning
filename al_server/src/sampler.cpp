@@ -8,9 +8,12 @@
 #include <cmath>
 #include <algorithm>
 
-
 #include "sampler.h"
 
+#include "logger.h"
+
+
+extern EvtLogger *gLogger;
 
 
 
@@ -201,6 +204,7 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 				}
 			}
 
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Uncertain obj count: %d", minObjs.size());
 			minIdx = 0;
 			for(int i = 0; i < count; i++ ) {
 				int obj = rand() % minObjs.size();
