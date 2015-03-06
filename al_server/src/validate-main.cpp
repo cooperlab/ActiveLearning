@@ -134,6 +134,7 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 		result = CountResults(testSet, classes, posSlideCnt, negSlideCnt);
 	}
 
+	slideNames = testSet.GetSlideNames();
 	if( result == 0 ) {
 		for( int i = 0; i < testSet.GetNumSlides(); i++ ) {
 			cout << slideNames[i] << " -> pos: " <<  posSlideCnt[i] << ", neg: " << negSlideCnt[i] << endl;

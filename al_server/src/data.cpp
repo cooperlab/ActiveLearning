@@ -146,6 +146,7 @@ bool MData::Load(string fileName)
 
 	// Allocate buffer for the labels (if there are any)
 	if( result && H5Lexists(fileId, "/labels", H5P_DEFAULT) ) {
+
 		m_labels = (int*)malloc(dims[0] * sizeof(int));
 		if( m_labels == NULL ) {
 			result = false;
@@ -166,6 +167,7 @@ bool MData::Load(string fileName)
 	// Allocate buffer for slide indices
 	//
 	if( result && slidesExist ) {
+
 		m_slideIdx = (int*)malloc(dims[0] * sizeof(int));
 		if( m_slideIdx == NULL ) {
 			result = false;
@@ -181,6 +183,7 @@ bool MData::Load(string fileName)
 	}
 
 	if( result && H5Lexists(fileId, "/x_centroid", H5P_DEFAULT) ) {
+		
 		// Allocate buffer for x_centroid
 		//
 		if( result ) {
@@ -217,6 +220,7 @@ bool MData::Load(string fileName)
 	// Allocate a buffer for the feature data
 	//
 	if( result ) {
+
 		m_objects = (float**)malloc(dims[0] * sizeof(float*));
 		if( m_objects ) {
 			m_objects[0] = (float*)malloc(dims[0] * dims[1] * sizeof(float));
@@ -234,6 +238,7 @@ bool MData::Load(string fileName)
 	// Read feature data
 	//
 	if( result ) {
+
 		status = H5LTread_dataset_float(fileId, "/features", m_objects[0]);
 		if( status < 0 ) {
 			result = false;
@@ -246,23 +251,27 @@ bool MData::Load(string fileName)
 	// Get means
 	//
 	if( result ) {
+
 		// Allocate buffer
-		m_means = (float*)malloc(dims[0] * sizeof(float));
+		m_means = (float*)malloc(dims[1] * sizeof(float));
 		if( m_means == NULL ) {
 			result = false;
 		} else {
+
 			status = H5LTread_dataset_float(fileId, "/mean", m_means);
 			if( status < 0 ) {
 				result = false;
 			}
+
 		}
 	}
 
 	// Get standard deviations
 	//
 	if( result ) {
+
 		// Allocate buffer
-		m_stdDevs = (float*)malloc(dims[0] * sizeof(float));
+		m_stdDevs = (float*)malloc(dims[1] * sizeof(float));
 		if( m_stdDevs == NULL ) {
 			result = false;
 		} else {
@@ -274,6 +283,7 @@ bool MData::Load(string fileName)
 	}
 
 	if( slidesExist ) {
+
 		// Read slide names, do this last because we reuse the dims variable
 		//
 		hid_t	dset, fileType;
