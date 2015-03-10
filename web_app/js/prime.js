@@ -367,68 +367,75 @@ function nucleiSelect() {
             },
             success: function(data) {
 					if( data !== null ) {
-																	
-						if( statusObj.posSel() < 4 ) {
-							statusObj.posSel(statusObj.posSel() + 1); 
-						} else if( statusObj.negSel() < 4 ) {
-							statusObj.negSel(statusObj.negSel() + 1); 			
-						} 
-				
-						var total = statusObj.posSel() + statusObj.negSel();
-	
-						sample = {};
-						
-						// Distance from nuclei is element 4
-						sample['slide'] = curSlide;
-						sample['id'] = data[1];
-						sample['centX'] = data[2];
-						sample['centY'] = data[3];
-						sample['boundary'] = data[0];
-						sample['maxX'] = data[5];
-						sample['maxY'] = data[6];
-						sample['scale'] = data[7];
-						
-						if( total <= 4 ) {
-							sample['label'] = 1;
-						} else {
-							sample['label'] = -1;
-						}
-																		
-						selectedJSON.push(sample);
-						
-						var box = "#box_" + total, thumbTag = "#thumb_" + total,
-							labelTag = "#label_" + total, loc;
-						
-						$(box).show();
-						centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
-						centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
-						sizeX = (50.0 * sample['scale']) / sample['maxX'];
-						sizeY = (50.0 * sample['scale']) / sample['maxY'];
-						loc = centX+","+centY+","+sizeX+","+sizeY;
-				
-						var thumbNail;
-						// Slides that are from node15 have NULL as their slide path. We can remove this
-						// check when everything is migrated to the new server
-						//
-						if( pyramids[$('#slideSel').prop('selectedIndex')] === null ) {													
-							thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+curSlide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
-						} else {
-							thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+SlideLocPre+loc+SlideLocSuffix;						
-						}
-						
-						$(thumbTag).attr("src", thumbNail);
 
-						if( sample['label'] === 1 ) {
-							$(labelTag).text(posClass);
-							$(labelTag).css('background', '#00DD00');
-						} else {
-							$(labelTag).text(negClass);				
-							$(labelTag).css('background', '#DD0000');
-						}
+						var total = statusObj.posSel() + statusObj.negSel();
 						
-						if( total === 4 ) {
-							// make sure instructions are updated
-							$('#instruct').text("Selecting "+negClass+" samples");
+						if( total < 8 ) {
+																							
+							if( statusObj.posSel() < 4 ) {
+								statusObj.posSel(statusObj.posSel() + 1); 
+							} else if( statusObj.negSel() < 4 ) {
+								statusObj.negSel(statusObj.negSel() + 1); 			
+							} 
+				
+							total = statusObj.posSel() + statusObj.negSel();
+	
+							sample = {};
+					
+							// Distance from nuclei is element 4
+							sample['slide'] = curSlide;
+							sample['id'] = data[1];
+							sample['centX'] = data[2];
+							sample['centY'] = data[3];
+							sample['boundary'] = data[0];
+							sample['maxX'] = data[5];
+							sample['maxY'] = data[6];
+							sample['scale'] = data[7];
+					
+							if( total <= 4 ) {
+								sample['label'] = 1;
+							} else {
+								sample['label'] = -1;
+							}
+																	
+							selectedJSON.push(sample);
+					
+							var box = "#box_" + total, thumbTag = "#thumb_" + total,
+								labelTag = "#label_" + total, loc;
+					
+							$(box).show();
+							centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
+							centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
+							sizeX = (50.0 * sample['scale']) / sample['maxX'];
+							sizeY = (50.0 * sample['scale']) / sample['maxY'];
+							loc = centX+","+centY+","+sizeX+","+sizeY;
+			
+							var thumbNail;
+							// Slides that are from node15 have NULL as their slide path. We can remove this
+							// check when everything is migrated to the new server
+							//
+							if( pyramids[$('#slideSel').prop('selectedIndex')] === null ) {													
+								thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+curSlide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+							} else {
+								thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+SlideLocPre+loc+SlideLocSuffix;						
+							}
+					
+							$(thumbTag).attr("src", thumbNail);
+
+							if( sample['label'] === 1 ) {
+								$(labelTag).text(posClass);
+								$(labelTag).css('background', '#00DD00');
+							} else {
+								$(labelTag).text(negClass);				
+								$(labelTag).css('background', '#DD0000');
+							}
+					
+							if( total === 4 ) {
+								// make sure instructions are updated
+								$('#instruct').text("Selecting "+negClass+" samples");
+							}
+						} else {
+							window.alert("All samples selected, click prime button to submit");
 						}
 					}
 			}
