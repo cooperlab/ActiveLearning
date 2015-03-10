@@ -37,8 +37,6 @@ OCVBinaryRF::OCVBinaryRF(void)
 OCVBinaryRF::~OCVBinaryRF(void)
 {
 
-
-
 }
 
 
@@ -49,9 +47,12 @@ OCVBinaryRF::~OCVBinaryRF(void)
 bool OCVBinaryRF::Train(float *&trainSet, int *labelVec,
 					  int numObjs, int numDims)
 {
-
 	Mat		features(numObjs, numDims, CV_32F, trainSet),
 			labels(numObjs, 1, CV_32S, labelVec);
+
+	CvRNG* rng = m_RF.get_rng();
+	*rng = 0xDEADBEEF;
+
 
 	m_trained = m_RF.train(features, CV_ROW_SAMPLE, labels, Mat(), Mat(), Mat(), Mat(), m_params);
 
@@ -73,7 +74,6 @@ int OCVBinaryRF::Classify(float *obj, int numDims)
 
 		result = (int)m_RF.predict(sample);
 	}
-
 	return result;
 }
 
@@ -95,7 +95,6 @@ bool OCVBinaryRF::ClassifyBatch(float *&dataset, int numObjs,
 		}
 		result = true;
 	}
-
 	return result;
 }
 
@@ -114,7 +113,6 @@ float OCVBinaryRF::Score(float *obj, int numDims)
 		// Returned a probability, center 50% at 0 and set range to -1 to 1
 		score = (score * 2.0f) - 1.0f;
 	}
-
 	return score;
 }
 
@@ -159,7 +157,6 @@ bool OCVBinaryRF::ScoreBatch(float *dataset, int numObjs,
 		}
 		result = true;
 	}
-
 	return result;
 }
 

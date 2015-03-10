@@ -42,12 +42,12 @@ public:
 		int		GetSlideIdx(const char *slide);
 		float	GetXCentroid(int index);
 		float	GetYCentroid(int index);
+		int		GetIteration(int index) { return m_iteration[index]; }
 		float	*GetMeans(void) { return m_means; }
 		float	*GetStdDevs(void)  { return m_stdDevs; }
 
 		float 	*GetSlideData(const string slide, int& numSlideObjs);
 		int		GetSlideOffset(const string slide, int& numSlideObjs);
-
 
 protected:
 

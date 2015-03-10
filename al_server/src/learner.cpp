@@ -1800,14 +1800,14 @@ bool Learner::DebugClassify(const int sock, json_t *obj)
 bool Learner::DebugApply(ofstream& outFile, int iteration)
 {
 	bool	result = true;
-	char**	slides = m_dataset->GetSlideNames(), buff[50];
+	char**	slides = m_dataset->GetSlideNames();
 	int		 numSlides = m_dataset->GetNumSlides(), numSlideObjs, offset, dim;
 	float 	*ptr;
 	int 	*labels = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int)),
 			*slidePos = NULL, *slideNeg = NULL;
 
-	slidePos = (int*)malloc(numSlides * sizeof(int));
-	slideNeg = (int*)malloc(numSlides * sizeof(int));
+	slidePos = (int*)calloc(numSlides, sizeof(int));
+	slideNeg = (int*)calloc(numSlides, sizeof(int));
 
 	if( slidePos != NULL && slideNeg != NULL ) {
 
@@ -1818,31 +1818,22 @@ bool Learner::DebugApply(ofstream& outFile, int iteration)
 
 		if( result ) {
 
-			for(int i = 0; i < numSlides; i++) {
-
-				offset = m_dataset->GetSlideOffset(slides[i], numSlideObjs);
-
-				posCnt = negCnt = 0;
-				for(int j = offset; j < offset + numSlideObjs; j++) {
-					if( labels[j] == 1 ) {
-						posCnt++;
-					} else {
-						negCnt++;
-					}
+			int *slideIdx = m_dataset->GetSlideIndices();
+			for(int i = 0; i < m_dataset->GetNumObjs(); i++) {
+				if( labels[i] == 1 ) {
+					slidePos[slideIdx[i]]++;
+				} else {
+					slideNeg[slideIdx[i]]++;
 				}
-				slidePos[i] = posCnt;
-				slideNeg[i] = negCnt;
 			}
 
-			snprintf(buff, 50, "iter%d-pos,", iteration);
-			outFile << buff;
+			outFile << "iter" << iteration << "-pos,";
 			for(int i = 0; i < numSlides - 1; i++) {
 				outFile << slidePos[i] << ",";
 			}
 			outFile << slidePos[numSlides - 1] << endl;
 
-			snprintf(buff, 50, "iter%d-neg,", iteration);
-			outFile << buff;
+			outFile << "iter" << iteration << "-neg,";
 			for(int i = 0; i < numSlides - 1; i++) {
 				outFile << slideNeg[i] << ",";
 			}
