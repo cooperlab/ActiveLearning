@@ -56,7 +56,11 @@ int TrainClassifier(Classifier *classifier, MData& trainSet, int iteration)
 	int		*labels = trainSet.GetLabels(), dims = trainSet.GetDims();
 	float	**data = trainSet.GetData();
 
-	if( !classifier->Train(data[0], labels, trainSet.GetNumObjs(), dims) ) {
+	iteration++;
+
+	cout << "Train set size: " << iteration * 8 << endl;
+
+	if( !classifier->Train(data[0], labels, iteration * 8, dims) ) {
 		cerr << "Classifier traiing FAILED" << endl;
 		result = -10;
 	}
@@ -113,31 +117,61 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 		cout << slideNames[i] << " -  pos: " << posTrainObjs[i] << ", neg: " << negTrainObjs[i] << endl;
 	}
 
-	result = TrainClassifier(classifier, trainSet, 0);
-	if( result == 0 ) {
-		classes = (int*)malloc(testSet.GetNumObjs() * sizeof(int));
-		if( classes == NULL ) {
-			cerr << "Unable to allocate results buffer" << endl;
-			result = -3;
+	int	lastTrainObjIter = trainSet.GetIteration(trainSet.GetNumObjs() - 1);
+
+	string fileName = testFile + ".csv";
+	unsigned pos = fileName.find_last_of("/");
+
+	fileName = fileName.substr(pos + 1);
+
+	ofstream 	outFile(fileName.c_str());
+
+	if( outFile.is_open() ) {
+
+		outFile << "slides,";
+		for(int i = 0; i < trainSet.GetNumSlides() - 1; i++) {
+			outFile << slideNames[i] << ",";
 		}
-	}
+		outFile << slideNames[trainSet.GetNumSlides() - 1] << endl;
 
-	if( result == 0 ) {
-		float **data = testSet.GetData();
-		if( !classifier->ClassifyBatch(data[0], testSet.GetNumObjs(), testSet.GetDims(), classes) ) {
-			cerr << "Classification failed" << endl;
-			result = -4;
+		if( result == 0 ) {
+			classes = (int*)malloc(testSet.GetNumObjs() * sizeof(int));
+			if( classes == NULL ) {
+				cerr << "Unable to allocate results buffer" << endl;
+				result = -3;
+			}
 		}
-	}
 
-	if( result == 0 ) {
-		result = CountResults(testSet, classes, posSlideCnt, negSlideCnt);
-	}
+		for(int iter = 0; iter <= lastTrainObjIter; iter++) {
 
-	slideNames = testSet.GetSlideNames();
-	if( result == 0 ) {
-		for( int i = 0; i < testSet.GetNumSlides(); i++ ) {
-			cout << slideNames[i] << " -> pos: " <<  posSlideCnt[i] << ", neg: " << negSlideCnt[i] << endl;
+			result = TrainClassifier(classifier, trainSet, iter);
+
+			if( result == 0 ) {
+				float **data = testSet.GetData();
+				if( !classifier->ClassifyBatch(data[0], testSet.GetNumObjs(), testSet.GetDims(), classes) ) {
+					cerr << "Classification failed" << endl;
+					result = -4;
+				}
+			}
+
+			if( result == 0 ) {
+				result = CountResults(testSet, classes, posSlideCnt, negSlideCnt);
+			}
+
+			slideNames = testSet.GetSlideNames();
+			if( result == 0 ) {
+				outFile << "iter " << iter << "-pos,";
+				for( int i = 0; i < testSet.GetNumSlides() - 1; i++ ) {
+					 outFile <<  posSlideCnt[i] << ",";
+				}
+				outFile <<  posSlideCnt[testSet.GetNumSlides() - 1] << endl;
+
+				outFile << "iter " << iter << "-neg,";
+				for( int i = 0; i < testSet.GetNumSlides() - 1; i++ ) {
+					 outFile <<  negSlideCnt[i] << ",";
+				}
+				outFile <<  negSlideCnt[testSet.GetNumSlides() - 1] << endl;
+			}
 		}
 	}
 

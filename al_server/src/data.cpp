@@ -217,6 +217,19 @@ bool MData::Load(string fileName)
 			}
 		}
 	}
+
+	if( result && H5Lexists(fileId, "/sample_iter", H5P_DEFAULT) ) {
+		m_iteration = (int*)malloc(dims[0] * sizeof(int));
+		if( m_iteration ) {
+			status = H5LTread_dataset_int(fileId, "/sample_iter", m_iteration);
+			if( status < 0 ) {
+				result = false;
+			}
+		} else {
+			result = false;
+		}
+	}
+
 	// Allocate a buffer for the feature data
 	//
 	if( result ) {
