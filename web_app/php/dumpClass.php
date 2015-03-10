@@ -10,9 +10,6 @@
 	  			 	       
 	$submit_data = json_encode($submit_data, JSON_NUMERIC_CHECK);
 	
-	write_log("INFO", "Iteration: ".$_POST['iteration']);
-	
-	
 	$addr = gethostbyname($host);
 	set_time_limit(0);
 	
