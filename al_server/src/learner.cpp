@@ -17,7 +17,10 @@ using namespace std;
 const char passResp[] = "PASS";
 const char failResp[] = "FAIL";
 
-#define INITIAL_OBJS 8
+
+// Number of objects to sample per iteration
+#define SAMPLE_OBJS 	8
+
 
 extern EvtLogger *gLogger;
 
@@ -363,11 +366,11 @@ bool Learner::Select(const int sock, json_t *obj)
 		if( m_iteration != reqIteration ) {
 			double	start = gLogger->WallTime();
 			// Get new samples
-			m_sampler->SelectBatch(8, selIdx, selScores);
+			m_sampler->SelectBatch(SAMPLE_OBJS, selIdx, selScores);
 			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Select took %f", gLogger->WallTime() - start);
 		}
 
-		for(int i = 0; i < 8; i++) {
+		for(int i = 0; i < SAMPLE_OBJS; i++) {
 
 			sample = json_object();
 			if( sample == NULL ) {

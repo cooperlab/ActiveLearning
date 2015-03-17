@@ -27,7 +27,6 @@ using namespace libconfig;
 
 
 
-bool	gDone = false;		// Sig handler will set this to true
 EvtLogger	*gLogger = NULL;
 
 #define RX_BUFFER_SIZE		(100 * 1024)
@@ -200,7 +199,7 @@ int main(int argc, char *argv[])
 	}
 
 	if( status == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "al_server started");
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "al_server started, Ver %02d.%02d", AL_SERVER_VERSION_MAJOR, AL_SERVER_VERSION_MINOR);
 		
 		if( !ReadConfig(dataPath, outPath, port, interface) ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to read configuration file");
@@ -255,8 +254,10 @@ int main(int argc, char *argv[])
 			struct sockaddr_in	peer;
 			int	len = sizeof(peer);
 			char msg[100];
+
 			// Event loop...
-			while( !gDone ) {
+			// TODO - Add signal handler to set a flag to exit this loop on shutodwn
+			while( 1 ) {
 
 				// Get a connection
 				connFD = accept(listenFD, (struct sockaddr*)&peer, (socklen_t*)&len);
