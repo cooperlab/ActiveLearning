@@ -25,6 +25,7 @@
 //
 //
 #include <cstdlib>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <set>
@@ -41,6 +42,7 @@
 
 extern EvtLogger *gLogger;
 
+using namespace std;
 
 
 Sampler::Sampler(MData *dataset) :
@@ -93,7 +95,8 @@ bool Sampler::Init(int count, int *list)
 
 
 UncertainSample::UncertainSample(Classifier *classify, MData *dataset) : Sampler(dataset),
-m_Classify(classify)
+m_Classify(classify),
+m_slideCnt(NULL)
 {
 	m_dataIndex = (int*)malloc(dataset->GetNumObjs() * sizeof(int));
 
@@ -103,6 +106,7 @@ m_Classify(classify)
 			m_dataIndex[i] = i;
 	}
 
+	m_slideCnt = (float*)calloc(dataset->GetNumSlides(), sizeof(float));
 }
 
 
@@ -110,8 +114,34 @@ m_Classify(classify)
 
 UncertainSample::~UncertainSample(void)
 {
-
+	if( m_slideCnt )
+		free(m_slideCnt);
 }
+
+
+
+
+bool UncertainSample::Init(int count, int *list)
+{
+	bool	result = false;
+
+	// Initialize the slide counts with the 'primed' objects then
+	// call the base constructor to finish the initialization.
+	if( m_slideCnt ) {
+		int	*slideIdx = m_dataset->GetSlideIndices();
+
+		for(int i = 0; i < count; i++) {
+			m_slideCnt[slideIdx[list[i]]]++;
+		}
+		result = true;
+	}
+
+	if( result )
+		result = Sampler::Init(count, list);
+
+	return result;
+}
+
 
 
 
@@ -167,7 +197,7 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 	bool	result = true;
 	float	*checkSet = CreateCheckSet(),
 			*scores = (float*)malloc(m_remaining * sizeof(float));
-	int		*picks = (int*)malloc(count * sizeof(int));
+	int		*picks = (int*)malloc(count * sizeof(int)), sign;
 
 	ids = (int*)malloc(count * sizeof(int));
 	selScores = (float*)malloc(count * sizeof(float));
@@ -184,8 +214,9 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 	}
 
 	if( result ) {
-		int minIdx;
-		float  min = FLT_MAX, objScore;
+		int minIdx, *slideIdx = m_dataset->GetSlideIndices(),
+					sampleCnt = m_dataset->GetNumObjs() - m_remaining;
+		float  min = FLT_MAX, objScore, weight;
 
 		for(int i = 0; i < count; i++) {
 			selScores[i] = FLT_MAX;
@@ -194,6 +225,12 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		for(int i = 0; i < m_remaining; i++) {
 			objScore = abs(scores[i]);
 			minIdx = count - 1;
+
+			// Add in slide weight
+			if( sampleCnt > 0 ) {
+				weight = (m_slideCnt[slideIdx[m_dataIndex[i]]] / (float)sampleCnt);
+				objScore += weight;
+			}
 
 			if( objScore < abs(selScores[minIdx]) ) {
 				// Score is less than at least the last element, put it
@@ -205,6 +242,8 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 					minIdx--;
 				}
 				selScores[minIdx] = scores[i];
+				sign = (scores[i] < 0) ? -1 : 1;
+				selScores[minIdx] += (objScore * sign);
 				picks[minIdx] = i;
 			}
 		}
@@ -215,7 +254,6 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		if( selScores[0] == selScores[count - 1] ) {
 			vector<int>	minObjs;
 			set<int>	repSlides;
-			int			*slideIdx = m_dataset->GetSlideIndices();
 
 			// All scores have the same uncertainty. Get all objects with a
 			// score equal to the min and TODO select objects from as many slides
@@ -224,6 +262,9 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 			//
 			for(int i = 0; i < m_remaining; i++) {
 				objScore = abs(scores[i]);
+				weight = (m_slideCnt[slideIdx[m_dataIndex[i]]] / (float)sampleCnt);
+				objScore += weight;
+
 				if( objScore == selScores[0] ) {
 					minObjs.push_back(i);
 					repSlides.insert(slideIdx[m_dataIndex[i]]);
@@ -243,6 +284,7 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		m_remaining--;
 		for(int i = 0; i < count; i++) {
 			ids[i] = m_dataIndex[picks[i]];
+			m_slideCnt[slideIdx[ids[i]]]++;
 			m_dataIndex[picks[i]] = m_dataIndex[m_remaining];
 			m_remaining--;
 		}

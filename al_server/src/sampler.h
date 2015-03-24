@@ -73,13 +73,18 @@ public:
 
 	virtual int		Select(float *score = NULL);
 	virtual bool	SelectBatch(int count, int *&ids, float *&scores);
+	virtual bool 	Init(int count, int *list);
 	virtual SampType 	GetSamplerType(void) { return SAMP_UNCERTAIN; }
 	virtual bool 	GetVisSamples(int nStrata, int nGroups, int *&idx, float *&idxScores);
 
 protected:
 
+
+	float	*m_slideCnt;
+
 	Classifier *m_Classify;
 	float*	CreateCheckSet(void);
+
 };
 
 
