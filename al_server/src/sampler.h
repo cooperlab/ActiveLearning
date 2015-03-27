@@ -81,6 +81,7 @@ protected:
 
 
 	float	*m_slideCnt;
+	float	*m_checkSet;
 
 	Classifier *m_Classify;
 	float*	CreateCheckSet(void);

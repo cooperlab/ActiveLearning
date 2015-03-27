@@ -147,6 +147,7 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 	ofstream 	outFile(fileName.c_str());
 
 	if( outFile.is_open() ) {
+		cout << "Saving to " << fileName << endl;
 
 		outFile << "slides,";
 		for(int i = 0; i < trainSet.GetNumSlides() - 1; i++) {
@@ -193,7 +194,10 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 				outFile <<  negSlideCnt[testSet.GetNumSlides() - 1] << endl;
 			}
 		}
+	} else {
+		cerr << "Unable to create file " << fileName << endl;
 	}
+
 
 	if( posTrainObjs )
 		free(posTrainObjs);

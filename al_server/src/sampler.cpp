@@ -96,7 +96,8 @@ bool Sampler::Init(int count, int *list)
 
 UncertainSample::UncertainSample(Classifier *classify, MData *dataset) : Sampler(dataset),
 m_Classify(classify),
-m_slideCnt(NULL)
+m_slideCnt(NULL),
+m_checkSet(NULL)
 {
 	m_dataIndex = (int*)malloc(dataset->GetNumObjs() * sizeof(int));
 
@@ -116,6 +117,8 @@ UncertainSample::~UncertainSample(void)
 {
 	if( m_slideCnt )
 		free(m_slideCnt);
+	if( m_checkSet ) 
+		free(m_checkSet);
 }
 
 
@@ -206,13 +209,19 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		result = false;
 	}
 
+
 	if( result ) {
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Creating checkset");
 		checkSet = CreateCheckSet();
+		
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Calling ScoreBatch");
 		if( !m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
 			result = false;
 		}
 	}
 
+	gLogger->LogMsgv(EvtLogger::Evt_INFO, "After ScoreBatch result %d", result);
+	
 	if( result ) {
 		int minIdx, *slideIdx = m_dataset->GetSlideIndices(),
 					sampleCnt = m_dataset->GetNumObjs() - m_remaining;
@@ -294,8 +303,8 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		free(picks);
 	if( scores )
 		free(scores);
-	if( checkSet ) 
-		free(checkSet);
+//	if( checkSet ) 
+//		free(checkSet);
 
 	return result;
 }
@@ -305,22 +314,23 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 
 // TODO - Create checkset once, then remove the objects that were added to
 //	the training set. More efficient than creating the checkset every time
-
-
 float* UncertainSample::CreateCheckSet(void)
 {
-	int		dims = m_dataset->GetDims();
-	float	*checkSet = NULL;
+	if( m_checkSet == NULL ) {
+		int		dims = m_dataset->GetDims();
+		float	*checkSet = NULL;
 
-	checkSet = (float*)malloc(m_remaining * dims * sizeof(float));
-	if( checkSet ) {
-		float	**data = m_dataset->GetData();
+		m_checkSet = (float*)malloc(m_remaining * dims * sizeof(float));
+	
+		if( m_checkSet ) {
+			float	**data = m_dataset->GetData();
 
-		for(int i = 0; i < m_remaining; i++) {
-			memcpy(&checkSet[i * dims], data[m_dataIndex[i]], dims * sizeof(float));
+			for(int i = 0; i < m_remaining; i++) {
+				memcpy(&m_checkSet[i * dims], data[m_dataIndex[i]], dims * sizeof(float));
+			}
 		}
 	}
-	return checkSet;
+	return m_checkSet;
 }
 
 
