@@ -252,7 +252,7 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 				}
 				selScores[minIdx] = scores[i];
 				sign = (scores[i] < 0) ? -1 : 1;
-				selScores[minIdx] += (objScore * sign);
+				selScores[minIdx] += (weight * sign);
 				picks[minIdx] = i;
 			}
 		}
@@ -303,8 +303,6 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		free(picks);
 	if( scores )
 		free(scores);
-//	if( checkSet ) 
-//		free(checkSet);
 
 	return result;
 }
@@ -316,18 +314,19 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 //	the training set. More efficient than creating the checkset every time
 float* UncertainSample::CreateCheckSet(void)
 {
+	int		dims = m_dataset->GetDims();
+	float	*checkSet = NULL;
+
 	if( m_checkSet == NULL ) {
-		int		dims = m_dataset->GetDims();
-		float	*checkSet = NULL;
-
+		// Allocate once
 		m_checkSet = (float*)malloc(m_remaining * dims * sizeof(float));
+	}
 	
-		if( m_checkSet ) {
-			float	**data = m_dataset->GetData();
+	if( m_checkSet ) {
+		float	**data = m_dataset->GetData();
 
-			for(int i = 0; i < m_remaining; i++) {
-				memcpy(&m_checkSet[i * dims], data[m_dataIndex[i]], dims * sizeof(float));
-			}
+		for(int i = 0; i < m_remaining; i++) {
+			memcpy(&m_checkSet[i * dims], data[m_dataIndex[i]], dims * sizeof(float));
 		}
 	}
 	return m_checkSet;
@@ -418,8 +417,6 @@ bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *
 				}
 			}
 		}
-		if( checkSet )
-			free(checkSet);
 	}
 
 	if( scores )

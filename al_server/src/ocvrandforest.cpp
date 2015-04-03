@@ -25,6 +25,8 @@
 //
 //
 #include <thread>
+#include <algorithm>
+#include <ctime>
 
 #include "ocvrandforest.h"
 
@@ -37,6 +39,10 @@ OCVBinaryRF::OCVBinaryRF(void)
 {
 	m_priors[0] = 1.0f;		// Each class is of equal importance
 	m_priors[1] = 1.0f;
+
+	// Seed random number generator
+	CvRNG* rng = m_RF.get_rng();
+	*rng = time(NULL);
 
 	m_params.max_depth = 10;
 	m_params.min_sample_count = 5;
@@ -76,10 +82,8 @@ bool OCVBinaryRF::Train(float *&trainSet, int *labelVec,
 	Mat		features(numObjs, numDims, CV_32F, trainSet),
 			labels(numObjs, 1, CV_32S, labelVec);
 
-	CvRNG* rng = m_RF.get_rng();
-	*rng = 0xDEADBEEF;
-
-
+	m_params.nactive_vars = floor(sqrtf(numDims));
+	m_params.min_sample_count = (int)max(1.0f, ceil((float)numObjs * 0.01f));
 	m_trained = m_RF.train(features, CV_ROW_SAMPLE, labels, Mat(), Mat(), Mat(), Mat(), m_params);
 
 	return m_trained;
@@ -123,6 +127,7 @@ bool OCVBinaryRF::ClassifyBatch(float *&dataset, int numObjs,
 	}
 	return result;
 }
+
 
 
 
@@ -191,6 +196,7 @@ bool OCVBinaryRF::ScoreBatch(float *dataset, int numObjs,
 
 void OCVBinaryRF::ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results)
 {
+
 	if( m_trained && results != NULL ) {
 		for(int i = offset; i < (offset + numObjs); i++) {
 
