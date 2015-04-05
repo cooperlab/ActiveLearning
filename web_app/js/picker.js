@@ -49,6 +49,7 @@ var	selectedJSON = [];
 var pyramids;
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
 
+var boundsLeft, boundsRight, boundsTop, boundsBottom;
 
 
 
@@ -121,7 +122,16 @@ $(function() {
 		
 			if( statusObj.scaleFactor() > 0.5 ) {
 				$('.overlaySvg').css('visibility', 'visible');
-				updateSeg();
+				var centerX = statusObj.dataportLeft() + 
+							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
+				var centerY = statusObj.dataportTop() + 
+							  ((statusObj.dataportBottom() - statusObj.dataportTop()) / 2);
+				
+				if( centerX < boundsLeft || centerX > boundsRight ||
+					centerY < boundsTop || centerY > boundsBottom ) {
+					
+					updateSeg();
+				}
 			} else {
 				$('.overlaySvg').css('visibility', 'hidden');
 			}
@@ -344,7 +354,7 @@ function updateSeg() {
 		var left, right, top, bottom, width, height;
 
 		// Grab nuclei a viewport width surrounding the current viewport
-		//	+++ FIX ME !!!! +++
+		//
 		width = statusObj.dataportRight() - statusObj.dataportLeft();
 		height = statusObj.dataportBottom() - statusObj.dataportTop();
 		
@@ -361,10 +371,10 @@ function updateSeg() {
 					slide: 	curSlide,
 					trainset: "PICKER",
 					dataset: "none",
-					left:	statusObj.dataportLeft(),
-					right:	statusObj.dataportRight(),
-					top:	statusObj.dataportTop(),
-					bottom:	statusObj.dataportBottom()
+					left:	left,
+					right:	right,
+					top:	top,
+					bottom:	bottom
 			},
 		
 			success: function(data) {
@@ -372,6 +382,12 @@ function updateSeg() {
 					var ele;
 					var segGrp = document.getElementById('segGrp');
 					var annoGrp = document.getElementById('anno');
+
+					// Save current viewport location
+					boundsLeft = statusObj.dataportLeft();
+					boundsRight = statusObj.dataportRight();
+					boundsTop = statusObj.dataportTop();
+					boundsBottom = statusObj.dataportBottom();
 
 					// If group exists, delete it
 					if( segGrp != null ) {
