@@ -233,9 +233,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	m_UID[UID_LENGTH] = 0;
 
 	if( strlen(m_UID) > 0 ) {
-		char msg[100];
-		snprintf(msg, 100, "Session already in progress: %s", m_UID);
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, msg);
+		gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
  		result = false;
 	}
 
@@ -289,10 +287,8 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	// Create classifier and sampling objects
 	//
 	if( result ) {
-		char msg[100];
-
-		snprintf(msg, 100, "Loaded... %d objects of %d dimensions", m_dataset->GetNumObjs(), m_dataset->GetDims());
-		gLogger->LogMsg(EvtLogger::Evt_INFO, msg);
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loaded... %d objects of %d dimensions",
+							m_dataset->GetNumObjs(), m_dataset->GetDims());
 
  		m_classifier = new OCVBinaryRF();
 		if( m_classifier == NULL ) {
@@ -562,7 +558,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			else {
 				char name[255];
 				int num = json_integer_value(value);
-				sprintf(name, "%d", num);
+				snprintf(name, 255, "%d", num);
 				slide = name;
 			}
 
@@ -577,12 +573,10 @@ bool Learner::Submit(const int sock, json_t *obj)
 				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
 				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
 				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
-				result = m_dataset->GetSample(idx, &m_trainSet[pos * dims]);
+				result = m_dataset->GetSample(idx, m_trainSet[pos]);
 				m_samples.push_back(idx);
 			} else {
-				char msg[100];
-				snprintf(msg, 100, "Unable to find item: %s, %f, %f ", slide, centX, centY);
-				gLogger->LogMsg(EvtLogger::Evt_ERROR, msg);
+				gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
 				result = false;
 			}
 
@@ -614,7 +608,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 		double	start = gLogger->WallTime();
 		
 		m_iteration++;
-		result = m_classifier->Train(m_trainSet, m_labels, m_samples.size(), m_dataset->GetDims());
+		result = m_classifier->Train(m_trainSet[0], m_labels, m_samples.size(), m_dataset->GetDims());
 		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Classifier training took %f", gLogger->WallTime() - start);
 		
 		if( result ) {
@@ -911,11 +905,27 @@ bool Learner::UpdateBuffers(int updateSize)
 	}
 
 	if( result ) {
+		bool  init = (m_trainSet == NULL) ? true : false;
+		float **newFeatureIdx = (float**)realloc(m_trainSet, newSize * sizeof(float*));
+		if( newFeatureIdx != NULL ) {
+			m_trainSet = newFeatureIdx;
+			if( init ) {
+				m_trainSet[0] = NULL;
+			}
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
 		int 	dims = m_dataset->GetDims();
-		float *newFeatBuff = (float*)realloc(m_trainSet, newSize * dims * sizeof(float));
-		if( newFeatBuff != NULL )
-			m_trainSet = newFeatBuff;
-		else
+		float *newFeatBuff = (float*)realloc(m_trainSet[0], newSize * dims * sizeof(float));
+		if( newFeatBuff != NULL ) {
+			m_trainSet[0] = newFeatBuff;
+			for(int i = 1; i < newSize; i++) {
+				m_trainSet[i] = m_trainSet[i - 1] + dims;
+			}
+		} else
 			result = false;
 	}
 	return result;
@@ -955,7 +965,7 @@ bool Learner::SaveTrainingSet(string fileName)
 
 	if( trainingSet != NULL ) {
 
-		result = trainingSet->Create(m_trainSet, m_samples.size(), m_dataset->GetDims(),
+		result = trainingSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
 							m_labels, m_ids, m_sampleIter, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
 							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
 							m_dataset->GetNumSlides());
@@ -1019,10 +1029,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	}
 
 	timing = gLogger->WallTime() - timing;
-	char msg[100];
-
-	snprintf(msg, 100, "Classification took: %f", timing);
-	gLogger->LogMsg(EvtLogger::Evt_INFO, msg);
+	gLogger->LogMsgv(EvtLogger::Evt_INFO, "Classification took: %f", timing);
 
 	return result;
 }
@@ -1082,20 +1089,18 @@ bool Learner::ApplyGeneralClassifier(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		float 	**ptr, *test, *train;
+		float 	**ptr, *train;
 		int 	dims;
 
 		ptr = m_classTrain->GetData();
 		train = ptr[0];
 		labels = m_classTrain->GetLabels();
 
-		ptr = m_dataset->GetData();
-		test = ptr[0];
 		dims = m_dataset->GetDims();
 
 		result = classifier->Train(train, labels, m_classTrain->GetNumObjs(), dims);
 		if( result ) {
-			result = classifier->ClassifyBatch(test, m_dataset->GetNumObjs(), dims, results);
+			result = classifier->ClassifyBatch(m_dataset->GetData(), m_dataset->GetNumObjs(), dims, results);
 		}
 	}
 
@@ -1141,7 +1146,7 @@ bool Learner::ApplySessionClassifier(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		float 	*ptr;
+		float 	**ptr;
 		int 	*labels = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int)), dims;
 
 		if( labels == NULL ) {
@@ -1323,7 +1328,7 @@ float Learner::CalcAccuracy(void)
 	if( classifier ) {
 		vector<int>::iterator  it;
 
-		classifier->Train(m_trainSet, m_labels, m_samples.size(), m_dataset->GetDims());
+		classifier->Train(m_trainSet[0], m_labels, m_samples.size(), m_dataset->GetDims());
 
 		int  *results = (int*)malloc(m_samples.size() * sizeof(int));
 		if( results ) {
@@ -1338,7 +1343,7 @@ float Learner::CalcAccuracy(void)
 		}
 		delete classifier;
 	}
-
+#if 0
 	// Randomize the data the split into 5 folds
 	// foldList contains the fold the corresponding data object belongs to
 	vector<int> foldList;
@@ -1361,7 +1366,7 @@ float Learner::CalcAccuracy(void)
 			break;
 		}
 	}
-
+#endif
 	return result;
 }
 
@@ -1552,7 +1557,7 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 			else {
 				char name[255];
 				int num = json_integer_value(value);
-				sprintf(name, "%d", num);
+				snprintf(name, 255, "%d", num);
 				slide = name;
 			}
 
@@ -1567,7 +1572,7 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
 				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
 				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
-				result = m_dataset->GetSample(idx, &m_trainSet[pos * dims]);
+				result = m_dataset->GetSample(idx, m_trainSet[pos]);
 				m_samples.push_back(idx);
 			} else {
 				gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
@@ -1691,7 +1696,7 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 			fileName = m_classifierName + "_" + tag + ".h5";
 		}
 
-		result = testSet->Create(m_trainSet, m_samples.size(), m_dataset->GetDims(),
+		result = testSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
 							m_labels, m_ids, NULL, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
 							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
 							m_dataset->GetNumSlides());
@@ -1843,7 +1848,7 @@ bool Learner::DebugApply(ofstream& outFile, int iteration)
 		float	**data = m_dataset->GetData();
 		int		posCnt, negCnt, dims = m_dataset->GetDims();
 
-		result = m_classifier->ClassifyBatch(data[0], m_dataset->GetNumObjs(), dims, labels);
+		result = m_classifier->ClassifyBatch(data, m_dataset->GetNumObjs(), dims, labels);
 
 		if( result ) {
 

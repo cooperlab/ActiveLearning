@@ -29,12 +29,17 @@
 #include <set>
 #include <sys/utsname.h>
 #include <ctime>
+#include <cmath>
 
 #include "base_config.h"
 #include "data.h"
 
 
 using namespace std;
+
+
+// Limit allocations to around a gigabyte.
+const int MAX_MEM_CHUNK = (1024 * 1024 * 1024);
 
 
 
@@ -75,8 +80,11 @@ MData::~MData(void)
 void MData::Cleanup(void)
 {
 	if( m_objects ) {
-		if( m_objects[0] )
-			free(m_objects[0]);
+		for(int i = 0; i < m_numObjs; i += m_stride) {
+			if( m_objects[i] ) {
+				free(m_objects[i]);
+			}
+		}
 		free(m_objects);
 		m_objects = NULL;
 	}
@@ -143,6 +151,153 @@ void MData::Cleanup(void)
 
 
 
+//
+//	Read feature data into seperately allocated chunks of memory. We
+// 	do this to help with allocating very large amounts of data ( >100 GB)
+//
+bool MData::ReadFeatureData(hid_t fileId)
+{
+	bool	result = true;
+	hid_t	datasetId, dataspaceId, memSpaceId;
+	int		nStatus, strideIdx, remain;
+	hsize_t	dims[2], rankOut[2], offset[2], count[2], offsetOut[2], countOut[2];
+	herr_t	status;
+
+
+	// Calculate max number of objects we can fit into the max allowed
+	// memory allocation.
+	m_stride = floor(MAX_MEM_CHUNK / (m_numDim * sizeof(float)));
+	remain = m_numObjs % m_stride;
+
+	// Allocate the index buffer, this allows us to treat the feature data
+	// like a matrix. This must be contiguous
+	//
+	m_objects = (float**)malloc(m_numObjs * sizeof(float*));
+	if( m_objects == NULL ) {
+		result = false;
+	}
+
+	if( result ) {
+		datasetId = H5Dopen(fileId, "/features", H5P_DEFAULT);
+		if( datasetId < 0 ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		dataspaceId = H5Dget_space(datasetId);
+		if( dataspaceId < 0 ) {
+			result = false;
+		}
+	}
+	// Memory space and hyperslab for memory will remain constant, so it only
+	// needs to be configured once.
+	if( result ) {
+		rankOut[0] = m_stride;
+		rankOut[1] = m_numDim;
+		memSpaceId = H5Screate_simple(2, rankOut, NULL);
+		if( memSpaceId < 0 ) {
+			result = false;
+		} else {
+			offsetOut[0] = 0;
+			offsetOut[1] = 0;
+			countOut[0] = m_stride;
+			countOut[1] = m_numDim;
+
+			status = H5Sselect_hyperslab(memSpaceId, H5S_SELECT_SET, offsetOut, NULL, countOut, NULL);
+			if( status < 0 ) {
+				result = false;
+			}
+		}
+	}
+
+	// Allocate and load feature data
+	if( result ) {
+		strideIdx = 0;
+
+		offset[0] = offset[1] = 0;
+		count[0] = m_stride;
+		count[1] = m_numDim;
+
+		while( strideIdx < (m_numObjs - remain) ) {
+
+			// Allocate a buffer for the chunk
+			//
+			m_objects[strideIdx] = (float*)malloc(m_stride * m_numDim * sizeof(float));
+			if( m_objects[strideIdx] ) {
+				for(int i = strideIdx + 1; i < (strideIdx + m_stride); i++)
+					m_objects[i] = m_objects[i - 1] + m_numDim;
+			} else {
+				result = false;
+				break;
+			}
+
+			// Select hyperslab from the dataset
+			offset[0] = strideIdx;
+			status = H5Sselect_hyperslab(dataspaceId, H5S_SELECT_SET, offset, NULL, count, NULL);
+			if( status < 0 ) {
+				result = false;
+				break;
+			}
+
+			// Read the chunk
+			status = H5Dread(datasetId, H5T_NATIVE_FLOAT, memSpaceId, dataspaceId, H5P_DEFAULT, m_objects[strideIdx]);
+			if( status < 0 ) {
+				result = false;
+				break;
+			}
+			strideIdx += m_stride;
+		}
+
+		// Last chunk may be smaller that stride, adjust
+		if( result && remain > 0 ) {
+			// Allocate last chunk
+			m_objects[strideIdx] = (float*)malloc(remain * m_numDim * sizeof(float));
+			if( m_objects[strideIdx] ) {
+				for(int i = strideIdx + 1; i < (strideIdx + remain); i++)
+					m_objects[i] = m_objects[i - 1] + m_numDim;
+			} else {
+				result = false;
+			}
+
+			if( result ) {
+				// Update memory slab
+				countOut[0] = remain;
+				status = H5Sselect_hyperslab(memSpaceId, H5S_SELECT_SET, offsetOut, NULL, countOut, NULL);
+				if( status < 0 ) {
+					result = false;
+				} else {
+					// Update dataset slab
+					count[0] = remain;
+					offset[0] = strideIdx;
+
+					status = H5Sselect_hyperslab(dataspaceId, H5S_SELECT_SET, offset, NULL, count, NULL);
+					if( status < 0 ) {
+						result = false;
+					}
+				}
+			}
+
+			if( result ) {
+				status = H5Dread(datasetId, H5T_NATIVE_FLOAT, memSpaceId, dataspaceId, H5P_DEFAULT, m_objects[strideIdx]);
+				if( status < 0 ) {
+					result = false;
+				}
+			}
+		}
+	}
+
+	if( datasetId >= 0 )
+		H5Dclose(datasetId);
+	if( dataspaceId >= 0 )
+		H5Sclose(dataspaceId);
+	if( memSpaceId >= 0 )
+		H5Sclose(memSpaceId);
+	return result;
+}
+
+
+
 
 
 //
@@ -167,6 +322,9 @@ bool MData::Load(string fileName)
 		status = H5LTget_dataset_info(fileId, "/features", dims, NULL, NULL);
 		if( status < 0 ) {
 			result = false;
+		} else {
+			m_numObjs = dims[0];
+			m_numDim = dims[1];
 		}
 	}
 
@@ -256,36 +414,6 @@ bool MData::Load(string fileName)
 		}
 	}
 
-	// Allocate a buffer for the feature data
-	//
-	if( result ) {
-
-		m_objects = (float**)malloc(dims[0] * sizeof(float*));
-		if( m_objects ) {
-			m_objects[0] = (float*)malloc(dims[0] * dims[1] * sizeof(float));
-			if( m_objects[0] ) {
-				for(int i = 1; i < dims[0]; i++)
-					m_objects[i] = m_objects[i - 1] + dims[1];
-			} else {
-				result = false;
-			}
-		} else {
-			result = false;
-		}
-	}
-
-	// Read feature data
-	//
-	if( result ) {
-
-		status = H5LTread_dataset_float(fileId, "/features", m_objects[0]);
-		if( status < 0 ) {
-			result = false;
-		} else {
-			m_numObjs = dims[0];
-			m_numDim = dims[1];
-		}
-	}
 
 	// Get means
 	//
@@ -320,6 +448,12 @@ bool MData::Load(string fileName)
 			}
 		}
 	}
+
+
+	if( result ) {
+		result = ReadFeatureData(fileId);
+	}
+
 
 	if( slidesExist ) {
 
@@ -475,6 +609,10 @@ bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 	m_numDim = numDims;
 	m_created = true;
 
+	// Set stride to number of objects since we will allocate just
+	// one buffer.
+	m_stride = numObjs;
+
 	// Allocate buffer for objects
 	m_objects = (float**)malloc(numObjs * sizeof(float*));
 	if( m_objects != NULL ) {
@@ -525,18 +663,18 @@ bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 	}
 
 	if( result && means != NULL ) {
-		m_means = (float*)malloc(numObjs * sizeof(float));
+		m_means = (float*)malloc(numDims * sizeof(float));
 		if( m_means != NULL ) {
-			memcpy(m_means, means, numObjs * sizeof(float));
+			memcpy(m_means, means, numDims * sizeof(float));
 		} else {
 			result = false;
 		}
 	}
 
 	if( result && stdDev != NULL ) {
-		m_stdDevs = (float*)malloc(numObjs * sizeof(float));
+		m_stdDevs = (float*)malloc(numDims * sizeof(float));
 		if( m_stdDevs != NULL ) {
-			memcpy(m_stdDevs, stdDev, numObjs * sizeof(float));
+			memcpy(m_stdDevs, stdDev, numDims * sizeof(float));
 		} else {
 			result = false;
 		}
@@ -811,7 +949,7 @@ bool MData::SaveProvenance(hid_t fileId)
 		struct tm *now = localtime(&t);
 		char curTime[100];
 
-		sprintf(curTime, "%2d-%2d-%4d, %2d:%2d",
+		snprintf(curTime, 100, "%2d-%2d-%4d, %2d:%2d",
 	    		now->tm_mon + 1, now->tm_mday, now->tm_year + 1900,
 	    		now->tm_hour, now->tm_min);
 
@@ -847,13 +985,13 @@ int MData::GetSlideIdx(const char *slide)
 
 
 
-float *MData::GetSlideData(const string slide, int& numSlideObjs)
+float **MData::GetSlideData(const string slide, int& numSlideObjs)
 {
-	float	*data = NULL;
+	float	**data = NULL;
 
 	for(int i = 0; i < m_numSlides; i++) {
 		if( slide.compare(m_slides[i]) == 0 ) {
-			data = m_objects[m_dataIdx[i]];
+			data = &m_objects[m_dataIdx[i]];
 
 			if( i + 1 < m_numSlides ) {
 				numSlideObjs = m_dataIdx[i + 1] - m_dataIdx[i];

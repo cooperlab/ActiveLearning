@@ -95,14 +95,23 @@ bool Sampler::Init(int count, int *list)
 
 
 UncertainSample::UncertainSample(Classifier *classify, MData *dataset) : Sampler(dataset),
-m_Classify(classify),
-m_slideCnt(NULL),
-m_checkSet(NULL)
+m_Classify(classify)
 {
-	m_dataIndex = (int*)malloc(dataset->GetNumObjs() * sizeof(int));
+	int	numObjs = dataset->GetNumObjs();
+	m_dataIndex = (int*)malloc(numObjs * sizeof(int));
+
+	m_checkSet = (float**)calloc(numObjs, sizeof(float*));
+	if( m_checkSet ) {
+		float **data = dataset->GetData();
+
+		m_checkSet[0] = data[0];
+		for(int i = 1; i < numObjs; i++) {
+			m_checkSet[i] = m_checkSet[i - 1] + dataset->GetDims();
+		}
+	}
 
 	if( m_dataIndex ) {
-		m_remaining = dataset->GetNumObjs();
+		m_remaining = numObjs;
 		for(int i = 0; i < m_remaining; i++)
 			m_dataIndex[i] = i;
 	}
@@ -117,7 +126,7 @@ UncertainSample::~UncertainSample(void)
 {
 	if( m_slideCnt )
 		free(m_slideCnt);
-	if( m_checkSet ) 
+	if( m_checkSet )
 		free(m_checkSet);
 }
 
@@ -142,6 +151,16 @@ bool UncertainSample::Init(int count, int *list)
 	if( result )
 		result = Sampler::Init(count, list);
 
+	if( result ) {
+		int	numObjs = m_dataset->GetNumObjs();
+
+		// Remove the initial objects from the checkset
+		for(int i = 0; i < count; i++) {
+			numObjs--;
+			m_checkSet[i] = m_checkSet[numObjs];
+		}
+	}
+
 	return result;
 }
 
@@ -157,11 +176,10 @@ bool UncertainSample::Init(int count, int *list)
 int UncertainSample::Select(float *score)
 {
 	int		pick = -1;
-	float	*checkSet = CreateCheckSet(),
-			*scores = (float*) malloc(m_remaining * sizeof(float));
+	float	*scores = (float*) malloc(m_remaining * sizeof(float));
 
 	if( scores ) {
-		if( m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+		if( m_Classify->ScoreBatch(m_checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
 			int minIdx = -1;
 			float  min = FLT_MAX;
 
@@ -180,8 +198,6 @@ int UncertainSample::Select(float *score)
 			m_remaining--;
 			m_dataIndex[minIdx] = m_dataIndex[m_remaining];
 		}
-		if( checkSet )
-			free(checkSet);
 		free(scores);
 	}
 	return pick;
@@ -198,8 +214,7 @@ int UncertainSample::Select(float *score)
 bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 {
 	bool	result = true;
-	float	*checkSet = CreateCheckSet(),
-			*scores = (float*)malloc(m_remaining * sizeof(float));
+	float	*scores = (float*)malloc(m_remaining * sizeof(float));
 	int		*picks = (int*)malloc(count * sizeof(int)), sign;
 
 	ids = (int*)malloc(count * sizeof(int));
@@ -211,11 +226,7 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 
 
 	if( result ) {
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Creating checkset");
-		checkSet = CreateCheckSet();
-		
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Calling ScoreBatch");
-		if( !m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+		if( !m_Classify->ScoreBatch(m_checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
 			result = false;
 		}
 	}
@@ -289,13 +300,13 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 			}
 		}
 
-		// Remove selected objects from remaining set
-		m_remaining--;
+		// Remove selected objects from checkset
 		for(int i = 0; i < count; i++) {
+			m_remaining--;
 			ids[i] = m_dataIndex[picks[i]];
 			m_slideCnt[slideIdx[ids[i]]]++;
 			m_dataIndex[picks[i]] = m_dataIndex[m_remaining];
-			m_remaining--;
+			m_checkSet[picks[i]] = m_checkSet[m_remaining];
 		}
 	}
 
@@ -309,28 +320,6 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 
 
 
-
-// TODO - Create checkset once, then remove the objects that were added to
-//	the training set. More efficient than creating the checkset every time
-float* UncertainSample::CreateCheckSet(void)
-{
-	int		dims = m_dataset->GetDims();
-	float	*checkSet = NULL;
-
-	if( m_checkSet == NULL ) {
-		// Allocate once
-		m_checkSet = (float*)malloc(m_remaining * dims * sizeof(float));
-	}
-	
-	if( m_checkSet ) {
-		float	**data = m_dataset->GetData();
-
-		for(int i = 0; i < m_remaining; i++) {
-			memcpy(&m_checkSet[i * dims], data[m_dataIndex[i]], dims * sizeof(float));
-		}
-	}
-	return m_checkSet;
-}
 
 
 
@@ -363,20 +352,19 @@ bool SortFunc(ScoreIdx a, ScoreIdx b)
 bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *&idxScores)
 {
 	bool	result = true;
-	float	*checkSet = CreateCheckSet(),
-			*scores = (float*) malloc(m_remaining * sizeof(float));
+	float	*scores = (float*) malloc(m_remaining * sizeof(float));
 
 
 	idx = (int*)calloc(nStrata * nGroups * 2, sizeof(int));
 	idxScores = (float*)calloc(nStrata * nGroups * 2, sizeof(float));
 
 	// Score the unlabeled data and split into 2 classes
-	if( scores && idxScores && idx && checkSet ) {
+	if( scores && idxScores && idx ) {
 
 		vector<ScoreIdx> neg, pos;
 		ScoreIdx	temp;
 
-		if( m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+		if( m_Classify->ScoreBatch(m_checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
 
 			for(int i = 0; i < m_remaining; i++) {
 				if( scores[i] < 0 ) {

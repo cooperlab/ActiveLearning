@@ -168,8 +168,7 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 			result = TrainClassifier(classifier, trainSet, iter);
 
 			if( result == 0 ) {
-				float **data = testSet.GetData();
-				if( !classifier->ClassifyBatch(data[0], testSet.GetNumObjs(), testSet.GetDims(), classes) ) {
+				if( !classifier->ClassifyBatch(testSet.GetData(), testSet.GetNumObjs(), testSet.GetDims(), classes) ) {
 					cerr << "Classification failed" << endl;
 					result = -4;
 				}

@@ -72,7 +72,7 @@ public:
 		float	*GetMeans(void) { return m_means; }
 		float	*GetStdDevs(void)  { return m_stdDevs; }
 
-		float 	*GetSlideData(const string slide, int& numSlideObjs);
+		float 	**GetSlideData(const string slide, int& numSlideObjs);
 		int		GetSlideOffset(const string slide, int& numSlideObjs);
 
 protected:
@@ -91,6 +91,7 @@ protected:
 		int		m_numObjs;
 		int		m_numDim;
 		int		m_numSlides;
+		int		m_stride;			// # of objects per memory chunk
 
 		bool	m_haveDbIds;
 		int		*m_dbIds;
@@ -107,6 +108,7 @@ protected:
 		hid_t	m_space;			// For cleaning up slide names
 		hid_t	m_memType;
 
+		bool	ReadFeatureData(hid_t fileId);
 		void 	Cleanup(void);
 		bool	SaveProvenance(hid_t fileId);
 		bool	CreateSlideData(char **slides, int *slideIdx, int numSlides, int numObjs);

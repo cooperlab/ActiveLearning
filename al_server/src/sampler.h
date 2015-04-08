@@ -81,10 +81,10 @@ protected:
 
 
 	float	*m_slideCnt;
-	float	*m_checkSet;
+	float	**m_checkSet;
 
-	Classifier *m_Classify;
-	float*	CreateCheckSet(void);
+	Classifier 	*m_Classify;
+	bool		UpdateCheckSet(void);
 
 };
 
