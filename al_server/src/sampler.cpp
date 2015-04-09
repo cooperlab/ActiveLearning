@@ -102,11 +102,17 @@ m_Classify(classify)
 
 	m_checkSet = (float**)calloc(numObjs, sizeof(float*));
 	if( m_checkSet ) {
+		
+		// The checkset is just the unlabled portion of the dataset. It starts out
+		// as the entire dataset and as objects are labled, they are removed from the
+		// checkset. We only need an array of pointers to do this. The actual object 
+		// data will be stored in the dataset object, we will just swap out the pointers 
+		// for selected objects in our local array of pointers.
+		//
 		float **data = dataset->GetData();
 
-		m_checkSet[0] = data[0];
-		for(int i = 1; i < numObjs; i++) {
-			m_checkSet[i] = m_checkSet[i - 1] + dataset->GetDims();
+		for(int i = 0; i < numObjs; i++) {
+			m_checkSet[i] = data[i];
 		}
 	}
 
