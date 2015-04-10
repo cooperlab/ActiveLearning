@@ -118,13 +118,53 @@ bool OCVBinaryRF::ClassifyBatch(float **dataset, int numObjs,
 	bool	result = false;
 
 	if( m_trained && results != NULL ) {
-		for(int i = 0; i < numObjs; i++) {
-			Mat	data(1, numDims, CV_32F, dataset[i]);
-			results[i] = (int)m_RF.predict(data);
+
+		vector<std::thread> workers;
+		unsigned	numThreads = thread::hardware_concurrency();
+		int			offset, objCount, remain, objsPer;
+
+		remain = numObjs % numThreads;
+		objsPer = numObjs / numThreads;
+
+		// numThreads - 1 because main thread (current) will process also
+		//
+		for(int i = 0; i < numThreads - 1; i++) {
+
+			objCount = objsPer + ((i <  remain) ? 1 : 0);
+			offset = (i < remain) ? i * (objsPer + 1) :
+						(remain * (objsPer + 1)) + ((i - remain) * objsPer);
+
+			workers.push_back(std::thread(&OCVBinaryRF::ClassifyWorker, this,
+							  std::ref(dataset), offset, objCount, numDims, results));
+		}
+		// Main thread's workload
+		//
+		objCount = objsPer;
+		offset = (remain * (objsPer + 1)) + ((numThreads - remain - 1) * objsPer);
+
+		ClassifyWorker(dataset, offset, objCount, numDims, results);
+
+		for( auto &t : workers ) {
+			t.join();
 		}
 		result = true;
 	}
 	return result;
+}
+
+
+
+
+void OCVBinaryRF::ClassifyWorker(float **data, int offset, int numObjs, int numDims, int *results)
+{
+
+	if( m_trained && results != NULL ) {
+		for(int i = offset; i < (offset + numObjs); i++) {
+			Mat	object(1, numDims, CV_32F, data[i]);
+
+			results[i] = (int)m_RF.predict(object);
+		}
+	}
 }
 
 

@@ -66,6 +66,7 @@ protected:
 
 
 	void	ScoreWorker(float **data, int offset, int numObjs, int numDims, float *results);
+	void	ClassifyWorker(float **data, int offset, int numObjs, int numDims, int *results);
 };
 
 
