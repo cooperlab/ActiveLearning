@@ -514,11 +514,6 @@ bool Learner::Submit(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		// Make room for the new samples
-		result = UpdateBuffers(json_array_size(sampleArray));
-	}
-
-	if( result ) {
 		size_t	index;
 		int		id, label, idx, dims = m_dataset->GetDims();
 		float	centX, centY;
@@ -526,8 +521,12 @@ bool Learner::Submit(const int sock, json_t *obj)
 		double	start = gLogger->WallTime();
 		
 		json_array_foreach(sampleArray, index, jsonObj) {
+
 			value = json_object_get(jsonObj, "id");
 			id = json_integer_value(value);
+
+			value = json_object_get(jsonObj, "label");
+			label = json_integer_value(value);
 
 			// The dynamic typing in PHP or javascript can make a float
 			// an int if it has no decimal portion. Since the centroids can
@@ -546,11 +545,9 @@ bool Learner::Submit(const int sock, json_t *obj)
 			else
 				centY = (float)json_integer_value(value);
 
-			value = json_object_get(jsonObj, "label");
-			label = json_integer_value(value);
-
 			//
-			// FIXME!!! - Need to handle slide names that are numbers better
+			// Slide names that are numbers may have been converted to an integer.
+			// Try decoding a string first, if that fails, try an integer
 			//
 			value = json_object_get(jsonObj, "slide");
 			if( json_is_string(value) )
@@ -564,22 +561,33 @@ bool Learner::Submit(const int sock, json_t *obj)
 
 			// Get the dataset index for this object
 			idx = m_dataset->FindItem(centX, centY, slide);
- 			int	pos = m_samples.size();
 
-			if( idx != -1 ) {
-				m_labels[pos] = label;
-				m_ids[pos] = id;
-				m_sampleIter[pos] = m_iteration;
-				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
-				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
-				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
-				result = m_dataset->GetSample(idx, m_trainSet[pos]);
-				m_samples.push_back(idx);
+			if( label == 0 ) {
+				m_ignoreSet.insert(idx);
+
 			} else {
-				gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
-				result = false;
-			}
 
+				result = UpdateBuffers(1);
+
+				if( result ) {
+
+					int	pos = m_samples.size();
+
+					if( idx != -1 ) {
+						m_labels[pos] = label;
+						m_ids[pos] = id;
+						m_sampleIter[pos] = m_iteration;
+						m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
+						m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
+						m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
+						result = m_dataset->GetSample(idx, m_trainSet[pos]);
+						m_samples.push_back(idx);
+					} else {
+						gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
+						result = false;
+					}
+				}
+			}
 			// Something is wrong, stop processing
 			if( !result )
 				break;
