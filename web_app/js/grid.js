@@ -226,11 +226,15 @@ function thumbDoubleClick(box) {
 	var index = boxes.indexOf(box);
 	var label = sampleDataJson['samples'][index]['label'];
 	
+	// Toggle through the 3 states, pos, neg and ignore
+	//
 	if( label === 1 ) {
 		sampleDataJson['samples'][index]['label'] = -1;
+	} else if( label === -1 ) {
+		sampleDataJson['samples'][index]['label'] = 0;
 	} else {
 		sampleDataJson['samples'][index]['label'] = 1;
-	}
+	}	
 	updateClassStatus(index);
 };
 
@@ -441,9 +445,12 @@ function updateClassStatus(sample) {
 	if( sampleDataJson['samples'][sample]['label'] === 1 ) {
 		$(labelTag).text(posClass);
 		$(labelTag).css('background', '#00DD00');
-	} else {
+	} else if( sampleDataJson['samples'][sample]['label'] === -1 ) {
 		$(labelTag).text(negClass);				
 		$(labelTag).css('background', '#DD0000');
+	} else {
+		$(labelTag).text("Ignore");				
+		$(labelTag).css('background', '#888888');
 	}
 }
 
