@@ -73,14 +73,17 @@ int CountTrainingObjs(MData& trainSet, MData& testSet, int *&posCount, int *&neg
 int TrainClassifier(Classifier *classifier, MData& trainSet, int iteration)
 {
 	int		result = 0;
-	int		*labels = trainSet.GetLabels(), dims = trainSet.GetDims();
+	int		*labels = trainSet.GetLabels(), dims = trainSet.GetDims(), count,
+			*iterationList = trainSet.GetIterationList();;
 	float	**data = trainSet.GetData();
 
-	iteration++;
+	count = 0;
+	while( iterationList[count] <= iteration && count < trainSet.GetNumObjs() )
+		count++;
 
-	cout << "Train set size: " << iteration * 8 << endl;
+	cout << "Train set size: " << count  << endl;
 
-	if( !classifier->Train(data[0], labels, iteration * 8, dims) ) {
+	if( !classifier->Train(data[0], labels, count, dims) ) {
 		cerr << "Classifier traiing FAILED" << endl;
 		result = -10;
 	}
@@ -147,6 +150,7 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 	ofstream 	outFile(fileName.c_str());
 
 	if( outFile.is_open() ) {
+		cout << "Saving to " << fileName << endl;
 
 		outFile << "slides,";
 		for(int i = 0; i < trainSet.GetNumSlides() - 1; i++) {
@@ -167,8 +171,7 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 			result = TrainClassifier(classifier, trainSet, iter);
 
 			if( result == 0 ) {
-				float **data = testSet.GetData();
-				if( !classifier->ClassifyBatch(data[0], testSet.GetNumObjs(), testSet.GetDims(), classes) ) {
+				if( !classifier->ClassifyBatch(testSet.GetData(), testSet.GetNumObjs(), testSet.GetDims(), classes) ) {
 					cerr << "Classification failed" << endl;
 					result = -4;
 				}
@@ -193,7 +196,10 @@ int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
 				outFile <<  negSlideCnt[testSet.GetNumSlides() - 1] << endl;
 			}
 		}
+	} else {
+		cerr << "Unable to create file " << fileName << endl;
 	}
+
 
 	if( posTrainObjs )
 		free(posTrainObjs);

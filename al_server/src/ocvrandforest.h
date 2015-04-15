@@ -47,14 +47,14 @@ public:
 
 
 	virtual int 	Classify(float *obj, int numDims);
-	virtual bool	ClassifyBatch(float *&dataset, int numObjs,
+	virtual bool	ClassifyBatch(float **dataset, int numObjs,
 								  int numDims, int *results);
 
-	virtual bool	Train(float *&trainSet, int *labelVec,
+	virtual bool	Train(float *trainSet, int *labelVec,
 						  int numObjs, int numDims);
 
 	virtual float	Score(float *obj, int numDims);
-	virtual bool	ScoreBatch(float *dataset, int numObjs,
+	virtual bool	ScoreBatch(float **dataset, int numObjs,
 								int numDims, float *scores);
 
 
@@ -65,7 +65,8 @@ protected:
 	CvRTrees		m_RF;
 
 
-	void	ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results);
+	void	ScoreWorker(float **data, int offset, int numObjs, int numDims, float *results);
+	void	ClassifyWorker(float **data, int offset, int numObjs, int numDims, int *results);
 };
 
 

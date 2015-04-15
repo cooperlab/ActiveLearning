@@ -66,11 +66,13 @@ protected:
 	vector<int>	m_curSet;
 	vector<float> m_curScores;
 
+	set<int>	m_ignoreSet;	// Contains the dataset index of objects to ignore
+
 	// Training set info
 	//
 	int			*m_labels;
 	int			*m_ids;
-	float		*m_trainSet;
+	float		**m_trainSet;
 	int			*m_sampleIter;	// Iteration sample was added
 	int			*m_slideIdx;
 	float		*m_xCentroid;

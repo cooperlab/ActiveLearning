@@ -87,6 +87,15 @@
 						<h5>Apply Classifier : </h5>
 						<select id="classifier_sel"></select>
 					</div>
+					<br/>
+					<div data-bind="with: statusObj">
+						<span>Mouse Pos: </span>
+						<span>(</span>
+						<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgX().toFixed(0) : '-'"></span>
+						<span>, </span>
+						<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgY().toFixed(0) : '-'"></span>
+						<span>)</span>
+					</div>
 				</div>
 
 

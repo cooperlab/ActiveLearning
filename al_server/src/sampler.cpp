@@ -25,6 +25,7 @@
 //
 //
 #include <cstdlib>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <set>
@@ -41,6 +42,7 @@
 
 extern EvtLogger *gLogger;
 
+using namespace std;
 
 
 Sampler::Sampler(MData *dataset) :
@@ -95,14 +97,32 @@ bool Sampler::Init(int count, int *list)
 UncertainSample::UncertainSample(Classifier *classify, MData *dataset) : Sampler(dataset),
 m_Classify(classify)
 {
-	m_dataIndex = (int*)malloc(dataset->GetNumObjs() * sizeof(int));
+	int	numObjs = dataset->GetNumObjs();
+	m_dataIndex = (int*)malloc(numObjs * sizeof(int));
+
+	m_checkSet = (float**)calloc(numObjs, sizeof(float*));
+	if( m_checkSet ) {
+		
+		// The checkset is just the unlabled portion of the dataset. It starts out
+		// as the entire dataset and as objects are labled, they are removed from the
+		// checkset. We only need an array of pointers to do this. The actual object 
+		// data will be stored in the dataset object, we will just swap out the pointers 
+		// for selected objects in our local array of pointers.
+		//
+		float **data = dataset->GetData();
+
+		for(int i = 0; i < numObjs; i++) {
+			m_checkSet[i] = data[i];
+		}
+	}
 
 	if( m_dataIndex ) {
-		m_remaining = dataset->GetNumObjs();
+		m_remaining = numObjs;
 		for(int i = 0; i < m_remaining; i++)
 			m_dataIndex[i] = i;
 	}
 
+	m_slideCnt = (float*)calloc(dataset->GetNumSlides(), sizeof(float));
 }
 
 
@@ -110,8 +130,46 @@ m_Classify(classify)
 
 UncertainSample::~UncertainSample(void)
 {
-
+	if( m_slideCnt )
+		free(m_slideCnt);
+	if( m_checkSet )
+		free(m_checkSet);
 }
+
+
+
+
+bool UncertainSample::Init(int count, int *list)
+{
+	bool	result = false;
+
+	// Initialize the slide counts with the 'primed' objects then
+	// call the base constructor to finish the initialization.
+	if( m_slideCnt ) {
+		int	*slideIdx = m_dataset->GetSlideIndices();
+
+		for(int i = 0; i < count; i++) {
+			m_slideCnt[slideIdx[list[i]]]++;
+		}
+		result = true;
+	}
+
+	if( result )
+		result = Sampler::Init(count, list);
+
+	if( result ) {
+		int	numObjs = m_dataset->GetNumObjs();
+
+		// Remove the initial objects from the checkset
+		for(int i = 0; i < count; i++) {
+			numObjs--;
+			m_checkSet[i] = m_checkSet[numObjs];
+		}
+	}
+
+	return result;
+}
+
 
 
 
@@ -124,11 +182,10 @@ UncertainSample::~UncertainSample(void)
 int UncertainSample::Select(float *score)
 {
 	int		pick = -1;
-	float	*checkSet = CreateCheckSet(),
-			*scores = (float*) malloc(m_remaining * sizeof(float));
+	float	*scores = (float*) malloc(m_remaining * sizeof(float));
 
 	if( scores ) {
-		if( m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+		if( m_Classify->ScoreBatch(m_checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
 			int minIdx = -1;
 			float  min = FLT_MAX;
 
@@ -147,8 +204,6 @@ int UncertainSample::Select(float *score)
 			m_remaining--;
 			m_dataIndex[minIdx] = m_dataIndex[m_remaining];
 		}
-		if( checkSet )
-			free(checkSet);
 		free(scores);
 	}
 	return pick;
@@ -165,9 +220,8 @@ int UncertainSample::Select(float *score)
 bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 {
 	bool	result = true;
-	float	*checkSet = CreateCheckSet(),
-			*scores = (float*)malloc(m_remaining * sizeof(float));
-	int		*picks = (int*)malloc(count * sizeof(int));
+	float	*scores = (float*)malloc(m_remaining * sizeof(float));
+	int		*picks = (int*)malloc(count * sizeof(int)), sign;
 
 	ids = (int*)malloc(count * sizeof(int));
 	selScores = (float*)malloc(count * sizeof(float));
@@ -176,16 +230,19 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		result = false;
 	}
 
+
 	if( result ) {
-		checkSet = CreateCheckSet();
-		if( !m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+		if( !m_Classify->ScoreBatch(m_checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
 			result = false;
 		}
 	}
 
+	gLogger->LogMsgv(EvtLogger::Evt_INFO, "After ScoreBatch result %d", result);
+	
 	if( result ) {
-		int minIdx;
-		float  min = FLT_MAX, objScore;
+		int minIdx, *slideIdx = m_dataset->GetSlideIndices(),
+					sampleCnt = m_dataset->GetNumObjs() - m_remaining;
+		float  min = FLT_MAX, objScore, weight;
 
 		for(int i = 0; i < count; i++) {
 			selScores[i] = FLT_MAX;
@@ -194,6 +251,12 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		for(int i = 0; i < m_remaining; i++) {
 			objScore = abs(scores[i]);
 			minIdx = count - 1;
+
+			// Add in slide weight
+			if( sampleCnt > 0 ) {
+				weight = (m_slideCnt[slideIdx[m_dataIndex[i]]] / (float)sampleCnt);
+				objScore += weight;
+			}
 
 			if( objScore < abs(selScores[minIdx]) ) {
 				// Score is less than at least the last element, put it
@@ -205,6 +268,8 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 					minIdx--;
 				}
 				selScores[minIdx] = scores[i];
+				sign = (scores[i] < 0) ? -1 : 1;
+				selScores[minIdx] += (weight * sign);
 				picks[minIdx] = i;
 			}
 		}
@@ -215,7 +280,6 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		if( selScores[0] == selScores[count - 1] ) {
 			vector<int>	minObjs;
 			set<int>	repSlides;
-			int			*slideIdx = m_dataset->GetSlideIndices();
 
 			// All scores have the same uncertainty. Get all objects with a
 			// score equal to the min and TODO select objects from as many slides
@@ -224,6 +288,9 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 			//
 			for(int i = 0; i < m_remaining; i++) {
 				objScore = abs(scores[i]);
+				weight = (m_slideCnt[slideIdx[m_dataIndex[i]]] / (float)sampleCnt);
+				objScore += weight;
+
 				if( objScore == selScores[0] ) {
 					minObjs.push_back(i);
 					repSlides.insert(slideIdx[m_dataIndex[i]]);
@@ -239,12 +306,13 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 			}
 		}
 
-		// Remove selected objects from remaining set
-		m_remaining--;
+		// Remove selected objects from checkset
 		for(int i = 0; i < count; i++) {
-			ids[i] = m_dataIndex[picks[i]];
-			m_dataIndex[picks[i]] = m_dataIndex[m_remaining];
 			m_remaining--;
+			ids[i] = m_dataIndex[picks[i]];
+			m_slideCnt[slideIdx[ids[i]]]++;
+			m_dataIndex[picks[i]] = m_dataIndex[m_remaining];
+			m_checkSet[picks[i]] = m_checkSet[m_remaining];
 		}
 	}
 
@@ -252,34 +320,12 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		free(picks);
 	if( scores )
 		free(scores);
-	if( checkSet ) 
-		free(checkSet);
 
 	return result;
 }
 
 
 
-
-// TODO - Create checkset once, then remove the objects that were added to
-//	the training set. More efficient than creating the checkset every time
-
-
-float* UncertainSample::CreateCheckSet(void)
-{
-	int		dims = m_dataset->GetDims();
-	float	*checkSet = NULL;
-
-	checkSet = (float*)malloc(m_remaining * dims * sizeof(float));
-	if( checkSet ) {
-		float	**data = m_dataset->GetData();
-
-		for(int i = 0; i < m_remaining; i++) {
-			memcpy(&checkSet[i * dims], data[m_dataIndex[i]], dims * sizeof(float));
-		}
-	}
-	return checkSet;
-}
 
 
 
@@ -312,20 +358,19 @@ bool SortFunc(ScoreIdx a, ScoreIdx b)
 bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *&idxScores)
 {
 	bool	result = true;
-	float	*checkSet = CreateCheckSet(),
-			*scores = (float*) malloc(m_remaining * sizeof(float));
+	float	*scores = (float*) malloc(m_remaining * sizeof(float));
 
 
 	idx = (int*)calloc(nStrata * nGroups * 2, sizeof(int));
 	idxScores = (float*)calloc(nStrata * nGroups * 2, sizeof(float));
 
 	// Score the unlabeled data and split into 2 classes
-	if( scores && idxScores && idx && checkSet ) {
+	if( scores && idxScores && idx ) {
 
 		vector<ScoreIdx> neg, pos;
 		ScoreIdx	temp;
 
-		if( m_Classify->ScoreBatch(checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+		if( m_Classify->ScoreBatch(m_checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
 
 			for(int i = 0; i < m_remaining; i++) {
 				if( scores[i] < 0 ) {
@@ -366,8 +411,6 @@ bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *
 				}
 			}
 		}
-		if( checkSet )
-			free(checkSet);
 	}
 
 	if( scores )

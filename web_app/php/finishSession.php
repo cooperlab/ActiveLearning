@@ -74,7 +74,10 @@
 			mysqli_free_result($result);
 		}
 	
-	
+		if( trim($response['filename']) === "" || !isset($response['filename']) ) {
+			$response['filename'] = "lost filename";
+		}
+		
 		// Add classifier to database
 		//
 		$sql = 'INSERT INTO training_sets (name, type, dataset_id, iterations, filename)';
@@ -85,6 +88,7 @@
 		$trainingSetId = $dbConn->insert_id;
 		if( $status == FALSE ) {
 			log_error("Unable to insert classifier into database ".mysqli_error($dbConn));
+			log_error("Offending SQL: ".$sql);
 			$prog = false;
 		}
 	}

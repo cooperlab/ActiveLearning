@@ -76,12 +76,10 @@ for slide in slides:
 
 	for tile in tiles:
 
-		
 		data = open(tile, 'r').readlines()
 		data = data[1:]
 		objs = len(data)
 		newCnt = objectCnt + objs
-		print "Resizing to", newCnt
 		
 		# Resize datasets 
 		features.resize((newCnt, dims))
@@ -122,12 +120,10 @@ for slide in slides:
 	
 				objIdx = objIdx + 1		
 			else: 
-				print "Object", obj, "invalid"
 				rejected = rejected + 1
 
 				
 		if rejected > 0:
-			print "Adjusting for rejects"
 			newCnt = newCnt - rejected
 			totalRejects = totalRejects + rejected
 			
@@ -138,7 +134,6 @@ for slide in slides:
 			slideIdx.resize((newCnt,))
 
 		objectCnt = objectCnt + objIdx
-
 				
 	slideCnt = slideCnt + 1
 		

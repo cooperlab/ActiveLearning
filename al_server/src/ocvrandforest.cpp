@@ -25,6 +25,8 @@
 //
 //
 #include <thread>
+#include <algorithm>
+#include <ctime>
 
 #include "ocvrandforest.h"
 
@@ -37,6 +39,10 @@ OCVBinaryRF::OCVBinaryRF(void)
 {
 	m_priors[0] = 1.0f;		// Each class is of equal importance
 	m_priors[1] = 1.0f;
+
+	// Seed random number generator
+	CvRNG* rng = m_RF.get_rng();
+	*rng = time(NULL);
 
 	m_params.max_depth = 10;
 	m_params.min_sample_count = 5;
@@ -70,16 +76,14 @@ OCVBinaryRF::~OCVBinaryRF(void)
 
 
 
-bool OCVBinaryRF::Train(float *&trainSet, int *labelVec,
+bool OCVBinaryRF::Train(float *trainSet, int *labelVec,
 					  int numObjs, int numDims)
 {
 	Mat		features(numObjs, numDims, CV_32F, trainSet),
 			labels(numObjs, 1, CV_32S, labelVec);
 
-	CvRNG* rng = m_RF.get_rng();
-	*rng = 0xDEADBEEF;
-
-
+	m_params.nactive_vars = floor(sqrtf(numDims));
+	m_params.min_sample_count = (int)max(1.0f, ceil((float)numObjs * 0.01f));
 	m_trained = m_RF.train(features, CV_ROW_SAMPLE, labels, Mat(), Mat(), Mat(), Mat(), m_params);
 
 	return m_trained;
@@ -108,21 +112,61 @@ int OCVBinaryRF::Classify(float *obj, int numDims)
 
 
 
-bool OCVBinaryRF::ClassifyBatch(float *&dataset, int numObjs,
+bool OCVBinaryRF::ClassifyBatch(float **dataset, int numObjs,
 								  int numDims, int *results)
 {
 	bool	result = false;
 
 	if( m_trained && results != NULL ) {
-		Mat	data(numObjs, numDims, CV_32F, dataset);
 
-		for(int i = 0; i < numObjs; i++) {
-			results[i] = (int)m_RF.predict(data.row(i));
+		vector<std::thread> workers;
+		unsigned	numThreads = thread::hardware_concurrency();
+		int			offset, objCount, remain, objsPer;
+
+		remain = numObjs % numThreads;
+		objsPer = numObjs / numThreads;
+
+		// numThreads - 1 because main thread (current) will process also
+		//
+		for(int i = 0; i < numThreads - 1; i++) {
+
+			objCount = objsPer + ((i <  remain) ? 1 : 0);
+			offset = (i < remain) ? i * (objsPer + 1) :
+						(remain * (objsPer + 1)) + ((i - remain) * objsPer);
+
+			workers.push_back(std::thread(&OCVBinaryRF::ClassifyWorker, this,
+							  std::ref(dataset), offset, objCount, numDims, results));
+		}
+		// Main thread's workload
+		//
+		objCount = objsPer;
+		offset = (remain * (objsPer + 1)) + ((numThreads - remain - 1) * objsPer);
+
+		ClassifyWorker(dataset, offset, objCount, numDims, results);
+
+		for( auto &t : workers ) {
+			t.join();
 		}
 		result = true;
 	}
 	return result;
 }
+
+
+
+
+void OCVBinaryRF::ClassifyWorker(float **data, int offset, int numObjs, int numDims, int *results)
+{
+
+	if( m_trained && results != NULL ) {
+		for(int i = offset; i < (offset + numObjs); i++) {
+			Mat	object(1, numDims, CV_32F, data[i]);
+
+			results[i] = (int)m_RF.predict(object);
+		}
+	}
+}
+
 
 
 
@@ -146,13 +190,12 @@ float OCVBinaryRF::Score(float *obj, int numDims)
 
 
 
-bool OCVBinaryRF::ScoreBatch(float *dataset, int numObjs,
+bool OCVBinaryRF::ScoreBatch(float **dataset, int numObjs,
 							int numDims, float *scores)
 {
 	bool	result = false;
 
 	if( m_trained && scores != NULL ) {
-		Mat	data(numObjs, numDims, CV_32F, dataset);
 		vector<std::thread> workers;
 		unsigned	numThreads = thread::hardware_concurrency();
 		int			offset, objCount, remain, objsPer;
@@ -169,14 +212,14 @@ bool OCVBinaryRF::ScoreBatch(float *dataset, int numObjs,
 						(remain * (objsPer + 1)) + ((i - remain) * objsPer);
 
 			workers.push_back(std::thread(&OCVBinaryRF::ScoreWorker, this,
-							  std::ref(data), offset, objCount, numDims, scores));
+							  std::ref(dataset), offset, objCount, numDims, scores));
 		}
 		// Main thread's workload
 		//
 		objCount = objsPer;
 		offset = (remain * (objsPer + 1)) + ((numThreads - remain - 1) * objsPer);
 
-		ScoreWorker(data, offset, objCount, numDims, scores);
+		ScoreWorker(dataset, offset, objCount, numDims, scores);
 
 		for( auto &t : workers ) {
 			t.join();
@@ -189,14 +232,14 @@ bool OCVBinaryRF::ScoreBatch(float *dataset, int numObjs,
 
 
 
-void OCVBinaryRF::ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results)
+void OCVBinaryRF::ScoreWorker(float **data, int offset, int numObjs, int numDims, float *results)
 {
+
 	if( m_trained && results != NULL ) {
 		for(int i = offset; i < (offset + numObjs); i++) {
+			Mat	object(1, numDims, CV_32F, data[i]);
 
-			// liopencv seems to return a negated score, compensate appropriately
-			//
-			results[i] = m_RF.predict_prob(data.row(i));
+			results[i] = m_RF.predict_prob(object);
 
 			// Returned a probability, center 50% at 0 and set range to -1 to 1. This way
 			// any object with a negative score is in the negative class and a positive

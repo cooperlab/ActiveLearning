@@ -67,7 +67,7 @@ OCVBinarySVM::~OCVBinarySVM(void)
 
 
 
-bool OCVBinarySVM::Train(float *&trainSet, int *labelVec,
+bool OCVBinarySVM::Train(float *trainSet, int *labelVec,
 					  int numObjs, int numDims)
 {
 	Mat		features(numObjs, numDims, CV_32F, trainSet),
@@ -101,15 +101,15 @@ int OCVBinarySVM::Classify(float *obj, int numDims)
 
 
 
-bool OCVBinarySVM::ClassifyBatch(float *&dataset, int numObjs,
+bool OCVBinarySVM::ClassifyBatch(float **dataset, int numObjs,
 								  int numDims, int *results)
 {
 	bool	result = false;
 
 	if( m_trained && results != NULL ) {
-		Mat	data(numObjs, numDims, CV_32F, dataset);
-
 		for(int i = 0; i < numObjs; i++) {
+			Mat	data(1, numDims, CV_32F, dataset[i]);
+
 			results[i] = (int)m_svm.predict(data.row(i));
 		}
 		result = true;
@@ -139,13 +139,13 @@ float OCVBinarySVM::Score(float *obj, int numDims)
 
 
 
-bool OCVBinarySVM::ScoreBatch(float *dataset, int numObjs,
+bool OCVBinarySVM::ScoreBatch(float **dataset, int numObjs,
 							int numDims, float *scores)
 {
 	bool	result = false;
 
 	if( m_trained && scores != NULL ) {
-		Mat	data(numObjs, numDims, CV_32F, dataset);
+
 		vector<std::thread> workers;
 		unsigned	numThreads = thread::hardware_concurrency();
 		int			offset, objCount, remain, objsPer;
@@ -162,7 +162,7 @@ bool OCVBinarySVM::ScoreBatch(float *dataset, int numObjs,
 						(remain * (objsPer + 1)) + ((i - remain) * objsPer);
 
 			workers.push_back(std::thread(&OCVBinarySVM::ScoreWorker, this,
-							  std::ref(data), offset, objCount, numDims, scores));
+							  std::ref(dataset), offset, objCount, numDims, scores));
 		}
 
 		// Main thread's workload
@@ -170,7 +170,7 @@ bool OCVBinarySVM::ScoreBatch(float *dataset, int numObjs,
 		objCount = objsPer;
 		offset = (remain * (objsPer + 1)) + ((numThreads - remain - 1) * objsPer);
 
-		ScoreWorker(data, offset, objCount, numDims, scores);
+		ScoreWorker(dataset, offset, objCount, numDims, scores);
 
 		for( auto &t : workers ) {
 			t.join();
@@ -185,12 +185,12 @@ bool OCVBinarySVM::ScoreBatch(float *dataset, int numObjs,
 
 
 
-void OCVBinarySVM::ScoreWorker(Mat& data, int offset, int numObjs, int numDims, float *results)
+void OCVBinarySVM::ScoreWorker(float **dataset, int offset, int numObjs, int numDims, float *results)
 {
 	if( m_trained && results != NULL ) {
 
 		for(int i = offset; i < (offset + numObjs); i++) {
-
+			Mat	data(1, numDims, CV_32F, dataset[i]);
 			// liopencv seems to return a negated score, compensate appropriately
 			//
 			results[i] = -m_svm.predict(data.row(i), true);
