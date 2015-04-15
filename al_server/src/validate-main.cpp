@@ -73,14 +73,17 @@ int CountTrainingObjs(MData& trainSet, MData& testSet, int *&posCount, int *&neg
 int TrainClassifier(Classifier *classifier, MData& trainSet, int iteration)
 {
 	int		result = 0;
-	int		*labels = trainSet.GetLabels(), dims = trainSet.GetDims();
+	int		*labels = trainSet.GetLabels(), dims = trainSet.GetDims(), count,
+			*iterationList = trainSet.GetIterationList();;
 	float	**data = trainSet.GetData();
 
-	iteration++;
+	count = 0;
+	while( iterationList[count] <= iteration && count < trainSet.GetNumObjs() )
+		count++;
 
-	cout << "Train set size: " << iteration * 8 << endl;
+	cout << "Train set size: " << count  << endl;
 
-	if( !classifier->Train(data[0], labels, iteration * 8, dims) ) {
+	if( !classifier->Train(data[0], labels, count, dims) ) {
 		cerr << "Classifier traiing FAILED" << endl;
 		result = -10;
 	}

@@ -69,6 +69,7 @@ public:
 		float	GetXCentroid(int index);
 		float	GetYCentroid(int index);
 		int		GetIteration(int index) { return m_iteration ? m_iteration[index] : 0;  }
+		int		*GetIterationList(void) { return m_iteration; }
 		float	*GetMeans(void) { return m_means; }
 		float	*GetStdDevs(void)  { return m_stdDevs; }
 
