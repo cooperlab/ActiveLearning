@@ -96,6 +96,20 @@
 						<span data-bind="text:(haveImage() &&  haveMouse()) ? mouseImgY().toFixed(0) : '-'"></span>
 						<span>)</span>
 					</div>
+					<br/>
+					<div>
+						<h5>Pan to location: </h5>
+						<p>X:
+						<span><input type="text" id="x_pos" 
+							name="x_position" placeholder="0.0">
+						</p>
+
+						<p>Y:
+						<input type="text" id="y_pos" 
+							name="y_position" placeholder="0.0">
+						<input type="button" id="btn_Go" value="Go" class="btn btn-default btn-sm" onClick="go()">
+						</p>
+					</div>
 				</div>
 
 

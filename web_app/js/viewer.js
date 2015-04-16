@@ -42,8 +42,8 @@ var clickCount = 0;
 var uid = null, classifier = "", negClass = "", posClass = "";			
 
 var boundsLeft, boundsRight, boundsTop, boundsBottom;
-
-
+var	panned = false;
+var	pannedX, pannedY;
 
 //
 //	Initialization
@@ -102,6 +102,7 @@ $(function() {
 		if( segDisplayOn ) {
 		
 			if( statusObj.scaleFactor() > 0.5 ) {
+
 				$('.overlaySvg').css('visibility', 'visible');
 				var centerX = statusObj.dataportLeft() + 
 							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
@@ -110,7 +111,7 @@ $(function() {
 				
 				if( centerX < boundsLeft || centerX > boundsRight ||
 					centerY < boundsTop || centerY > boundsBottom ) {
-					
+		
 					updateSeg();
 				}
 				 
@@ -156,13 +157,44 @@ $(function() {
 	$("#slide_sel").change(updateSlide);
 	$("#dataset_sel").change(updateDataset);
 	$("#classifier_sel").change(updateClassifier);
+
+	// Set filter for numeric input
+	$("#x_pos").keydown(filter);
+	$("#y_pos").keydown(filter);
+
 });
 
 
 
 
 
+// Filter keystrokes for numeric input
+function filter(event) {
 
+	// Allow backspace, delete, tab, escape, enter and .	
+	if( $.inArray(event.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
+		// Allow Ctrl-A
+	   (event.keyCode == 65 && event.ctrlKey === true) ||
+		// Allow Ctrl-C
+	   (event.keyCode == 67	&& event.ctrlKey === true) ||
+		// Allow Ctrl-X
+	   (event.keyCode == 88	&& event.ctrlKey === true) ||
+		// Allow home, end, left and right
+	   (event.keyCode >= 35	&& event.keyCode <= 39) ) {
+
+			return;
+	}
+	
+	// Don't allow if not a number
+	if( (event.shiftKey || event.keyCode < 48 || event.keyCode > 57) &&
+		(event.keyCode < 96 || event.keyCode > 105) ) {
+
+			event.preventDefault();
+	}
+}
+
+
+ 
 //
 //	Get the url for the slide pyramid and set the viewer to display it
 //
@@ -170,6 +202,7 @@ $(function() {
 function updatePyramid() {
 
 	slide = "";
+	panned = false;
 
 	if( pyramids[$('#slide_sel').prop('selectedIndex')] === null ) {	
 	
@@ -487,6 +520,21 @@ function updateSeg() {
 						
 						segGrp.appendChild(ele);
 					}
+
+					if( panned ) {
+						ele = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+			
+						ele.setAttribute('x', pannedX - 50);
+						ele.setAttribute('y', pannedY - 50);
+						ele.setAttribute('width', 100);
+						ele.setAttribute('height', 100);
+						ele.setAttribute('stroke', 'yellow');
+						ele.setAttribute('fill', 'none');
+						ele.setAttribute('stroke-width', 4);
+						ele.setAttribute('id', 'boundBox');
+			
+						segGrp.appendChild(ele);
+					}
         		}
     	});
 	} 
@@ -568,6 +616,34 @@ function viewSegmentation() {
 
 
 
+
+function go() {
+
+	var	segBtn = $('#btn_1');
+	
+	pannedX = $("#x_pos").val();
+	pannedY = $("#y_pos").val();
+
+	// TODO! - Need to validate location against size of image
+	if( pannedX === "" || pannedY === "" ) {
+		window.alert("Invalid position");
+	} else {
+		
+		// Turn on overlay and reset bounds to force update
+		segBtn.val("Hide Segmentation");
+		$('.overlaySvg').css('visibility', 'visible');
+		segDisplayOn = true;
+		boundsLeft = boundsRight = boundsTop = boundsBottom = 0;
+
+		// Zoom in all the way
+		viewer.viewport.zoomTo(viewer.viewport.getMaxZoom());
+
+		// Move to nucei		
+		imgHelper.centerAboutLogicalPoint(new OpenSeadragon.Point(imgHelper.dataToLogicalX(pannedX), 
+															  imgHelper.dataToLogicalY(pannedY)));
+		panned = true;
+	}	
+}
 
 
 
