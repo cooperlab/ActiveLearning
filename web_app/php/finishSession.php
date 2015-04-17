@@ -58,8 +58,17 @@
 	}
 	
 	if( $prog ) {
-		socket_write($socket, $end_data, strlen($end_data));	
+		socket_write($socket, $end_data, strlen($end_data));
+
 		$response = socket_read($socket, 8192);
+		$additional = socket_read($socket, 8192);
+		while( $additional != false ) {
+			$response = $response.$additional;
+			$additional = socket_read($socket, 8192);
+		}
+		socket_close($socket);
+		$classification = json_decode($classification, true);
+	
 		socket_close($socket);
 
 		$response = json_decode($response, true);
@@ -103,6 +112,7 @@
 		$posId = $dbConn->insert_id;
 		if( $status == FALSE ) {
 			log_error("Unable to insert pos class into database ".mysqli_error($dbConn));
+			log_error("Offending SQL: ".$sql);
 			$prog = false;
 		}
 	}
@@ -114,6 +124,7 @@
 		$negId = $dbConn->insert_id;
 		if( $status == FALSE ) {
 			log_error("Unable to insert neg class into database ".mysqli_error($dbConn) );
+			log_error("Offending SQL: ".$sql);
 			$prog = false;
 		}
 	}

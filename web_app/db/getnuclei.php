@@ -48,6 +48,7 @@
 	$slide = $_POST['slide'];
 	$trainSet = $_POST['trainset'];
 
+	write_log("INFO", "trainSet: "+$trainSet);
 
 	// Get labels for the objects within the viewport
 	if( $trainSet != "none" ) {
@@ -59,24 +60,10 @@
 		}
 
 		$dataSet = $_POST['dataset'];
-
-		// Get the dataset file from the database
-		//
-		$dbConn = guestConnect();
-		$sql = 'SELECT features_file FROM datasets WHERE name="'.$dataSet.'"';
-
-		if( $result = mysqli_query($dbConn, $sql) ) {
-	
-			$featureFile = mysqli_fetch_row($result);			
-			mysqli_free_result($result);
-		}
-		mysqli_close($dbConn);
 		
 		// Send command to al server
 		$cmd =  array( "command" => "apply", 
 					   "uid" => $_POST['uid'],
-				 	   "dataset" => $featureFile[0],
-				 	   "trainingset" => $trainSet,
 				 	   "slide" => $slide,
 				 	   "xMin" => $left,
 				 	   "xMax" => $right,

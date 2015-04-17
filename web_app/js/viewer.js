@@ -383,10 +383,13 @@ function updateDataset() {
 //
 function updateClassifier() {
 
-	var class_sel = document.getElementById('classifier_sel'),
-		classifier = class_sel.options[class_sel.selectedIndex].value;
-	
-	if( class_sel.selectedIndex != 0 ) {
+	var class_sel = document.getElementById('classifier_sel');
+
+
+	classifier = class_sel.options[class_sel.selectedIndex].value;
+	console.log("Classifier changed to: " + classifier);
+
+ 	if( class_sel.selectedIndex != 0 ) {
 							
 		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lightgrey;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
 		document.getElementById('negLegend').innerHTML = box + " " + negClass;
@@ -394,6 +397,23 @@ function updateClassifier() {
 		document.getElementById('posLegend').innerHTML = box + " " + posClass;
 		
 		$('#legend').show();
+
+		if( uid === null ) {
+			// No active session, tell al_server to load appropriate dataset
+			console.log("Load dataset "+curDataset+" and classifier "+classifier);
+			
+			$.ajax({
+				type: "POST",
+				url: "php/initClassifier.php",
+				data: { dataset: curDataset,
+						trainset: classifier },
+				dataType: "json",
+				success: function(data) {
+					console.log("Response: "+data);			
+				}
+			});
+		}
+
 	} else {
 	
 		$('#legend').hide();
