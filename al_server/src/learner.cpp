@@ -207,6 +207,8 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 				result = PickerFinalize(sock, root);
 			} else if( strncmp(command, "debugApply", 10) == 0) {
 				result = DebugClassify(sock, root);
+			} else if( strncmp(command, "viewerLoad", 10) == 0) {
+				result = InitViewerClassify(sock, root);
 			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
@@ -1007,18 +1009,37 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	Classifier *classifier = NULL;
 	int		*results = NULL, *labels, dims;
 	float	*test, *train;
+	const char *slideName = NULL;
+	int		xMin, xMax, yMin, yMax;
+
 
 	// m_UID's length is 1 greater than UID_LENGTH, So we can
 	// always write a 0 there to make strlen safe.
 	//
 	m_UID[UID_LENGTH] = 0;
 
+	value = json_object_get(obj, "slide");
+	slideName = json_string_value(value);
+	value = json_object_get(obj, "xMin");
+	xMin = json_integer_value(value);
+	value = json_object_get(obj, "xMax");
+	xMax = json_integer_value(value);
+	value = json_object_get(obj, "yMin");
+	yMin = json_integer_value(value);
+	value = json_object_get(obj, "yMax");
+	yMax = json_integer_value(value);
+
+	if( slideName == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Unable to decode slide name");
+		result = false;
+	}
+
 	double timing = gLogger->WallTime();
 
 	if( strlen(m_UID) == 0 ) {
 		// No session active, load specified training set.
-		//result = ApplyGeneralClassifier(sock, obj);
-		result = false;
+		result = ApplyGeneralClassifier(sock, xMin, xMax, yMin, yMax, slideName);
+
 	} else {
 		// Session in progress, use current training set.
 		value = json_object_get(obj, "uid");
@@ -1032,7 +1053,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 		}
 
 		if( result ) {
-			result = ApplySessionClassifier(sock, obj);
+			result = ApplySessionClassifier(sock, xMin, xMax, yMin, yMax, slideName);
 		}
 	}
 
@@ -1054,70 +1075,50 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 //	Applies the specified classifier to the specified dataset. Used when
 //	no session is active.
 //
-bool Learner::ApplyGeneralClassifier(const int sock, json_t *obj)
+bool Learner::ApplyGeneralClassifier(const int sock, int xMin, int xMax,
+									 int yMin, int yMax, string slide)
 {
 	bool	result = true;
 	json_t	*value;
-	const char *trainSetName = NULL, *dataSetFileName = NULL;
-	Classifier *classifier = NULL;
-	int		*results = NULL, *labels = NULL;
+	Classifier *classifier = new OCVBinaryRF();;
+	int		*predClass = NULL, *labels = NULL;
 
-	value = json_object_get(obj, "dataset");
-	dataSetFileName = json_string_value(value);
 
-	value = json_object_get(obj, "trainingset");
-	trainSetName = json_string_value(value);
-
-	if( dataSetFileName == NULL || trainSetName == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyGeneralClassifier) Dataset or Training set not specified");
+	if( classifier == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyGeneralClassifier) Unable to allocate classifier object");
 		result = false;
 	}
 
 	if( result ) {
-		result = LoadDataset(dataSetFileName);
-	}
-
-	if( result ) {
-		result = LoadTrainingSet(trainSetName);
-	}
-
-	if( result ) {
-		results = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int));
-		if( results == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyGeneralClassifier) Unable to allocate results buffer");
-			result = false;
-		}
-	}
-
-	if( result ) {
- 		classifier = new OCVBinaryRF();
-		if( classifier == NULL ) {
-			result = false;
-		}
-	}
-
-	if( result ) {
-		float 	**ptr, *train;
+		int	 	slideObjs;
+		float 	**test, **train;
 		int 	dims;
 
-		ptr = m_classTrain->GetData();
-		train = ptr[0];
+		train = m_classTrain->GetData();
 		labels = m_classTrain->GetLabels();
-
 		dims = m_dataset->GetDims();
+		test = m_dataset->GetSlideData(slide, slideObjs);
 
-		result = classifier->Train(train, labels, m_classTrain->GetNumObjs(), dims);
+		predClass = (int*)malloc(slideObjs * sizeof(int));
+
+		if( predClass == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyGeneralClassifier) Unable to allocate results buffer");
+			result = false;
+		} else {
+			result = classifier->Train(train[0], labels, m_classTrain->GetNumObjs(), dims);
+		}
+
 		if( result ) {
-			result = classifier->ClassifyBatch(m_dataset->GetData(), m_dataset->GetNumObjs(), dims, results);
+			result = classifier->ClassifyBatch(test, slideObjs, dims, predClass);
 		}
 	}
 
 	if( result ) {
-		result = SendClassifyResult(0, 0, 0, 0, "", results, sock);
+		result = SendClassifyResult(xMin, xMax, yMin, yMax, slide, predClass, sock);
 	}
 
-	if( results )
-		free(results);
+	if( predClass )
+		free(predClass);
 	if( classifier )
 		delete classifier;
 
@@ -1130,69 +1131,51 @@ bool Learner::ApplyGeneralClassifier(const int sock, json_t *obj)
 
 
 
-bool Learner::ApplySessionClassifier(const int sock, json_t *obj)
+bool Learner::ApplySessionClassifier(const int sock, int xMin, int xMax,
+									 int yMin, int yMax, string slide)
 {
 	bool	result = true;
 	json_t	*value;
-	const char *slideName = NULL;
-	int		xMin, xMax, yMin, yMax;
+	float 	**ptr;
+	int 	*labels = NULL, dims, slideObjs, offset;
 
-	value = json_object_get(obj, "slide");
-	slideName = json_string_value(value);
-	value = json_object_get(obj, "xMin");
-	xMin = json_integer_value(value);
-	value = json_object_get(obj, "xMax");
-	xMax = json_integer_value(value);
-	value = json_object_get(obj, "yMin");
-	yMin = json_integer_value(value);
-	value = json_object_get(obj, "yMax");
-	yMax = json_integer_value(value);
 
-	if( slideName == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplySessionClassifier) Unable to decode slide name");
+	offset = m_dataset->GetSlideOffset(slide, slideObjs);
+	labels = (int*)malloc(slideObjs * sizeof(int));
+
+	if( labels == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplySessionClassifier) Unable to allocate labels buffer");
 		result = false;
 	}
 
 	if( result ) {
-		float 	**ptr;
-		int 	*labels = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int)), dims;
 
-		if( labels == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplySessionClassifier) Unable to allocate labels buffer");
-			result = false;
-		}
+		if( m_pickerMode ) {
+			// In picker mode, we just set selected objects to the positive
+			// class to indicate they've been selected already. All other
+			// objects are set to the negative class.
+			//
+			memset(labels, -1, m_dataset->GetNumObjs() * sizeof(int));
+			vector<int>::iterator	it;
 
-		if( result ) {
-
-			if( m_pickerMode ) {
-				int	 slideObjs, offset;
-
-				offset = m_dataset->GetSlideOffset(slideName, slideObjs);
-
-				memset(labels, -1, m_dataset->GetNumObjs() * sizeof(int));
-				vector<int>::iterator	it;
-
-				for(it = m_samples.begin(); it != m_samples.end(); it++) {
-					labels[*it - offset] = 1;
-				}
-
-			} else {
-				int	 slideObjs;
-
-				ptr = m_dataset->GetSlideData(slideName, slideObjs);
-				dims = m_dataset->GetDims();
-				result = m_classifier->ClassifyBatch(ptr, slideObjs, dims, labels);
+			for(it = m_samples.begin(); it != m_samples.end(); it++) {
+				labels[*it - offset] = 1;
 			}
-		}
+		} else {
 
-		if( result ) {
-			result = SendClassifyResult(xMin, xMax, yMin, yMax, slideName,
-										labels, sock);
+			ptr = m_dataset->GetSlideData(slide, slideObjs);
+			dims = m_dataset->GetDims();
+			result = m_classifier->ClassifyBatch(ptr, slideObjs, dims, labels);
 		}
-
-		if( labels )
-			free(labels);
 	}
+
+	if( result ) {
+		result = SendClassifyResult(xMin, xMax, yMin, yMax, slide, labels, sock);
+	}
+
+	if( labels )
+		free(labels);
+
 	return result;
 }
 
@@ -1259,6 +1242,49 @@ bool Learner::SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
 
 
 
+bool Learner::InitViewerClassify(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*value;
+	const char *trainSetName = NULL, *dataSetFileName = NULL;
+
+	// viewerLoad
+	value = json_object_get(obj, "dataset");
+	dataSetFileName = json_string_value(value);
+
+	value = json_object_get(obj, "trainset");
+	trainSetName = json_string_value(value);
+
+	if( dataSetFileName == NULL || trainSetName == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyGeneralClassifier) Dataset or training set not specified");
+		result = false;
+	}
+
+	if( result ) {
+		result = LoadDataset(dataSetFileName);
+	}
+
+	if( result ) {
+		result = LoadTrainingSet(trainSetName);
+	}
+
+	// Send result back to client
+	//
+	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
+								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+
+	if( bytesWritten != sizeof(failResp) - 1 )
+		result = false;
+
+	return result;
+}
+
+
+
+
+
+
+
 bool Learner::LoadDataset(string dataSetFileName)
 {
 	bool result = true;
@@ -1310,7 +1336,7 @@ bool Learner::LoadTrainingSet(string trainingSetName)
 		}
 
 		if( result ) {
-			string fqn = m_outPath + trainingSetName + ".h5";
+			string fqn = m_outPath + trainingSetName;
 			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: " + fqn);
 			result = m_classTrain->Load(fqn);
 		}

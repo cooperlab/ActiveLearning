@@ -103,10 +103,14 @@ protected:
 	bool	DebugClassify(const int sock, json_t *obj);
 	bool	DebugApply(ofstream& outFile, int iteratioin);
 
-	bool	ApplyGeneralClassifier(const int sock, json_t *obj);
-	bool	ApplySessionClassifier(const int sock, json_t *obj);
+	bool	ApplyGeneralClassifier(const int sock, int xMin, int xMax,
+								   int yMin, int yMax, string slide);
+	bool	ApplySessionClassifier(const int sock, int xMin, int xMax,
+								   int yMin, int yMax, string slide);
 	bool	SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
 			 	 	 	 	   string slide, int *results, const int sock);
+
+	bool	InitViewerClassify(const int sock, json_t *obj);
 
 	bool 	UpdateBuffers(int updateSize);
 	void	Cleanup(void);
