@@ -44,6 +44,88 @@ EvtLogger	*gLogger = NULL;
 
 
 
+int	CalcROC(MData& trainSet, MData& testSet, Classifier *classifier, string testFile)
+{
+	int		result = 0, *trainLabels = trainSet.GetLabels(),
+			*testLabels = testSet.GetLabels(),
+			*predClass = (int*)malloc(testSet.GetNumObjs() * sizeof(int));
+	float	**train = trainSet.GetData(), **test = testSet.GetData(),
+			*scores = (float*)malloc(testSet.GetNumObjs() * sizeof(float));
+
+	if( predClass == NULL || scores == NULL ) {
+		result = -10;
+		cerr << "Unable to allocate results buffer" << endl;
+	}
+
+	if( result == 0 ) {
+		classifier->Train(train[0], trainLabels, trainSet.GetNumObjs(), trainSet.GetDims());
+		classifier->ScoreBatch(test, testSet.GetNumObjs(), testSet.GetDims(), scores);
+
+		for(int i = 0; i < testSet.GetNumObjs(); i++) {
+			if( scores[i] >= 0.0f ) {
+				predClass[i] = 1;
+			} else {
+				predClass[i] = -1;
+			}
+		}
+	}
+
+	int TP = 0, FP = 0, TN = 0, FN = 0, P = 0, N = 0;
+
+	// Calculate confusion matrix
+	for(int i = 0; i < testSet.GetNumObjs(); i++) {
+		if( testLabels[i] == 1 ) {
+			P++;
+			if( predClass[i] == 1 ) {
+				TP++;
+			} else {
+				FN++;
+			}
+		} else {
+			N++;
+			if( predClass[i] == -1 ) {
+				TN++;
+			} else {
+				FP++;
+			}
+		}
+	}
+	printf("\t%4d\t%4d\n", TP, FP);
+	printf("\t%4d\t%4d\n\n", FN, TN);
+
+	cout << "FP rate: " << (float)FP / (float)N << endl;
+	cout << "TP rate: " << (float)TP / (float)P << endl;
+	cout << "Precision: " << (float)TP / (float)(TP + FP) << endl;
+	cout << "Accuracy: " << (float)(TP + TN) / (float)(N + P) << endl;
+
+	string fileName = testFile + "-scores.csv";
+	unsigned pos = fileName.find_last_of("/");
+
+	fileName = fileName.substr(pos + 1);
+	ofstream 	outFile(fileName.c_str());
+	if( outFile.is_open() ) {
+
+		cout << "Saving score data to " << fileName << endl;
+
+		outFile << "label,score" << endl;
+		for(int idx = 0; idx < testSet.GetNumObjs(); idx++)
+			outFile << testLabels[idx] << "," << ((scores[idx] + 1.0f) / 2.0) << endl;
+
+		outFile.close();
+	} else {
+		cerr << "Unable to create " << fileName << endl;
+		result = -11;
+	}
+
+	if( predClass )
+		free(predClass);
+	if( scores )
+		free(scores);
+
+	return result;
+}
+
+
 
 
 int CountTrainingObjs(MData& trainSet, MData& testSet, int *&posCount, int *&negCount)
@@ -119,18 +201,12 @@ int CountResults(MData& testSet, int *classes, int *&posSlideCnt, int *&negSlide
 
 
 
-int	ClassifySlides(string trainFile, string testFile, Classifier *classifier)
+int	ClassifySlides(MData& trainSet, MData& testSet, Classifier *classifier, string testFile)
 {
 	int		result = 0;
-	MData	testSet, trainSet;
 	int		*posTrainObjs = NULL, *negTrainObjs = NULL,		// Training samples for each slide
 			*classes = NULL, *posSlideCnt = NULL, *negSlideCnt = NULL;
 
-	trainSet.Load(trainFile);
-	testSet.Load(testFile);
-
-	cout << "Train set: " << trainSet.GetNumObjs() << " nuclei from " << trainSet.GetNumSlides() << " slides" << endl;
-	cout << "Test set: " << testSet.GetNumObjs() << " nuclei from " << testSet.GetNumSlides() << " slides" << endl;
 
 	result = CountTrainingObjs(trainSet, testSet, posTrainObjs, negTrainObjs);
 
@@ -229,11 +305,20 @@ int main(int argc, char *argv[])
 
 	gLogger = new EvtLogger();
 
-
-	string 			classType = args.classifier_arg,
-					trainFile = args.train_file_arg,
-					testFile = args.test_file_arg;
+	MData	testSet, trainSet;
+	string 	classType = args.classifier_arg,
+			trainFile = args.train_file_arg,
+			testFile = args.test_file_arg,
+			command = args.command_arg;
 	Classifier		*classifier = NULL;
+
+
+	trainSet.Load(trainFile);
+	testSet.Load(testFile);
+
+	cout << "Train set: " << trainSet.GetNumObjs() << " nuclei from " << trainSet.GetNumSlides() << " slides" << endl;
+	cout << "Test set: " << testSet.GetNumObjs() << " nuclei from " << testSet.GetNumSlides() << " slides" << endl;
+
 
 	if( classType.compare("svm") == 0 ) {
 		classifier = new OCVBinarySVM();
@@ -245,7 +330,11 @@ int main(int argc, char *argv[])
 	}
 
 	if( result == 0 ) {
-		result = ClassifySlides(trainFile, testFile, classifier);
+		if( command.compare("count") == 0 ) {
+			result = ClassifySlides(trainSet, testSet, classifier, testFile);
+		} else if( command.compare("roc") == 0 ) {
+			result = CalcROC(trainSet, testSet, classifier, testFile);
+		}
 	}
 
 	if( classifier )

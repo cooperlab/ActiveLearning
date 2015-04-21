@@ -37,15 +37,15 @@ using namespace std;
 
 OCVBinaryRF::OCVBinaryRF(void)
 {
-	m_priors[0] = 1.0f;		// Each class is of equal importance
-	m_priors[1] = 1.0f;
+	m_priors[0] = 0.5f;		// Priors will be updated during training
+	m_priors[1] = 0.5f;
 
 	// Seed random number generator
 	CvRNG* rng = m_RF.get_rng();
 	*rng = time(NULL);
 
 	m_params.max_depth = 10;
-	m_params.min_sample_count = 5;
+	m_params.min_sample_count = 1;
 	m_params.regression_accuracy = 0;
 	m_params.use_surrogates = false;
 	m_params.max_categories = 2;
@@ -82,8 +82,19 @@ bool OCVBinaryRF::Train(float *trainSet, int *labelVec,
 	Mat		features(numObjs, numDims, CV_32F, trainSet),
 			labels(numObjs, 1, CV_32S, labelVec);
 
+	// Calculate priors for the training set
+	m_priors[0] = 0.0f;
+	m_priors[1] = 0.0f;
+	for(int i = 0; i < numObjs; i++) {
+		if( labelVec[i] == -1 )
+			m_priors[0] += 1.0f;
+		else
+			m_priors[1] += 1.0f;
+	}
+	m_priors[1] /= (float)numObjs;
+	m_priors[0] /= (float)numObjs;
+
 	m_params.nactive_vars = floor(sqrtf(numDims));
-	m_params.min_sample_count = (int)max(1.0f, ceil((float)numObjs * 0.01f));
 	m_trained = m_RF.train(features, CV_ROW_SAMPLE, labels, Mat(), Mat(), Mat(), Mat(), m_params);
 
 	return m_trained;

@@ -108,9 +108,9 @@ bool OCVBinarySVM::ClassifyBatch(float **dataset, int numObjs,
 
 	if( m_trained && results != NULL ) {
 		for(int i = 0; i < numObjs; i++) {
-			Mat	data(1, numDims, CV_32F, dataset[i]);
+			Mat	sample(1, numDims, CV_32F, dataset[i]);
 
-			results[i] = (int)m_svm.predict(data.row(i));
+			results[i] = (int)m_svm.predict(sample);
 		}
 		result = true;
 	}
@@ -190,10 +190,10 @@ void OCVBinarySVM::ScoreWorker(float **dataset, int offset, int numObjs, int num
 	if( m_trained && results != NULL ) {
 
 		for(int i = offset; i < (offset + numObjs); i++) {
-			Mat	data(1, numDims, CV_32F, dataset[i]);
+			Mat	sample(1, numDims, CV_32F, dataset[i]);
 			// liopencv seems to return a negated score, compensate appropriately
 			//
-			results[i] = -m_svm.predict(data.row(i), true);
+			results[i] = -m_svm.predict(sample, true);
 		}
 	}
 }
