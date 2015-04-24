@@ -44,87 +44,6 @@ EvtLogger	*gLogger = NULL;
 
 
 
-int	CalcROC(MData& trainSet, MData& testSet, Classifier *classifier, string testFile)
-{
-	int		result = 0, *trainLabels = trainSet.GetLabels(),
-			*testLabels = testSet.GetLabels(),
-			*predClass = (int*)malloc(testSet.GetNumObjs() * sizeof(int));
-	float	**train = trainSet.GetData(), **test = testSet.GetData(),
-			*scores = (float*)malloc(testSet.GetNumObjs() * sizeof(float));
-
-	if( predClass == NULL || scores == NULL ) {
-		result = -10;
-		cerr << "Unable to allocate results buffer" << endl;
-	}
-
-	if( result == 0 ) {
-		classifier->Train(train[0], trainLabels, trainSet.GetNumObjs(), trainSet.GetDims());
-		classifier->ScoreBatch(test, testSet.GetNumObjs(), testSet.GetDims(), scores);
-
-		for(int i = 0; i < testSet.GetNumObjs(); i++) {
-			if( scores[i] >= 0.0f ) {
-				predClass[i] = 1;
-			} else {
-				predClass[i] = -1;
-			}
-		}
-	}
-
-	int TP = 0, FP = 0, TN = 0, FN = 0, P = 0, N = 0;
-
-	// Calculate confusion matrix
-	for(int i = 0; i < testSet.GetNumObjs(); i++) {
-		if( testLabels[i] == 1 ) {
-			P++;
-			if( predClass[i] == 1 ) {
-				TP++;
-			} else {
-				FN++;
-			}
-		} else {
-			N++;
-			if( predClass[i] == -1 ) {
-				TN++;
-			} else {
-				FP++;
-			}
-		}
-	}
-	printf("\t%4d\t%4d\n", TP, FP);
-	printf("\t%4d\t%4d\n\n", FN, TN);
-
-	cout << "FP rate: " << (float)FP / (float)N << endl;
-	cout << "TP rate: " << (float)TP / (float)P << endl;
-	cout << "Precision: " << (float)TP / (float)(TP + FP) << endl;
-	cout << "Accuracy: " << (float)(TP + TN) / (float)(N + P) << endl;
-
-	string fileName = testFile + "-scores.csv";
-	unsigned pos = fileName.find_last_of("/");
-
-	fileName = fileName.substr(pos + 1);
-	ofstream 	outFile(fileName.c_str());
-	if( outFile.is_open() ) {
-
-		cout << "Saving score data to " << fileName << endl;
-
-		outFile << "label,score" << endl;
-		for(int idx = 0; idx < testSet.GetNumObjs(); idx++)
-			outFile << testLabels[idx] << "," << ((scores[idx] + 1.0f) / 2.0) << endl;
-
-		outFile.close();
-	} else {
-		cerr << "Unable to create " << fileName << endl;
-		result = -11;
-	}
-
-	if( predClass )
-		free(predClass);
-	if( scores )
-		free(scores);
-
-	return result;
-}
-
 
 
 
@@ -159,9 +78,13 @@ int TrainClassifier(Classifier *classifier, MData& trainSet, int iteration)
 			*iterationList = trainSet.GetIterationList();;
 	float	**data = trainSet.GetData();
 
-	count = 0;
-	while( iterationList[count] <= iteration && count < trainSet.GetNumObjs() )
-		count++;
+	if( iterationList ) {
+		count = 0;
+		while( iterationList[count] <= iteration && count < trainSet.GetNumObjs() )
+			count++;
+	} else {
+		count = trainSet.GetNumObjs();
+	}
 
 	cout << "Train set size: " << count  << endl;
 
@@ -201,7 +124,8 @@ int CountResults(MData& testSet, int *classes, int *&posSlideCnt, int *&negSlide
 
 
 
-int	ClassifySlides(MData& trainSet, MData& testSet, Classifier *classifier, string testFile)
+int	ClassifySlides(MData& trainSet, MData& testSet, Classifier *classifier, string testFile,
+					string outFileName)
 {
 	int		result = 0;
 	int		*posTrainObjs = NULL, *negTrainObjs = NULL,		// Training samples for each slide
@@ -216,17 +140,12 @@ int	ClassifySlides(MData& trainSet, MData& testSet, Classifier *classifier, stri
 		cout << slideNames[i] << " -  pos: " << posTrainObjs[i] << ", neg: " << negTrainObjs[i] << endl;
 	}
 
-	int	lastTrainObjIter = trainSet.GetIteration(trainSet.GetNumObjs() - 1);
+	int	maxIteration = trainSet.GetIteration(trainSet.GetNumObjs() - 1) + 1;
 
-	string fileName = testFile + ".csv";
-	unsigned pos = fileName.find_last_of("/");
-
-	fileName = fileName.substr(pos + 1);
-
-	ofstream 	outFile(fileName.c_str());
+	ofstream 	outFile(outFileName.c_str());
 
 	if( outFile.is_open() ) {
-		cout << "Saving to " << fileName << endl;
+		cout << "Saving to " << outFileName << endl;
 
 		outFile << "slides,";
 		for(int i = 0; i < trainSet.GetNumSlides() - 1; i++) {
@@ -242,7 +161,7 @@ int	ClassifySlides(MData& trainSet, MData& testSet, Classifier *classifier, stri
 			}
 		}
 
-		for(int iter = 0; iter <= lastTrainObjIter; iter++) {
+		for(int iter = 0; iter < maxIteration; iter++) {
 
 			result = TrainClassifier(classifier, trainSet, iter);
 
@@ -273,7 +192,7 @@ int	ClassifySlides(MData& trainSet, MData& testSet, Classifier *classifier, stri
 			}
 		}
 	} else {
-		cerr << "Unable to create file " << fileName << endl;
+		cerr << "Unable to create file " << outFileName << endl;
 	}
 
 
@@ -288,6 +207,104 @@ int	ClassifySlides(MData& trainSet, MData& testSet, Classifier *classifier, stri
 	return result;
 }
 
+
+
+
+
+
+int	CalcROC(MData& trainSet, MData& testSet, Classifier *classifier, string testFile,
+			string outFileName)
+{
+	int		result = 0, *trainLabels = trainSet.GetLabels(),
+			*testLabels = testSet.GetLabels(),
+			*predClass = (int*)malloc(testSet.GetNumObjs() * sizeof(int)),
+			maxIteration;
+
+	float	**train = trainSet.GetData(), **test = testSet.GetData(),
+			*scores = (float*)malloc(testSet.GetNumObjs() * sizeof(float));
+
+	if( predClass == NULL || scores == NULL ) {
+		result = -10;
+		cerr << "Unable to allocate results buffer" << endl;
+	}
+
+	ofstream 	outFile(outFileName.c_str());
+	if( !outFile.is_open() ) {
+
+		cerr << "Unable to create " << outFileName << endl;
+		result = -11;
+	}
+
+	if( result == 0 ) {
+		int TP = 0, FP = 0, TN = 0, FN = 0, P = 0, N = 0;
+
+		cout << "Saving to: " << outFileName << endl;
+		maxIteration = trainSet.GetIteration(trainSet.GetNumObjs() - 1) + 1;
+
+		outFile << "labels,";
+		for(int idx = 0; idx < testSet.GetNumObjs() - 1; idx++)
+			outFile << testLabels[idx] << ",";
+		outFile << testLabels[testSet.GetNumObjs() - 1] << endl;
+
+		for(int iter = 0; iter < maxIteration; iter++) {
+
+			cout << "---------- Iteration " << iter << " ----------" << endl << endl;
+
+			result = TrainClassifier(classifier, trainSet, iter);
+			classifier->ScoreBatch(test, testSet.GetNumObjs(), testSet.GetDims(), scores);
+
+			for(int i = 0; i < testSet.GetNumObjs(); i++) {
+				if( scores[i] >= 0.0f ) {
+					predClass[i] = 1;
+				} else {
+					predClass[i] = -1;
+				}
+			}
+
+			// Calculate confusion matrix
+			TP = FP = TN = FN = P = N = 0;
+
+			for(int i = 0; i < testSet.GetNumObjs(); i++) {
+				if( testLabels[i] == 1 ) {
+					P++;
+					if( predClass[i] == 1 ) {
+						TP++;
+					} else {
+						FN++;
+					}
+				} else {
+					N++;
+					if( predClass[i] == -1 ) {
+						TN++;
+					} else {
+						FP++;
+					}
+				}
+			}
+			printf("\t%4d\t%4d\n", TP, FP);
+			printf("\t%4d\t%4d\n\n", FN, TN);
+
+			cout << "FP rate: " << (float)FP / (float)N << endl;
+			cout << "TP rate: " << (float)TP / (float)P << endl;
+			cout << "Precision: " << (float)TP / (float)(TP + FP) << endl;
+			cout << "Accuracy: " << (float)(TP + TN) / (float)(N + P) << endl;
+
+			outFile << "iter_" << iter << "_scores,";
+			for(int idx = 0; idx < testSet.GetNumObjs() - 1; idx++)
+				outFile << ((scores[idx] + 1.0f) / 2.0) << ",";
+			outFile << ((scores[testSet.GetNumObjs() - 1] + 1.0f) / 2.0) << endl;
+
+		}
+		outFile.close();
+	}
+
+	if( predClass )
+		free(predClass);
+	if( scores )
+		free(scores);
+
+	return result;
+}
 
 
 
@@ -309,7 +326,8 @@ int main(int argc, char *argv[])
 	string 	classType = args.classifier_arg,
 			trainFile = args.train_file_arg,
 			testFile = args.test_file_arg,
-			command = args.command_arg;
+			command = args.command_arg,
+			outFileName = args.output_file_arg;
 	Classifier		*classifier = NULL;
 
 
@@ -331,9 +349,9 @@ int main(int argc, char *argv[])
 
 	if( result == 0 ) {
 		if( command.compare("count") == 0 ) {
-			result = ClassifySlides(trainSet, testSet, classifier, testFile);
+			result = ClassifySlides(trainSet, testSet, classifier, testFile, outFileName);
 		} else if( command.compare("roc") == 0 ) {
-			result = CalcROC(trainSet, testSet, classifier, testFile);
+			result = CalcROC(trainSet, testSet, classifier, testFile, outFileName);
 		}
 	}
 
