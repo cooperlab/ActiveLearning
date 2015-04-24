@@ -1155,7 +1155,7 @@ bool Learner::ApplySessionClassifier(const int sock, int xMin, int xMax,
 			// class to indicate they've been selected already. All other
 			// objects are set to the negative class.
 			//
-			memset(labels, -1, m_dataset->GetNumObjs() * sizeof(int));
+			memset(labels, -1, slideObjs * sizeof(int));
 			vector<int>::iterator	it;
 
 			for(it = m_samples.begin(); it != m_samples.end(); it++) {
