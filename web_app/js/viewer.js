@@ -60,6 +60,9 @@ $(function() {
 	//
 	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "image_zoomer", prefixUrl: "images/", animationTime: 0.1});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
+    viewerHook = viewer.addViewerInputHook({ hooks: [
+                    {tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick}
+            ]});
 	
 	annoGrpTransformFunc = ko.computed(function() { 
 										return 'translate(' + svgOverlayVM.annoGrpTranslateX() +
@@ -146,6 +149,9 @@ $(function() {
 			} else {
 				// Active session, dataset selection not allowed
 				document.getElementById('dataset_sel').disabled = true
+				
+				// No report generation during active session
+				$('#nav_reports').hide();
 			}
 			// Slide list and classifier list will also be updated by this call
 			updateDatasetList();
@@ -256,11 +262,11 @@ function updateDatasetList() {
 		success: function(data) {
 			
 			for( var item in data ) {
-				datasetSel.append(new Option(data[item], data[item]));
+				datasetSel.append(new Option(data[item][0], data[item][0]));
 			}
 
 			if( curDataset === null ) {
-				curDataset = data[0];		// Use first dataset initially
+				curDataset = data[0][0];		// Use first dataset initially
 			} else {
 				datasetSel.val(curDataset);
 			}
@@ -329,7 +335,7 @@ function updateClassifierList() {
 	if( uid === null ) {
 		$.ajax({
 			type: "POST",
-			url: "db/getTrainingSets.php",
+			url: "db/getTrainsetForDataset.php",
 			data: { dataset: curDataset },
 			dataType: "json",
 			success: function(data) {
@@ -563,6 +569,25 @@ function updateSeg() {
 
 
 
+function nucleiSelect() {
+
+    $.ajax({
+        type:   "POST",
+        url:    "db/getsingle.php",
+        dataType: "json",
+        data:   { slide:    curSlide,
+                  cellX:    Math.round(statusObj.mouseImgX()),
+                  cellY:    Math.round(statusObj.mouseImgY())
+                },
+        success: function(data) {
+                if( data !== null ) {
+
+                    console.log(curSlide+","+data[2]+","+data[3]);
+                }
+            }
+    });
+}
+
 
 //
 // ===============	Mouse event handlers for viewer =================
@@ -602,6 +627,23 @@ function onMouseLeave(event) {
 
 
 
+
+function onMouseClick(event) {
+
+    clickCount++;
+    if( clickCount === 1 ) {
+        // If no click within 250ms, treat it as a single click
+        singleClickTimer = setTimeout(function() {
+                    // Single click
+                    clickCount = 0;
+                }, 250);
+    } else if( clickCount >= 2 ) {
+        // Double click
+        clearTimeout(singleClickTimer);
+        clickCount = 0;
+        nucleiSelect();
+    }
+}
 
 
 

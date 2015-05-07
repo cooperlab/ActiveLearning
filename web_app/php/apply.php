@@ -26,29 +26,50 @@
 //	DAMAGE.
 //
 //
+	require '../db/logging.php';
 
-	require 'connect.php';
+	$trainSet = '../trainingsets/'.$_POST['trainset'];
+	$dataSet = '../datasets/'.$_POST['dataset'];
 
-	/* 	Retrieve a list of datasets from the data base.
-		Return as a json object
-	*/
-
-	$dbConn = guestConnect();
-
-	if( $result = mysqli_query($dbConn, "SELECT name,features_file from datasets order by name") ) {
-
-		$jsonData = array();
-		while( $array = mysqli_fetch_row($result) ) {
-			$obj = array();
-
-			$obj[] = $array[0];
-			$obj[] = $array[1];
-
-			$jsonData[] = $obj;
-		}		
-		mysqli_free_result($result);
-
-		echo json_encode($jsonData);
+	// Extract just the file name of the training set
+	$parts = explode("/",$_POST['trainset']);
+	$ele = count($parts);
+	if( $ele > 1 ) {
+		$trainName = $parts[$ele - 1];
+	} else {
+		$trainName = $parts[0];
 	}
-	mysqli_close($dbConn);
+
+	// Do the same for the dataset
+	$parts = explode("/",$_POST['dataset']);
+	$ele = count($parts);
+	if( $ele > 1 ) {
+		$dataName = $parts[$ele - 1];
+	} else {
+		$dataName = $parts[0];
+	}
+	$outFile = '../trainingsets/tmp/'.$trainName.'_'.$dataName.'.csv';
+
+	if( file_exists($trainSet) && file_exists($dataSet) ) {
+		
+		$cmd = 'validate_d -t '.$trainSet.' -f '.$dataSet.' -m count -o '.$outFile;
+		write_log("INFO","Executing: ".$cmd);
+
+		exec($cmd, $output, $resultVal);
+
+		write_log("INFO","Return value: ".(int)$resultVal);
+		
+		if( $resultVal == 0 ) {
+		
+			header('Content-Description: File Transfer');
+			header('Content-Type: application/octet-stream');
+			header('Content-Disposition: attachement; filename='.basename($outFile));
+			header('Expires: 0');
+			header('Cache-Control: must-revalidate');
+			header('Pragma: public');
+			header('Content-Length: '. filesize($outFile));
+			readfile($outFile);
+			exit;
+		}
+	}
 ?>

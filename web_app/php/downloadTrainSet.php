@@ -27,28 +27,21 @@
 //
 //
 
-	require 'connect.php';
+	$trainSet = $_POST['downloadset'];
 
-	/* 	Retrieve a list of datasets from the data base.
-		Return as a json object
-	*/
+	$file = "../trainingsets/".$trainSet;
 
-	$dbConn = guestConnect();
+	if( file_exists($file) ) {
 
-	if( $result = mysqli_query($dbConn, "SELECT name,features_file from datasets order by name") ) {
-
-		$jsonData = array();
-		while( $array = mysqli_fetch_row($result) ) {
-			$obj = array();
-
-			$obj[] = $array[0];
-			$obj[] = $array[1];
-
-			$jsonData[] = $obj;
-		}		
-		mysqli_free_result($result);
-
-		echo json_encode($jsonData);
+		header('Content-Description: File Transfer');
+		header('Content-Type: application/octet-stream');
+		header('Content-Disposition: attachement; filename='.basename($file));
+		header('Expires: 0');
+		header('Cache-Control: must-revalidate');
+		header('Pragma: public');
+		header('Content-Length: '. filesize($file));
+		readfile($file);
+		exit;
 	}
-	mysqli_close($dbConn);
 ?>
+

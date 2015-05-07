@@ -33,7 +33,7 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		
-		<title>VALS - The Visual Active Learning System</title>
+		<title>VALS - The Visual Active Learning System - Reports</title>
 		
 		<script src="js/jquery-1.9.0.min.js"></script>
 		<script src="js/bootstrap.min.js"></script>
@@ -52,11 +52,9 @@
 			
 			<div>
 				<ul class="nav navbar-nav">
-					<li class="active"><a href="#">Home</a></li>
+					<li><a href="index.html">Home</a></li>
 					<li><a href="viewer.html?view">Viewer</a></li>
-					<li><a href="grid.html" id="nav_select">Select</a></li>
-					<li><a href="visualize.html" id="nav_visualize">Visualize</a></li>
-					<li><a href="reports.html" id="nav_reports">Reports</a></li>
+					<li class="active"><a href="#">Reports</a></li>
 				</ul>
 			</div>
 		</nav>
@@ -77,13 +75,16 @@
 			<br />
 			
 			<div class="row">
-				<div class="col-sm-6 col-md-6 col-lg-6">
-					<h2>Start a session</h2>
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<h3>Apply a classifier</h3>
 				</div>
 				
-				<div class="col-sm-6 col-md-6 col-lg-6">
+				<div class="col-sm-3 col-md-3 col-lg-3">
 				</div>
 				
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<h3>Download a training set</h3>
+				</div>
 			</div>
 			
 			<br />
@@ -91,61 +92,41 @@
 			<div class="row">
 			
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					<form role="form" id="classifier_form" method="POST" action="php/initSession.php">
-						<div class="form-group">
-							<label for="trainset">Classifier Name</label>
-							<input type="text" class="form-control" id="trainset" 
-									name="classifiername" placeholder="Enter classifier name">
-						</div>
+					<form role="form" id="apply_form" method="POST" action="php/apply.php">
 						<div class="form-group">
 							<label for="datasetSel">Dataset</label>
 							<select class="form-control" id="datasetSel" name="dataset"> 
 							</select>
 						</div>
-						
-						<label for="name">Classifier type</label>
+
 						<div class="form-group">
-							<label class="checkbox-inline">
-								<input type="radio" name="classType" id="classSelect"
-										value="binary" checked>Binary 
-							</label>
-							<label class="checkbox-inline">
-								<input type="radio" name="classType" id="classSelect"
-										value="multiClass" disabled>Multi-class
-							</label>			
+							<label for="trainsetSel">Training Set</label>
+							<select class="form-control" id="trainsetSel" name="trainset"> 
+							</select>
 						</div>
-										
-						<div class="form-group">
-							<label for="posClass">Positive class</label>
-							<input type="text" class="form-control" id="posClass" 
-									name="posName" placeholder="Enter positive class name">					
-						</div>
-						
-						<div class="form-group">
-							<label for="negClass">Negative class</label>
-							<input type="text" class="form-control" id="negClass" 
-									name="negName" placeholder="Enter negative class name">					
-						</div>
-						
-						<button id="beginSession" type="submit" name="submit" class="btn btn-default" value="submitted" >Begin</button>
+												
+						<button id="applyClassifier" type="submit" name="submit-classify" class="btn btn-default" value="classify" >Classify</button>
 					</form>
 				</div>
 				
-				<div class="col-sm-2 col-md-2 col-lg-2">
+				<div class="col-sm-3 col-md-3 col-lg-3">
 				</div>
 				
-				<div class="col-sm-6 col-md-6 col-lg-6">
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<form role="form" id="trainingset_form" method="POST" action="php/downloadTrainSet.php">
+						<div class="form-group">
+							<label for="downloadsetSel">Training Set</label>
+							<select class="form-control" id="downloadsetSel" name="downloadset"> 
+							</select>
+						</div>
+												
+						<button type="submit" name="submit-file" class="btn btn-default" value="submitted">Download</button>
+					</form>
+	
 				</div>					
-			</div>
-
-			
-			<div class="row top-buffer"></div>   <!-- A little space between -->
-
-			<div class="row">
-				<input type="button" id="resetBtn" value="Reset Session" class="btn btn-danger" onClick="resetAlServer()">
 			</div>
 		</div>
 		
-		<script src="js/app_main.js"></script>
+		<script src="js/reports.js"></script>
 	</body>
 </html>

@@ -27,28 +27,34 @@
 //
 //
 
-	require 'connect.php';
+	require 'logging.php';		// Also includes connect.php
+	require '../php/hostspecs.php';
 
-	/* 	Retrieve a list of datasets from the data base.
-		Return as a json object
-	*/
+	$dataset = $_POST['dataset'];
+	
+	$sql = 'SELECT t.name, t.fileName FROM training_sets t '
+			.'JOIN datasets d ON t.dataset_id=d.id WHERE d.name="'.$dataset.'"';
 
 	$dbConn = guestConnect();
+	
+	if( $result = mysqli_query($dbConn, $sql) ) {
 
-	if( $result = mysqli_query($dbConn, "SELECT name,features_file from datasets order by name") ) {
-
-		$jsonData = array();
+		$trainingSetNames = array();
+		$fileNames = array();
 		while( $array = mysqli_fetch_row($result) ) {
-			$obj = array();
-
-			$obj[] = $array[0];
-			$obj[] = $array[1];
-
-			$jsonData[] = $obj;
-		}		
+			$trainingSetNames[] = $array[0];
+			$fileNames[] = $array[1];
+		}
+		
+		$trainingSetData = array("trainingSets" => $trainingSetNames, "fileNames" => $fileNames);
 		mysqli_free_result($result);
 
-		echo json_encode($jsonData);
+	} else {
+		log_error("Unable to retrieve training sets from database");
+		exit();
 	}
 	mysqli_close($dbConn);
+
+	echo json_encode($trainingSetData);
 ?>
+
