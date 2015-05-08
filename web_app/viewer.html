@@ -129,8 +129,17 @@
 
 
 			<div class="row">	<!-- Buttons -->
-				<!-- Buttons along top of zoomer -->
-				<input type="button" id="btn_1" value="Show Segmentation" class="btn btn-default btn-sm" onClick="viewSegmentation()">
+				<div class="col-sm-8 col-md-8 col-lg-8">
+					<!-- Buttons along top of zoomer -->
+					<input type="button" id="btn_1" value="Show Segmentation" class="btn btn-default btn-sm" onClick="viewSegmentation()">
+				</div>
+				<div class="col-sm-4 col-md-4 col-lg-4" id="retrainInfo" data-bind="with: statusObj">
+					<!-- Buttons along top of zoomer -->
+					<input type="button" id="retrainBtn" value="Retrain" class="btn btn-default btn-sm" onClick="retrain()" disabled>				
+					Samples:					
+					<span data-bind="text:samplesToFix()"></span>
+				</div>
+				
 			</div>	<!-- Second row (buttons) -->
 
 			<div class="row top-buffer"></div>   <!-- A little space between -->			

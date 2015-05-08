@@ -58,6 +58,5 @@
 	$response = socket_read($socket, 10);
 	socket_close($socket);
 	
-	$response = strlen($submit_data);
 	echo json_encode($response);
 ?>
