@@ -500,7 +500,11 @@ bool Learner::Submit(const int sock, json_t *obj)
 			iter = json_integer_value(value);
 			// Check iteration to make sure we're in sync
 			//
-			if( iter != m_iteration ) {
+			if( iter == -1 ) {
+				// "fixed" samples being added by hand. Indicate with the negation of
+				// the current iteration.
+				iter = -m_iteration;
+			} else if( iter != m_iteration ) {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Resubmitting not allowed");;
 				result = false;
 			}
@@ -578,7 +582,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 					if( idx != -1 ) {
 						m_labels[pos] = label;
 						m_ids[pos] = id;
-						m_sampleIter[pos] = m_iteration;
+						m_sampleIter[pos] = iter;
 						m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
 						m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
 						m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
@@ -617,12 +621,15 @@ bool Learner::Submit(const int sock, json_t *obj)
 		
 		double	start = gLogger->WallTime();
 		
-		m_iteration++;
+		// Only increment if submitted from the normal active learning process.
+		if( iter >= 0 ) {
+			m_iteration++;
+		}
 		result = m_classifier->Train(m_trainSet[0], m_labels, m_samples.size(), m_dataset->GetDims());
 		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Classifier training took %f", gLogger->WallTime() - start);
 		
 		if( result ) {
-			m_curAccuracy = CalcAccuracy();
+			m_curAccuracy = 0.0; //CalcAccuracy();
 		}
 		// Need to select new samples.
 		m_curSet.clear();
