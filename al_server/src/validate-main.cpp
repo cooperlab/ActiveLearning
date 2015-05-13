@@ -303,6 +303,44 @@ int	CalcROC(MData& trainSet, MData& testSet, Classifier *classifier, string test
 
 
 
+int GenerateMap(MData& trainSet, MData& testSet, Classifier *classifier,
+				string slide, string outFileName)
+{
+	int		result = 0, offset, slideObjs;
+	float	**train = trainSet.GetData(), **test = testSet.GetData(),
+			*scores = (float*)malloc(testSet.GetNumObjs() * sizeof(float));
+
+	result = TrainClassifier(classifier, trainSet);
+	classifier->ScoreBatch(test, testSet.GetNumObjs(), testSet.GetDims(), scores);
+
+	offset = testSet.GetSlideOffset(slide, slideObjs);
+
+	ofstream 	outFile(outFileName.c_str());
+
+	if( outFile.is_open() ) {
+
+		outFile << "score,X,Y" << endl;
+
+		for(int i = offset; i < offset + slideObjs; i++) {
+			outFile << scores[i] << "," << testSet.GetXCentroid(i) << "," << testSet.GetYCentroid(i) << endl;
+		}
+		outFile.close();
+	} else {
+		cerr << "Unable to create " << outFileName << endl;
+		result = -10;
+	}
+	if( scores )
+		free(scores);
+
+	return result;
+}
+
+
+
+
+
+
+
 int main(int argc, char *argv[])
 {
 	int 			result = 0;
@@ -319,8 +357,18 @@ int main(int argc, char *argv[])
 			trainFile = args.train_file_arg,
 			testFile = args.test_file_arg,
 			command = args.command_arg,
-			outFileName = args.output_file_arg;
+			outFileName = args.output_file_arg,
+			slide;
 	Classifier		*classifier = NULL;
+
+	if( command.compare("map") == 0 ) {
+		if( args.slide_given == 0 ) {
+			cerr << "Must specify slide name (-s) for the map command" <<  endl;
+			exit(-1);
+		} else {
+			slide = args.slide_arg;
+		}
+	}
 
  	if( trainSet.Load(trainFile) && testSet.Load(testFile) ) {
 		result = Renormalize(trainSet, testSet);
@@ -342,6 +390,8 @@ int main(int argc, char *argv[])
 			result = ClassifySlides(trainSet, testSet, classifier, testFile, outFileName);
 		} else if( command.compare("roc") == 0 ) {
 			result = CalcROC(trainSet, testSet, classifier, testFile, outFileName);
+		} else if( command.compare("map") == 0 ) {
+			result = GenerateMap(trainSet, testSet, classifier, slide, outFileName);
 		}
 	}
 
