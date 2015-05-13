@@ -31,7 +31,7 @@
 $(function() {
 
 	var	datasetSel = $("#datasetSel"), trainsetSel = $("#trainsetSel"),
-		downloadsetSel = $("#downloadsetSel");;
+		downloadsetSel = $("#downloadsetSel");
 
 	// Populate Dataset dropdown
 	//
@@ -43,7 +43,9 @@ $(function() {
 							
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][1]));
+				$('#datasetMapSel').append(new Option(data[item][0], data[item][1]));
 			}
+			updateSlideList();
 		}
 	});
 
@@ -58,9 +60,79 @@ $(function() {
 			for( var item in data ) {
 				trainsetSel.append(new Option(data[item][0], data[item][1]));
 				downloadsetSel.append(new Option(data[item][0], data[item][1]));
+				$('#trainsetMapSel').append(new Option(data[item][0], data[item][1]));
 			}
 		}
 	});
 	
+	$("#datasetMapSel").change(updateDataset);
+	$("#slideMapSel").change(updateSlideSize);
+
 });
+
+
+
+//
+//	Updates the list of available slides for the current dataset
+//
+function updateSlideList() {
+
+	var	dataset = datasetMapSel.options[datasetMapSel.selectedIndex].label;
+
+	console.log("Updating slides for dataset: "+dataset);
+
+	// Get the list of slides for the current dataset
+	$.ajax({
+		type: "POST",
+		url: "db/getslides.php",
+		data: { dataset: dataset },
+		dataType: "json",
+		success: function(data) {
+
+			$('#slideMapSel').empty();
+			// Add the slides we have segmentation boundaries for to the dropdown
+			// selector
+			for( var item in data['slides'] ) {			
+				$('#slideMapSel').append(new Option(data['slides'][item], data['slides'][item]));
+			}
+			updateSlideSize();
+		}
+	});
+}
+
+
+
+
+
+function updateDataset() {
+	updateSlideList();
+}
+
+
+
+function updateSlideSize() {
+
+	var	slide = slideMapSel.options[slideMapSel.selectedIndex].label;
+	console.log("Updating slide size for "+slide);
+
+	$.ajax({
+		type: "POST",
+		url: "db/getImgSize.php",
+		data: { slide: slide },
+		dataType: "json",
+		success: function(data) {
+
+			document.getElementById('imgSize').innerHTML = data[0]+" x "+data[1];
+
+			if( data[2] == 1 ) {
+				document.getElementById('imgScale').innerHTML = "20x";
+			} else if( data[2] == 2 ) {
+				document.getElementById('imgScale').innerHTML = "40x";
+			} else {
+				document.getElementById('imgScale').innerHTML = "???";
+			}
+		}
+	});
+}
+
 

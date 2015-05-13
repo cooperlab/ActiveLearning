@@ -125,6 +125,58 @@
 	
 				</div>					
 			</div>
+			
+			<br/>
+
+
+			<div class="row">
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<h3>Map scores</h3>
+				</div>
+				
+				<div class="col-sm-3 col-md-3 col-lg-3">
+				</div>
+				
+				<div class="col-sm-4 col-md-4 col-lg-4">
+				</div>
+			</div>
+			
+			<br />
+
+			<div class="row">
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<form role="form" id="map_form" method="POST" action="php/map.php">
+						<div class="form-group">
+							<label for="datasetMapSel">Dataset</label>
+							<select class="form-control" id="datasetMapSel" name="dataset"> 
+							</select>
+						</div>
+
+						<div class="form-group">
+							<label for="trainsetMapSel">Training Set</label>
+							<select class="form-control" id="trainsetMapSel" name="trainset"> 
+							</select>
+						</div>
+
+						<div class="form-group">
+						
+							<label for="slideMapSel">Slide</label>
+							<select class="form-control" id="slideMapSel" name="slide">
+							</select> 
+							<br/>
+							<div>
+								<span><strong>Slide image size:</strong></span>
+								<span id="imgSize">(100,100)</span>
+								<span><strong>Scale:</strong></span>
+								<span id="imgScale">20x</span>
+							</div>
+						</div>
+												
+						<button id="genMap" type="submit" name="submit-genMap" class="btn btn-default" value="classify" >Map</button>
+					</form>
+				</div>
+
+			</div>
 		</div>
 		
 		<script src="js/reports.js"></script>
