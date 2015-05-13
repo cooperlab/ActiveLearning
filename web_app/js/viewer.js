@@ -29,6 +29,7 @@ var IIPServer="";
 var slideCnt = 0;
 var curSlide = "";
 var curDataset = "";
+var curClassifier = "none";
 
 var viewer = null;
 var imgHelper = null, osdCanvas = null, viewerHook = null;
@@ -39,11 +40,15 @@ var pyramids, trainingSets;
 var clickCount = 0;					
 
 // The following only needed for active sessions
-var uid = null, classifier = "", negClass = "", posClass = "";			
+var uid = null, negClass = "", posClass = "";			
 
 var boundsLeft, boundsRight, boundsTop, boundsBottom;
 var	panned = false;
 var	pannedX, pannedY;
+
+var fixes = {iteration: 0, accuracy: 0, samples: []};
+
+
 
 //
 //	Initialization
@@ -153,6 +158,11 @@ $(function() {
 				// No report generation during active session
 				$('#nav_reports').hide();
 			}
+			
+			if( curClassifier === "none" ) {
+				$('#retrainInfo').hide();
+			}
+			
 			// Slide list and classifier list will also be updated by this call
 			updateDatasetList();
 		}
@@ -362,6 +372,9 @@ function updateClassifierList() {
 //
 function updateSlide() {
 	curSlide = $('#slide_sel').val();
+	
+	fixes['samples'] = [];
+	$('#retrainBtn').attr('disabled', 'disabled');
 	updatePyramid();
 }
 
@@ -392,8 +405,7 @@ function updateClassifier() {
 	var class_sel = document.getElementById('classifier_sel');
 
 
-	classifier = class_sel.options[class_sel.selectedIndex].value;
-	console.log("Classifier changed to: " + classifier);
+	curClassifier = class_sel.options[class_sel.selectedIndex].value;
 
  	if( class_sel.selectedIndex != 0 ) {
 							
@@ -403,21 +415,23 @@ function updateClassifier() {
 		document.getElementById('posLegend').innerHTML = box + " " + posClass;
 		
 		$('#legend').show();
-
+		
 		if( uid === null ) {
 			// No active session, tell al_server to load appropriate dataset
-			console.log("Load dataset "+curDataset+" and classifier "+classifier);
+			console.log("Load dataset "+curDataset+" and classifier "+curClassifier);
 			
 			$.ajax({
 				type: "POST",
 				url: "php/initClassifier.php",
 				data: { dataset: curDataset,
-						trainset: classifier },
+						trainset: curClassifier },
 				dataType: "json",
 				success: function(data) {
 					console.log("Response: "+data);			
 				}
 			});
+		} else {
+			$('#retrainInfo').show();
 		}
 
 	} else {
@@ -497,7 +511,7 @@ function updateSeg() {
 		bottom = statusObj.dataportBottom() + height;
 		 		
 		var class_sel = document.getElementById('classifier_sel'),
-			classifier = class_sel.options[class_sel.selectedIndex].value;
+			curClassifier = class_sel.options[class_sel.selectedIndex].value;
 		
 	    $.ajax({
 			type: "POST",
@@ -510,7 +524,7 @@ function updateSeg() {
 					top:	top,
 					bottom:	bottom,
 					dataset: curDataset,
-					trainset: classifier
+					trainset: curClassifier
 			},
 		
 			success: function(data) {
@@ -561,10 +575,32 @@ function updateSeg() {
 			
 						segGrp.appendChild(ele);
 					}
+					
+					if( fixes['samples'].length > 0 ) {
+						updateBoundColors();
+					}
         		}
     	});
 	} 
 }
+
+
+
+
+
+
+function updateBoundColors() {
+
+	for( cell in fixes['samples'] ) {
+		var bound = document.getElementById("N"+fixes['samples'][cell]['dbId']);
+		
+		if( bound != null ) {
+			bound.setAttribute('stroke', 'yellow');
+		}
+	}
+}
+
+
 
 
 
@@ -582,11 +618,69 @@ function nucleiSelect() {
         success: function(data) {
                 if( data !== null ) {
 
-                    console.log(curSlide+","+data[2]+","+data[3]);
+					if( curClassifier === "none" ) {
+						// No classifier applied, just log results
+	                    console.log(curSlide+","+data[2]+","+data[3]);
+	                } else {
+	                	// We're adding an object, make sure the retrain button is enabled.
+	                	$('#retrainBtn').removeAttr('disabled');
+
+						var	obj = {slide: curSlide, centX: data[2], centY: data[3], label: 0, dbId: data[1]};
+	                	var cell = document.getElementById("N"+obj['dbId']);
+	                	
+						// Flip the label here. lime indicates the positive class, so we
+						// want to change the label to -1. Change to 1 for lightgrey. If
+						// the color is niether, the sample has been picked already so
+						// ignore.
+						//
+						if( cell.getAttribute('stroke') === "lime" ) {
+							obj['label'] = -1;
+						} else if( cell.getAttribute('stroke') === "lightgrey" ) {
+							obj['label'] = 1;
+						}
+
+						if( obj['label'] != 0 ) {
+		                    fixes['samples'].push(obj);
+		                    
+		                    updateBoundColors();
+		                    statusObj.samplesToFix(statusObj.samplesToFix() + 1);
+		                }
+	                }
                 }
             }
     });
 }
+
+
+
+
+
+function retrain() {
+
+	// Set iteration to -1 to indicate these are hand-picked
+	fixes['iteration'] = -1;
+		
+	$.ajax({
+		type: "POST",
+		url: "php/submitSamples.php",
+		dataType: "json",
+		data: fixes,
+		success: function(result) {
+
+			console.log(result);
+			
+			// Clear submitted samples 
+			fixes['samples'] = [];
+			statusObj.samplesToFix(0);
+			
+			// Update classification results.
+			updateSeg();
+		}
+	});
+}
+
+
+
 
 
 //
@@ -749,7 +843,8 @@ var statusObj = {
 	dataportLeft: ko.observable(0),
 	dataportTop: ko.observable(0),
 	dataportRight: ko.observable(0),
-	dataportBottom: ko.observable(0)
+	dataportBottom: ko.observable(0),
+	samplesToFix: ko.observable(0)
 };
 
 
