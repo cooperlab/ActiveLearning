@@ -33,6 +33,11 @@
 #include <algorithm>
 #include <fstream>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/contrib/contrib.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 #include "learner.h"
 #include "logger.h"
 
@@ -51,7 +56,7 @@ const char failResp[] = "FAIL";
 extern EvtLogger *gLogger;
 
 
-Learner::Learner(string dataPath, string outPath) :
+Learner::Learner(string dataPath, string outPath, string heatmapPath) :
 m_dataset(NULL),
 m_classTrain(NULL),
 m_labels(NULL),
@@ -61,6 +66,7 @@ m_classifier(NULL),
 m_sampler(NULL),
 m_dataPath(dataPath),
 m_outPath(outPath),
+m_heatmapPath(heatmapPath),
 m_sampleIter(NULL),
 m_slideIdx(NULL),
 m_curAccuracy(0.0f),
@@ -209,6 +215,8 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 				result = DebugClassify(sock, root);
 			} else if( strncmp(command, "viewerLoad", 10) == 0) {
 				result = InitViewerClassify(sock, root);
+			} else if( strncmp(command, "heatMap", 7) == 0) {
+				result = GenHeatmap(sock, root);
 			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
@@ -218,6 +226,8 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 	}
 	return result;
 }
+
+
 
 
 
@@ -275,6 +285,13 @@ bool Learner::StartSession(const int sock, json_t *obj)
 			result = false;
 		}
 	}
+
+	if( result ) {
+		// Remove leftover heatmap images
+		string cmd = "rm -f " + m_heatmapPath + "*.jpg";
+		system(cmd.c_str());
+	}
+
 
 	if( result ) {
 		string fqFileName = m_dataPath + string(fileName);
@@ -1925,6 +1942,187 @@ bool Learner::DebugApply(ofstream& outFile, int iteration)
 		free(slidePos);
 	if( slideNeg )
 		free(slideNeg);
+
+	return result;
+}
+
+
+
+
+
+
+
+bool Learner::IsUIDValid(const char *uid) 
+{
+	bool	result = true;
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) No active session");
+		result = false;
+	} else {
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Invalid UID");
+			result = false;		
+		}
+	}
+	return result;
+}
+
+
+
+
+
+
+
+bool Learner::GenHeatmap(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*value = NULL, *root = NULL;
+
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	int		width, height;
+	string	slide, fileName;
+
+	result = IsUIDValid(uid);
+	
+	if( result ) {
+		value = json_object_get(obj, "width");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to decode width");
+			result = false;
+		} else { 
+			width = json_integer_value(value);
+		}
+	}
+	
+	if( result ) {
+		value = json_object_get(obj, "height");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to decode height");
+			result = false;
+		} else { 
+			height = json_integer_value(value);
+		}
+	}
+
+	if( result ) {
+		value = json_object_get(obj, "slide");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to decode slide name");
+			result = false;
+		} else { 
+			slide = json_string_value(value);
+		}
+	}
+
+	if( result ) {
+		result = GenHeatImage(slide, width, height, fileName);
+	}
+
+
+	if( result ) {
+		root = json_object();
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to create JSON object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		json_object_set(root, "width", json_integer(width));
+		json_object_set(root, "height", json_integer(height));
+		json_object_set(root, "filename", json_string(fileName.c_str()));
+
+		char *jsonObj = json_dumps(root, 0);		
+		size_t  bytesWritten = :: write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+	}
+	return result;
+}
+
+
+
+#define KERN_SIZE	11
+#define GRID_SIZE	40
+
+
+bool Learner::GenHeatImage(string slide, int width, int height, string &fileName)
+{
+	bool	result = true;
+	int		fX = ceil((float)width / (float)GRID_SIZE), fY = ceil((float)height / (float)GRID_SIZE),
+			curX, curY, numObjs, offset;
+	Mat		uncertainMap = Mat::zeros(fY, fX, CV_32F), grayScale(fY, fX, CV_8UC1);
+	float	*scores = NULL, *xList = m_dataset->GetXCentroidList(), *yList = m_dataset->GetYCentroidList(),
+			*centX, *centY;
+
+	offset = m_dataset->GetSlideOffset(slide, numObjs);
+	centX = &xList[offset];
+	centY = &yList[offset];
+	scores = (float*)malloc(numObjs * sizeof(float));
+
+	if( scores == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Unable to allocate score buffer");
+		result = false;
+	}
+
+	if( result ) {
+		float 	**ptr = m_dataset->GetSlideData(slide, numObjs);
+		int		dims = m_dataset->GetDims();
+
+		result = m_classifier->ScoreBatch(ptr, numObjs, dims, scores);
+		if( result == false ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Classification failed");
+		}
+	}
+
+	if( result ) {
+
+		for(int obj = 0; obj < numObjs; obj++) {
+			curX = ceil(centX[obj] / (float)GRID_SIZE);
+			curY = ceil(centY[obj] / (float)GRID_SIZE);
+		
+			uncertainMap.at<float>(curY, curX) = max(uncertainMap.at<float>(curY, curX), 1 - abs(scores[obj]));
+		}
+
+		Size2i kernel(KERN_SIZE, KERN_SIZE);
+		GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5);
+	
+		double 	minVal, maxVal;
+		Mat		img;
+		minMaxLoc(uncertainMap, &minVal, &maxVal);
+	
+		for(int row = 0; row < fY; row++) {
+			for(int col = 0; col < fX; col++) {
+				grayScale.at<uchar>(row, col) = (255 *  uncertainMap.at<float>(row, col)) / maxVal;
+			}
+		}
+	
+		fileName = slide + ".jpg";
+		string	fqn = m_heatmapPath + fileName;
+
+		applyColorMap(grayScale, img, COLORMAP_JET);	
+		result = imwrite(fqn.c_str(), img);
+
+		if( result == false ) {
+			gLogger->LogMsgv(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Failed saving: %s", fqn.c_str());
+		}
+	}
+
+	if( scores ) 
+		free(scores);
 
 	return result;
 }

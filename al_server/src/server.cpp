@@ -111,12 +111,12 @@ bool Daemonize(void)
 
 // Create the needed objects
 //
-Learner* Initialize(string dataPath, string outPath)
+Learner* Initialize(string dataPath, string outPath, string heatmapPath)
 {
 	bool	result = true;
 	Learner	*learner = NULL;
 
-	learner = new Learner(dataPath, outPath);
+	learner = new Learner(dataPath, outPath, heatmapPath);
 	if( learner == NULL ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create learner object");
 	}
@@ -157,7 +157,8 @@ bool HandleRequest(const int fd, Learner *learner)
 
 
 
-bool ReadConfig(string& dataPath, string& outPath, short& port, string& interface)
+bool ReadConfig(string& dataPath, string& outPath, short& port, string& interface,
+				string& heatmapPath)
 {
 	bool	result = true;
 	Config	config;
@@ -180,6 +181,13 @@ bool ReadConfig(string& dataPath, string& outPath, short& port, string& interfac
 	// Out path
 	try {
 		 outPath = (const char*)config.lookup("out_path");
+	} catch( const SettingNotFoundException &nfEx ) {
+		result = false;
+	}
+
+	// Heatmap path
+	try {
+		 heatmapPath = (const char*)config.lookup("heatmap_path");
 	} catch( const SettingNotFoundException &nfEx ) {
 		result = false;
 	}
@@ -215,7 +223,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	Learner	*learner = NULL;
 	short 	port;
-	string 	dataPath, outPath, interface;
+	string 	dataPath, outPath, interface, heatmapPath;
 
 	gLogger = new EvtLogger();
 	if( gLogger == NULL ) {
@@ -227,7 +235,7 @@ int main(int argc, char *argv[])
 	if( status == 0 ) {
 		gLogger->LogMsgv(EvtLogger::Evt_INFO, "al_server started, Ver %02d.%02d", AL_SERVER_VERSION_MAJOR, AL_SERVER_VERSION_MINOR);
 		
-		if( !ReadConfig(dataPath, outPath, port, interface) ) {
+		if( !ReadConfig(dataPath, outPath, port, interface, heatmapPath) ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to read configuration file");
 			status = -1;
 		} else {
@@ -252,7 +260,7 @@ int main(int argc, char *argv[])
 
 	if( status == 0 ) {
 		// Setup Active learning objects
-		learner = Initialize(dataPath, outPath);
+		learner = Initialize(dataPath, outPath, heatmapPath);
 		if( learner == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to initialize server");
 			status = -1;

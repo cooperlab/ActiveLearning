@@ -68,6 +68,8 @@ public:
 		int		GetSlideIdx(const char *slide);
 		float	GetXCentroid(int index);
 		float	GetYCentroid(int index);
+		float	*GetXCentroidList(void) { return m_xCentroid; }
+		float	*GetYCentroidList(void) { return m_yCentroid; }
 		int		GetIteration(int index) { return m_iteration ? m_iteration[index] : 0;  }
 		int		*GetIterationList(void) { return m_iteration; }
 		float	*GetMeans(void) { return m_means; }

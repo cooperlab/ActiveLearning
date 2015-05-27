@@ -46,7 +46,7 @@
 class Learner
 {
 public:
-			Learner(string dataPath = "./", string outPath = "./");
+			Learner(string dataPath = "./", string outPath = "./", string heatmapPath = "./");
 			~Learner(void);
 
 	bool	ParseCommand(const int sock, char *data, int size);
@@ -59,6 +59,7 @@ protected:
 	MData	*m_classTrain;	// Used for applying classifier when no session active
 	string	m_dataPath;
 	string 	m_outPath;
+	string	m_heatmapPath;
 	string	m_classifierName;
 	string	m_curDatasetName;
 
@@ -88,6 +89,10 @@ protected:
 
 	bool		m_debugStarted;
 
+
+	bool	IsUIDValid(const char *uid);
+
+
 	bool	StartSession(const int sock, json_t *obj);
 	bool	Select(const int sock, json_t *obj);
 	bool	Submit(const int sock, json_t *obj);
@@ -99,6 +104,7 @@ protected:
 	bool	AddObjects(const int sock, json_t *obj);
 	bool	PickerStatus(const int sock, json_t *obj);
 	bool	PickerFinalize(const int sock, json_t *obj);
+	bool	GenHeatmap(const int sock, json_t *obj);
 
 	bool	DebugClassify(const int sock, json_t *obj);
 	bool	DebugApply(ofstream& outFile, int iteratioin);
@@ -126,6 +132,7 @@ protected:
 	bool	LoadDataset(string dataSetFileName);
 	bool	LoadTrainingSet(string trainingSetName);
 
+	bool	GenHeatImage(string slide, int width, int height, string &fileName);
 };
 
 

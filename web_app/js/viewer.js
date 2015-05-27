@@ -42,11 +42,13 @@ var clickCount = 0;
 // The following only needed for active sessions
 var uid = null, negClass = "", posClass = "";			
 
-var boundsLeft, boundsRight, boundsTop, boundsBottom;
+var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 var	panned = false;
 var	pannedX, pannedY;
 
 var fixes = {iteration: 0, accuracy: 0, samples: []};
+
+var heatmapLoaded = false;
 
 
 
@@ -111,7 +113,10 @@ $(function() {
 		
 			if( statusObj.scaleFactor() > 0.5 ) {
 
-				$('.overlaySvg').css('visibility', 'visible');
+				// Zoomed in, show boundaries hide heatmap
+				$('#anno').show();
+				$('#heatmapGrp').hide();
+
 				var centerX = statusObj.dataportLeft() + 
 							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
 				var centerY = statusObj.dataportTop() + 
@@ -119,12 +124,22 @@ $(function() {
 				
 				if( centerX < boundsLeft || centerX > boundsRight ||
 					centerY < boundsTop || centerY > boundsBottom ) {
-		
+
+					// Only update boundaries if we've panned far enough.							
 					updateSeg();
 				}
 				 
 			} else {
-				$('.overlaySvg').css('visibility', 'hidden');
+					
+				updateSeg();
+
+				// Zoomed out, hide boundaries, show heatmap
+				$('#anno').hide();
+				$('#heatmapGrp').show();
+
+				// Reset bounds to allow boundaries to be drawn when
+				// zooming in from a heatmap.
+				boundsLeft = boundsRight = boundsTop = boundsBottom = 0;
 			}
 		}
 	});
@@ -219,6 +234,8 @@ function updatePyramid() {
 
 	slide = "";
 	panned = false;
+	heatmapLoaded = false;
+
 
 	if( pyramids[$('#slide_sel').prop('selectedIndex')] === null ) {	
 	
@@ -376,6 +393,10 @@ function updateSlide() {
 	fixes['samples'] = [];
 	$('#retrainBtn').attr('disabled', 'disabled');
 	updatePyramid();
+
+	if( segDisplayOn ) {
+		updateSeg();
+	}
 }
 
 
@@ -496,6 +517,8 @@ function onImageViewChanged(event) {
 //
 function updateSeg() {
 
+	var ele, segGrp, annoGrp;
+
 	if( statusObj.scaleFactor() > 0.5 ) {
 	
 		var left, right, top, bottom, width, height;
@@ -510,9 +533,8 @@ function updateSeg() {
 		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
 		bottom = statusObj.dataportBottom() + height;
 		 		
-		var class_sel = document.getElementById('classifier_sel'),
-			curClassifier = class_sel.options[class_sel.selectedIndex].value;
-		
+		var class_sel = document.getElementById('classifier_sel');
+
 	    $.ajax({
 			type: "POST",
        	 	url: "db/getnuclei.php",
@@ -529,9 +551,8 @@ function updateSeg() {
 		
 			success: function(data) {
 					
-					var ele;
-					var segGrp = document.getElementById('segGrp');
-					var annoGrp = document.getElementById('anno');
+					segGrp = document.getElementById('segGrp');
+					annoGrp = document.getElementById('anno');
 					
 					// Save current viewport location
 					boundsLeft = statusObj.dataportLeft();
@@ -581,7 +602,51 @@ function updateSeg() {
 					}
         		}
     	});
-	} 
+	} else {
+
+		// Only display heatmap for active sessions
+		//
+		if( curClassifier != 'none' && uid != null && heatmapLoaded == false ) {
+
+		    $.ajax({
+				type: "POST",
+    	   	 	url: "php/getHeatmap.php",
+    	   	 	dataType: "json",
+				data: { uid:	uid,
+						slide: 	curSlide,
+				},
+
+				success: function(data) {
+
+					data = JSON.parse(data);
+
+					annoGrp = document.getElementById('annoGrp');
+					segGrp = document.getElementById('heatmapGrp');
+
+					if( segGrp != null ) {
+						segGrp.parentNode.removeChild(segGrp);
+					}
+
+					segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+					segGrp.setAttribute('id', 'heatmapGrp');
+					annoGrp.appendChild(segGrp);
+
+					var xlinkns = "http://www.w3.org/1999/xlink";
+					ele = document.createElementNS("http://www.w3.org/2000/svg", "image");
+					ele.setAttributeNS(null, "x", 0);
+					ele.setAttributeNS(null, "y", 0);
+					ele.setAttributeNS(null, "width", data.width);
+					ele.setAttributeNS(null, "height", data.height);
+					ele.setAttributeNS(null, 'opacity', 0.25);
+					ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+data.filename);
+
+					segGrp.appendChild(ele);
+
+					heatmapLoaded = true;
+				}
+			});
+		}
+	}
 }
 
 
