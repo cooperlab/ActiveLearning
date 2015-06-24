@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 #include <fstream>
+#include <thread>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -70,10 +71,12 @@ m_heatmapPath(heatmapPath),
 m_sampleIter(NULL),
 m_slideIdx(NULL),
 m_curAccuracy(0.0f),
+m_heatmapReload(false),
 m_xCentroid(NULL),
 m_yCentroid(NULL),
 m_pickerMode(false),
-m_debugStarted(false)
+m_debugStarted(false),
+m_scores(NULL)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -148,6 +151,11 @@ void Learner::Cleanup(void)
 		m_yCentroid = NULL;
 	}
 
+	if( m_scores ) {
+		free(m_scores);
+		m_scores = NULL;
+	}
+
 	m_pickerMode = false;
 	m_debugStarted = false;
 }
@@ -211,12 +219,12 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 				result = PickerStatus(sock, root);
 			} else if( strncmp(command, "pickerSave", 10) == 0) {
 				result = PickerFinalize(sock, root);
-			} else if( strncmp(command, "debugApply", 10) == 0) {
-				result = DebugClassify(sock, root);
 			} else if( strncmp(command, "viewerLoad", 10) == 0) {
 				result = InitViewerClassify(sock, root);
 			} else if( strncmp(command, "heatMap", 7) == 0) {
 				result = GenHeatmap(sock, root);
+			} else if( strncmp(command, "allHeatMaps", 11) == 0) {
+				result = GenAllHeatmaps(sock, root);
 			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
@@ -318,6 +326,15 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	if( result ) {
 		m_sampler = new UncertainSample(m_classifier, m_dataset);
 		if( m_sampler == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		// Allocate buffer for object scores to calculate heatmaps
+		m_scores = (float*)malloc(m_dataset->GetNumObjs() * sizeof(float));
+		if( m_scores == NULL ) {
+			gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to allocate buffer for object scores");
 			result = false;
 		}
 	}
@@ -616,6 +633,10 @@ bool Learner::Submit(const int sock, json_t *obj)
 				break;
 		}
 		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Submit took %f", gLogger->WallTime() - start);
+
+		// 
+		// Indicate training set has been updated and heatmaps need to be rebuilt
+		m_heatmapReload = true;
 	}
 	
 	// Send result back to client
@@ -647,7 +668,19 @@ bool Learner::Submit(const int sock, json_t *obj)
 		
 		if( result ) {
 			m_curAccuracy = 0.0; //CalcAccuracy();
-		}
+
+			// Classify all objects for heatmap generation
+			//
+			float 	**ptr = m_dataset->GetData();
+			int		dims = m_dataset->GetDims();
+			start = gLogger->WallTime();
+			result = m_classifier->ScoreBatch(ptr, m_dataset->GetNumObjs(), dims, m_scores);
+			if( result == false ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
+			}
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Dataset classification took %f", gLogger->WallTime() - start);
+		}		
+
 		// Need to select new samples.
 		m_curSet.clear();
 	}
@@ -1811,147 +1844,6 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 
 
 
-
-bool Learner::DebugClassify(const int sock, json_t *obj)
-{
-	bool	result = true;
-	json_t	*value, *jsonObj;
-	int		iteration;
-
-
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-	value = json_object_get(obj, "uid");
-	const char *uid = json_string_value(value);
-	if( uid == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(DebugClassify) Unable to decode UID");
-		result = false;
-	} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(DebugClassify) Invalid UID");
-		result = false;
-	}
-
-	string 	fileName = m_classifierName + ".csv", fqfn;
-	ofstream	outFile;
-
-	if( result ) {
-		fqfn = m_outPath + fileName;
-		outFile.open(fqfn.c_str(), ofstream::out | ofstream::app);
-
-		if( outFile.is_open() == false ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to open class file");
-			result = false;
-		}
-	}
-
-	value = json_object_get(obj, "iteration");
-	if( value == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode iteration");
-		result = false;
-	} else {
-		iteration = json_integer_value(value);
-	}
-
-	if( result && m_debugStarted == false ) {
-		int numSlides = m_dataset->GetNumSlides();
-		char**	slides = m_dataset->GetSlideNames();
-
-		outFile << "slides,";
-		for(int i = 0; i < numSlides - 1; i++) {
-			outFile << slides[i] << ",";
-		}
-		outFile << slides[numSlides - 1] << endl;
-		m_debugStarted = true;
-	}
-
-	if( result ) {
-		result = DebugApply(outFile, iteration);
-
-	}
-
-	if( outFile.is_open() ) {
-		outFile.close();
-	}
-
-	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
-								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
-	if( bytesWritten != (sizeof(failResp) - 1) )
-		result = false;
-
-	return result;
-}
-
-
-
-
-
-
-
-bool Learner::DebugApply(ofstream& outFile, int iteration)
-{
-	bool	result = true;
-	char**	slides = m_dataset->GetSlideNames();
-	int		 numSlides = m_dataset->GetNumSlides(), numSlideObjs, offset, dim;
-	float 	*ptr;
-	int 	*labels = (int*)malloc(m_dataset->GetNumObjs() * sizeof(int)),
-			*slidePos = NULL, *slideNeg = NULL;
-
-	slidePos = (int*)calloc(numSlides, sizeof(int));
-	slideNeg = (int*)calloc(numSlides, sizeof(int));
-
-	if( slidePos != NULL && slideNeg != NULL ) {
-
-		float	**data = m_dataset->GetData();
-		int		posCnt, negCnt, dims = m_dataset->GetDims();
-
-		result = m_classifier->ClassifyBatch(data, m_dataset->GetNumObjs(), dims, labels);
-
-		if( result ) {
-
-			int *slideIdx = m_dataset->GetSlideIndices();
-			for(int i = 0; i < m_dataset->GetNumObjs(); i++) {
-				if( labels[i] == 1 ) {
-					slidePos[slideIdx[i]]++;
-				} else {
-					slideNeg[slideIdx[i]]++;
-				}
-			}
-
-			outFile << "iter" << iteration << "-pos,";
-			for(int i = 0; i < numSlides - 1; i++) {
-				outFile << slidePos[i] << ",";
-			}
-			outFile << slidePos[numSlides - 1] << endl;
-
-			outFile << "iter" << iteration << "-neg,";
-			for(int i = 0; i < numSlides - 1; i++) {
-				outFile << slideNeg[i] << ",";
-			}
-			outFile << slideNeg[numSlides - 1] << endl;
-		}
-	} else {
-		result = false;
-	}
-
-	if( labels )
-		free(labels);
-
-	if( slidePos )
-		free(slidePos);
-	if( slideNeg )
-		free(slideNeg);
-
-	return result;
-}
-
-
-
-
-
-
-
 bool Learner::IsUIDValid(const char *uid) 
 {
 	bool	result = true;
@@ -1989,7 +1881,9 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 	value = json_object_get(obj, "uid");
 	const char *uid = json_string_value(value);
 	int		width, height;
-	string	slide, fileName;
+	double	uncertMin, uncertMax, classMin, classMax, timing = gLogger->WallTime();
+	float	uncertMedian;
+	string	slide, uncertFileName, classFileName;
 
 	result = IsUIDValid(uid);
 	
@@ -2024,10 +1918,66 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		result = GenHeatImage(slide, width, height, fileName);
+
+		float	*scores = NULL, *xList = m_dataset->GetXCentroidList(), *yList = m_dataset->GetYCentroidList(),
+				*centX, *centY;
+		int		numObjs, offset;
+
+		offset = m_dataset->GetSlideOffset(slide, numObjs);
+		centX = &xList[offset];
+		centY = &yList[offset];
+		scores = (float*)malloc(numObjs * sizeof(float));
+
+		if( scores == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Unable to allocate score buffer");
+			result = false;
+		} 
+
+		if( result ) {
+
+			float 	**ptr = m_dataset->GetSlideData(slide, numObjs);
+			int		dims = m_dataset->GetDims();
+
+			result = m_classifier->ScoreBatch(ptr, numObjs, dims, scores);
+			if( result == false ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Classification failed");
+			}
+		}
+
+		if( result ) {
+			uncertFileName = slide + ".jpg";
+			classFileName = slide + "_class.jpg";
+
+			string	fqfn = m_heatmapPath + uncertFileName;
+			struct stat buffer;
+			int		statResp = stat(fqfn.c_str(), &buffer);
+
+			// Check if heatmap needs to be generated
+			if( m_heatmapReload || statResp != 0 ) { 
+
+				HeatmapWorker(scores, centX, centY, numObjs, slide, width, height, 
+							  &uncertMin, &uncertMax, &classMin, &classMax, &uncertMedian);
+			} else {
+
+				vector<SlideStat*>::iterator	it;
+
+				for(it = m_statList.begin(); it != m_statList.end(); it++) {
+					if( (*it)->slide.compare(slide) == 0 ) {
+						width = (*it)->width;
+						height = (*it)->height;
+						uncertMin = (*it)->uncertMin;
+						uncertMax = (*it)->uncertMax;
+						uncertMedian = (*it)->uncertMedian;
+						classMin = (*it)->classMin;
+						classMax = (*it)->classMax;
+						break;
+					}
+				}
+			} 
+		}
 	}
 
-
+	
 	if( result ) {
 		root = json_object();
 		if( root == NULL ) {
@@ -2037,9 +1987,17 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 	}
 
 	if( result ) {
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Viewer heatmap generation took %f", gLogger->WallTime() - timing);
+
 		json_object_set(root, "width", json_integer(width));
 		json_object_set(root, "height", json_integer(height));
-		json_object_set(root, "filename", json_string(fileName.c_str()));
+		json_object_set(root, "uncertFilename", json_string(uncertFileName.c_str()));
+		json_object_set(root, "classFilename", json_string(classFileName.c_str()));
+		json_object_set(root, "uncertMin", json_real(uncertMin));
+		json_object_set(root, "uncertMax", json_real(uncertMax));
+		json_object_set(root, "uncertMedian", json_real(uncertMedian));
+		json_object_set(root, "classMin", json_real(classMin));
+		json_object_set(root, "classMax", json_real(classMax));
 
 		char *jsonObj = json_dumps(root, 0);		
 		size_t  bytesWritten = :: write(sock, jsonObj, strlen(jsonObj));
@@ -2055,76 +2013,302 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 
 
 
-#define KERN_SIZE	11
+#define KERN_SIZE	(ceil(3.5f * 11))
 #define GRID_SIZE	40
+#define HIST_BINS	20
+#define UNCERT_PERCENTILE	0.90f
 
 
-bool Learner::GenHeatImage(string slide, int width, int height, string &fileName)
+
+static bool SortFunc(SlideStat *a, SlideStat *b)
 {
-	bool	result = true;
-	int		fX = ceil((float)width / (float)GRID_SIZE), fY = ceil((float)height / (float)GRID_SIZE),
-			curX, curY, numObjs, offset;
-	Mat		uncertainMap = Mat::zeros(fY, fX, CV_32F), grayScale(fY, fX, CV_8UC1);
-	float	*scores = NULL, *xList = m_dataset->GetXCentroidList(), *yList = m_dataset->GetYCentroidList(),
-			*centX, *centY;
+	return (a->uncertMax > b->uncertMax);
+}
 
-	offset = m_dataset->GetSlideOffset(slide, numObjs);
-	centX = &xList[offset];
-	centY = &yList[offset];
-	scores = (float*)malloc(numObjs * sizeof(float));
 
-	if( scores == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Unable to allocate score buffer");
-		result = false;
-	}
 
-	if( result ) {
-		float 	**ptr = m_dataset->GetSlideData(slide, numObjs);
-		int		dims = m_dataset->GetDims();
+bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
+{
+	bool result = true;
+	json_t	*value = NULL, *slideData = NULL;
 
-		result = m_classifier->ScoreBatch(ptr, numObjs, dims, scores);
-		if( result == false ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Classification failed");
-		}
-	}
 
-	if( result ) {
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
 
-		for(int obj = 0; obj < numObjs; obj++) {
-			curX = ceil(centX[obj] / (float)GRID_SIZE);
-			curY = ceil(centY[obj] / (float)GRID_SIZE);
-		
-			uncertainMap.at<float>(curY, curX) = max(uncertainMap.at<float>(curY, curX), 1 - abs(scores[obj]));
-		}
+	if( result && m_heatmapReload ) {
+		double	start, timing = gLogger->WallTime();
 
-		Size2i kernel(KERN_SIZE, KERN_SIZE);
-		GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5);
-	
-		double 	minVal, maxVal;
-		Mat		img;
-		minMaxLoc(uncertainMap, &minVal, &maxVal);
-	
-		for(int row = 0; row < fY; row++) {
-			for(int col = 0; col < fX; col++) {
-				grayScale.at<uchar>(row, col) = (255 *  uncertainMap.at<float>(row, col)) / maxVal;
+		if( result ) {
+			slideData = json_object_get(obj, "slides");
+			if( slideData == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode slide data");
+				result = false;
 			}
 		}
+
+		json_t	*slides = NULL, *x_size = NULL, *y_size = NULL;
+
+		if( result ) {
+
+			slides = json_object_get(slideData, "slides");
+			if( !json_is_array(slides) ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode slide name array");
+				result = false;
+			}	
+		}
+
+		if( result ) {
+
+			x_size = json_object_get(slideData, "x_size");
+			if( !json_is_array(x_size) ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode x_size array");
+				result = false;
+			}	
+		}
+
+		if( result ) {
+
+			y_size = json_object_get(slideData, "y_size");
+			if( !json_is_array(y_size) ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode y_size array");
+				result = false;
+			}	
+		}
 	
-		fileName = slide + ".jpg";
-		string	fqn = m_heatmapPath + fileName;
 
-		applyColorMap(grayScale, img, COLORMAP_JET);	
-		result = imwrite(fqn.c_str(), img);
+		if( result ) {
+			size_t index, numSlides = json_array_size(slides);
+			const char 	*slideName = NULL;
+			int			width, height;
+			vector<std::thread> workers;
 
-		if( result == false ) {
-			gLogger->LogMsgv(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Failed saving: %s", fqn.c_str());
+
+			if( !m_statList.empty() ) {
+				for(int i = 0; i < m_statList.size(); i++) {
+					delete m_statList[i];
+				}
+				m_statList.clear();
+			}
+
+			json_array_foreach(slides, index, value) {
+
+				slideName = json_string_value(value);
+				if( slideName == NULL ) {
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode slide name");
+					result = false;
+					break;
+				}
+			
+				value = json_array_get(x_size, index);
+				if( value == NULL ) {
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode width");
+					result = false;
+					break;
+				}				
+				width = json_integer_value(value);
+
+				value = json_array_get(y_size, index);
+				if( value == NULL ) {
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode height");
+					result = false;
+					break;
+				}				
+				height = json_integer_value(value);
+
+				int slideObjs, offset = m_dataset->GetSlideOffset(slideName, slideObjs);
+				float	*xList = m_dataset->GetXCentroidList(), *yList = m_dataset->GetYCentroidList();
+				float	*xCent = &xList[offset], *yCent = &yList[offset], *slideScores = &m_scores[offset], uncertMedian;
+				SlideStat   *stats = new SlideStat;
+				
+				stats->slide = slideName;
+				stats->alphaIndex = index;
+				stats->width = width;
+				stats->height = height;
+				m_statList.push_back(stats);
+
+				workers.push_back(std::thread(&Learner::HeatmapWorker, this, slideScores,
+										xCent, yCent, slideObjs, slideName, width, height, 
+										&m_statList[index]->uncertMin, &m_statList[index]->uncertMax, 
+										&m_statList[index]->classMin, &m_statList[index]->classMax,
+										&m_statList[index]->uncertMedian));
+			}
+
+			for( auto &t : workers )
+				t.join();
+		} 
+
+		sort(m_statList.begin(), m_statList.end(), SortFunc);
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "GenAllHeatmaps took %f", gLogger->WallTime() - timing);
+	
+		// Indicate heatmaps have been updated
+		//
+		m_heatmapReload = false;
+
+	} else {
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Training set not updated since heatmaps were last generated");
+	}
+
+
+
+	// TODO - Move the following to its own function
+	//
+	json_t	*slideList = NULL, *item = NULL;
+	if( result ) {
+		slideList = json_array();
+		if( slideList == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to create JSON Array object");
+			result = false;
 		}
 	}
 
-	if( scores ) 
-		free(scores);
+	vector<SlideStat*>::iterator	it;
+
+	if( result ) {		
+
+		for(it = m_statList.begin(); it != m_statList.end(); it++) {
+			item = json_object();
+			if( item == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to create JSON object");
+				result = false;
+				break;
+			}
+			
+			json_object_set(item, "slide", json_string((*it)->slide.c_str()));
+			json_object_set(item, "width", json_integer((*it)->width));
+			json_object_set(item, "height", json_integer((*it)->height));
+			json_object_set(item, "uncertMin", json_real((*it)->uncertMin));
+			json_object_set(item, "uncertMax", json_real((*it)->uncertMax));
+			json_object_set(item, "uncertMedian", json_real((*it)->uncertMedian));
+			json_object_set(item, "classMin", json_real((*it)->classMin));
+			json_object_set(item, "classMax", json_real((*it)->classMax));
+			json_object_set(item, "index", json_integer((*it)->alphaIndex));
+			
+			json_array_append(slideList, item);
+			json_decref(item);
+		}
+
+		
+		char *jsonObj = json_dumps(slideList, 0);
+		size_t  bytesWritten = :: write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(slideList);
+		free(jsonObj);
+	}
 
 	return result;
 }
+
+
+
+
+
+
+
+void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int numObjs, 
+							string slide, int width, int height, double *uncertMin, double *uncertMax,
+							double *classMin, double *classMax, float *uncertMedian)
+{
+	bool	result = true;
+	int		fX = (ceil((float)width / (float)GRID_SIZE)) + 1, fY = (ceil((float)height / (float)GRID_SIZE)) + 1,
+			curX, curY;
+	Mat		uncertainMap = Mat::zeros(fY, fX, CV_32F), classMap = Mat::zeros(fY, fX, CV_32F),
+			densityMap = Mat::zeros(fY, fX, CV_32F), grayUncertain(fY, fX, CV_8UC1), 
+			grayClass(fY, fX, CV_8UC1);
+	vector<float> scoreVec;
+
+
+
+	for(int obj = 0; obj < numObjs; obj++) {
+		curX = ceil(centX[obj] / (float)GRID_SIZE);
+		curY = ceil(centY[obj] / (float)GRID_SIZE);
+
+		uncertainMap.at<float>(curY, curX) = max(uncertainMap.at<float>(curY, curX), 1 - abs(slideScores[obj]));
+		if( slideScores[obj] >= 0 ) {
+			classMap.at<float>(curY, curX) += 1.0f;
+		}
+		densityMap.at<float>(curY, curX) += 1.0f;
+		scoreVec.push_back(1 - abs(slideScores[obj]));
+	}
+
+	for(int row = 0; row < fY; row++) {
+		for(int col = 0; col < fX; col++) {
+
+			if( densityMap.at<float>(row, col) == 0 ) {
+				classMap.at<float>(row, col) = 0;
+			} else {
+				classMap.at<float>(row, col) = classMap.at<float>(row, col) / densityMap.at<float>(row, col);
+			}
+		}
+	}
+
+	Size2i kernel(KERN_SIZE, KERN_SIZE);
+	GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5f);
+	GaussianBlur(classMap, classMap, kernel, 3.5f);
+
+	Mat		img, classImg;
+	int		uncertHist[HIST_BINS], index, total;
+	float	uncertNorm, range;
+
+	// The min and max scores returned are the "blurred" veraion. Only
+	// the median is the raw score. (calculated later)
+	minMaxLoc(uncertainMap, uncertMin, uncertMax);
+	minMaxLoc(classMap, classMin, classMax);
+
+
+	range = *uncertMax - *uncertMin;
+
+	memset(uncertHist, 0, HIST_BINS * sizeof(int));
+
+	for(int row = 0; row < fY; row++) {
+		for(int col = 0; col < fX; col++) {
+			
+			index = (int)min(uncertainMap.at<float>(row, col) / range * (float)HIST_BINS, (float)(HIST_BINS - 1));
+			uncertHist[index]++;
+		}
+	}
+
+	total = 0;
+	for(index = 0; index < HIST_BINS; index++) {
+		total += uncertHist[index];
+		if( total > (int)(UNCERT_PERCENTILE * (float)fY * (float)fX) )
+			break;
+	}
+	uncertNorm = (float)index / (float)HIST_BINS;
+	
+	for(int row = 0; row < fY; row++) {
+		for(int col = 0; col < fX; col++) {
+
+			grayUncertain.at<uchar>(row, col) = min(255.0 * uncertainMap.at<float>(row, col) / uncertNorm, 255.0);
+			grayClass.at<uchar>(row, col) = min(255.0 * classMap.at<float>(row, col) / *classMax, 255.0);
+		}
+	}
+
+	string	fqn = m_heatmapPath + slide + ".jpg",
+			classFqn = m_heatmapPath + slide + "_class.jpg";
+
+	applyColorMap(grayUncertain, img, COLORMAP_JET);
+	vector<int> params;
+	params.push_back(CV_IMWRITE_JPEG_QUALITY);
+	params.push_back(75);
+	result = imwrite(fqn.c_str(), img, params);
+
+	applyColorMap(grayClass, classImg, COLORMAP_JET);
+	result = imwrite(classFqn.c_str(), classImg, params);
+
+	sort(scoreVec.begin(), scoreVec.end());
+
+	// Return the median raw score, min and max should be blurred
+	*uncertMedian = scoreVec[scoreVec.size() / 2];
+}
+
+
+
+
+
 
 

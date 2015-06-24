@@ -85,11 +85,9 @@ $(function() {
 		data: "",
 		dataType: "json",
 		success: function(data) {
-			
-			curDataset = data[0];		// Use first dataset initially
-				
+							
 			for( var item in data ) {
-				datasetSel.append(new Option(data[item], data[item]));
+				datasetSel.append(new Option(data[item][0], data[item][0]));
 			}
 		}
 	});

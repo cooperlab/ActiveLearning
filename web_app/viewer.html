@@ -49,14 +49,15 @@
 
 		<nav class="navbar navbar-default" role="navigation">
 			<div class="navbar-header">
-				<a class="navbar-brand" href="index.html">VALS</a>
+				<div class="navbar-brand">VALS</div>
 			</div>
 			
 			<div>
 				<ul class="nav navbar-nav">
 					<li><a href="index.html">Home</a></li>
-					<li class="active"><a href="viewer.html">Viewer</a></li>
 					<li><a href="grid.html" id="nav_select">Select</a></li>
+					<li class="active"><a href="viewer.html">Viewer</a></li>
+					<li><a href="heatmaps.html" id="nav_heatmaps">Heatmaps</a></li>
 					<li><a href="visualize.html" id="nav_visualize">Visualize</a></li>
 					<li><a href="reports.html" id="nav_reports">Reports</a></li>
 				</ul>
@@ -115,10 +116,35 @@
 
 
 				<div class="col-sm-4 col-md-4 col-lg-4" id="legend">
+					<strong>Classification</strong>
+					<br/>
 					<ul>
 						<li id="negLegend">Neg Class
 						<li id="posLegend">Pos Class
 					</ul>
+
+					<strong>Heatmap:</strong>
+					<br/>
+					<div class="radio">
+						<label>
+							<input type="radio" name="heatmapOption" id="heatmapUncertain" value="uncertain" checked>
+							Uncertainty
+						</label>
+					</div>
+					<div class="radio">
+						<label>
+							<input type="radio" name="heatmapOption" id="heatmapPosClass" value="posClass">
+							Positive Class Density
+						</label>
+					</div>
+
+					<br/>
+					<div>
+						<span id="heatMin">Min</span>
+						<img src="images/jetColormap.jpg" width="150" class="img-valign" style="vertical-align: middle">
+						<span id="heatMax">Max</span>
+					</div>
+
 				</div>
 								
 			</div>  <!-- First row -->

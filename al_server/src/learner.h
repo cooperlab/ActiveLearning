@@ -41,6 +41,20 @@
 #define UID_LENGTH 		23
 
 
+struct SlideStat{
+	string 	slide;
+	double	uncertMin;
+	double	uncertMax;
+	float 	uncertMedian;
+	double	classMin;
+	double	classMax;
+	int		alphaIndex;
+	int		width;
+	int		height;
+};
+
+
+
 
 
 class Learner
@@ -80,8 +94,12 @@ protected:
 	float		*m_yCentroid;
 
 	int			m_iteration;
-	float		m_curAccuracy;
+	bool		m_heatmapReload;
+	vector<SlideStat*> 	m_statList;
+	float		*m_scores;				// Used for heatmap generation
 
+	float		m_curAccuracy;
+	
 	Classifier 	*m_classifier;
 	Sampler		*m_sampler;
 
@@ -105,9 +123,8 @@ protected:
 	bool	PickerStatus(const int sock, json_t *obj);
 	bool	PickerFinalize(const int sock, json_t *obj);
 	bool	GenHeatmap(const int sock, json_t *obj);
+	bool	GenAllHeatmaps(const int sock, json_t *obj);
 
-	bool	DebugClassify(const int sock, json_t *obj);
-	bool	DebugApply(ofstream& outFile, int iteratioin);
 
 	bool	ApplyGeneralClassifier(const int sock, int xMin, int xMax,
 								   int yMin, int yMax, string slide);
@@ -132,7 +149,10 @@ protected:
 	bool	LoadDataset(string dataSetFileName);
 	bool	LoadTrainingSet(string trainingSetName);
 
-	bool	GenHeatImage(string slide, int width, int height, string &fileName);
+	void	HeatmapWorker(float *slideScores, float *centX, float *centY, int numObjs, 
+						  string slide, int width, int height, double *uncertMin, double *uncertMax,
+						  double *classMin, double *classMax, float *uncertMedian);
+
 };
 
 

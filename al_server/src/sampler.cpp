@@ -237,8 +237,6 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 		}
 	}
 
-	gLogger->LogMsgv(EvtLogger::Evt_INFO, "After ScoreBatch result %d", result);
-	
 	if( result ) {
 		int minIdx, *slideIdx = m_dataset->GetSlideIndices(),
 					sampleCnt = m_dataset->GetNumObjs() - m_remaining;
@@ -335,7 +333,7 @@ struct ScoreIdx{
 	float score;
 };
 
-bool SortFunc(ScoreIdx a, ScoreIdx b)
+static bool SortFunc(ScoreIdx a, ScoreIdx b)
 {
 	return (a.score < b.score);
 }

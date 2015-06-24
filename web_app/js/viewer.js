@@ -49,6 +49,9 @@ var	pannedX, pannedY;
 var fixes = {iteration: 0, accuracy: 0, samples: []};
 
 var heatmapLoaded = false;
+var slideReq = null;
+var uncertMin = 0.0, uncertMax = 0.0, classMin = 0.0, classMax = 0.0;
+
 
 
 
@@ -62,6 +65,8 @@ var heatmapLoaded = false;
 //
 $(function() {
 	
+	slideReq = $_GET('slide');
+
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
 	//
@@ -166,6 +171,7 @@ $(function() {
 				// No active session, don;t allow navigation to select & visualize
 				$('#nav_select').hide();
 				$('#nav_visualize').hide();
+				$('#nav_heatmaps').hide();
 			} else {
 				// Active session, dataset selection not allowed
 				document.getElementById('dataset_sel').disabled = true
@@ -188,6 +194,9 @@ $(function() {
 	$("#slide_sel").change(updateSlide);
 	$("#dataset_sel").change(updateDataset);
 	$("#classifier_sel").change(updateClassifier);
+
+	// Set update handler for the heatmap radio buttons
+	$('input[name=heatmapOption]').change(updateHeatmap);
 
 	// Set filter for numeric input
 	$("#x_pos").keydown(filter);
@@ -326,16 +335,31 @@ function updateSlideList() {
 		dataType: "json",
 		success: function(data) {
 
+			var index = 0;
+
 			pyramids = data['paths'];
-			curSlide = String(data['slides'][0]);		// Start with the first slide in the list
+			if( slideReq === null ) {
+				curSlide = String(data['slides'][0]);		// Start with the first slide in the list
+			} else {
+				curSlide = slideReq;
+			}
+ 
 			slideCnt = Object.keys(data['slides']).length;;
 			slideCntTxt.text(slideCnt);
 
 			slideSel.empty();
 			// Add the slides we have segmentation boundaries for to the dropdown
 			// selector
-			for( var item in data['slides'] ) {			
+			for( var item in data['slides'] ) {
+				
+				if( slideReq != null && slideReq == data['slides'][item] ) {
+					index = item;
+				}
 				slideSel.append(new Option(data['slides'][item], data['slides'][item]));
+			}
+
+			if( index != 0 ) {
+				$('#slide_sel').prop('selectedIndex', index);
 			}
 
 			// Get the slide pyrimaid and display	
@@ -395,6 +419,14 @@ function updateSlide() {
 	updatePyramid();
 
 	if( segDisplayOn ) {
+
+		// Clear heatmap if displayed
+		var heatmapGrp = document.getElementById('heatmapGrp');
+
+		if( heatmapGrp != null ) {
+			heatmapGrp.parentNode.removeChild(heatmapGrp);
+		}
+
 		updateSeg();
 	}
 }
@@ -461,12 +493,31 @@ function updateClassifier() {
 	}
 	
 	if( overlayHidden === false ) {
-	
 		updateSeg();
 	}
 }
 
 
+
+
+//
+//	Display the appropriate heatmap (uncertain or positive class) when
+//	a radio button is selected
+//
+function updateHeatmap() {
+	
+	var ele = document.getElementById('heatmap');
+
+	if( $('#heatmapUncertain').is(':checked') ) {
+		ele.setAttribute("xlink:href", "heatmaps/" + curSlide + ".jpg");
+		document.getElementById('heatMin').innerHTML = uncertMin.toFixed(2);
+		document.getElementById('heatMax').innerHTML = uncertMax.toFixed(2);
+	} else {
+		ele.setAttribute("xlink:href", "heatmaps/" + curSlide + "_class.jpg");
+		document.getElementById('heatMin').innerHTML = classMin.toFixed(2);
+		document.getElementById('heatMax').innerHTML = classMax.toFixed(2);
+	}
+}
 
 
 
@@ -638,11 +689,26 @@ function updateSeg() {
 					ele.setAttributeNS(null, "width", data.width);
 					ele.setAttributeNS(null, "height", data.height);
 					ele.setAttributeNS(null, 'opacity', 0.25);
-					ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+data.filename);
+					ele.setAttribute('id', 'heatmap');
 
+					uncertMin = data.uncertMin;
+					uncertMax = data.uncertMax;
+					classMin = data.classMin;
+					classMax = data.classMax;
+
+					if( $('#heatmapUncertain').is(':checked') ) {
+						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+data.uncertFilename);
+						document.getElementById('heatMin').innerHTML = data.uncertMin.toFixed(2);
+						document.getElementById('heatMax').innerHTML = data.uncertMax.toFixed(2);
+					} else {
+						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+data.classFilename);
+						document.getElementById('heatMin').innerHTML = data.classMin.toFixed(2);
+						document.getElementById('heatMax').innerHTML = data.classMax.toFixed(2);
+					}
 					segGrp.appendChild(ele);
 
 					heatmapLoaded = true;
+					console.log("Uncertainty min: "+uncertMin+", max: "+uncertMax+", median: "+data.uncertMedian);
 				}
 			});
 		}

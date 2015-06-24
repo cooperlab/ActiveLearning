@@ -58,6 +58,7 @@ $(function() {
 			if( uid === null ) {
 				$('#nav_select').hide();
 				$('#nav_visualize').hide();
+				$('#nav_heatmaps').hide();
 			} else {
 				// There's an active session, disable the "start session" 
 				// form.

@@ -537,28 +537,6 @@ function toggleSegVisibility() {
 
 
 
-function classificationDump() {
-	var itemTag;
-	
-	// Display the progress dialog...
-	$('#debugDiag').modal('show');
-	
-	$.ajax({
-		type: "POST",
-		url: "php/dumpClass.php",
-		dataType: "json",
-		data: { iteration: statusObj.iteration() },
-		success: function(result) {
-
-			$('#debugDiag').modal('hide');
-	
-		}
-	});
-
-
-}
-
-
 
 //-----------------------------------------------------------------------------
 
