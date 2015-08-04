@@ -102,9 +102,23 @@ public:
 	virtual bool		SelectBatch(int count, int *&ids, float *&scores);
 	virtual SampType	GetSamplerType(void) { return SAMP_RANDOM; }
 
+	virtual bool 	GetVisSamples(int nStrata, int nGroups, int *&idx, float *&idxScores) { return false; }
 protected:
 
 
+};
+
+
+
+
+class DistSample : public UncertainSample
+{
+public:
+	
+					DistSample(Classifier *classify, MData *dataset);
+	virtual			~DistSample(void);
+
+	virtual bool	SelectBatch(int count, int *&ids, float *&selScores);
 };
 
 

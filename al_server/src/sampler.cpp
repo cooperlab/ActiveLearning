@@ -421,6 +421,88 @@ bool UncertainSample::GetVisSamples(int nStrata, int nGroups, int *&idx, float *
 
 
 
+//------------------------------------------------------------------------------
+
+DistSample::DistSample(Classifier *classify, MData *dataset) : 
+	UncertainSample(classify, dataset)
+{
+
+}
+
+
+DistSample::~DistSample(void)
+{
+
+}
+
+
+
+
+bool DistSample::SelectBatch(int count, int *&ids, float *&selScores)
+{
+	bool	result = true;
+	float	*scores = (float*)malloc(m_remaining * sizeof(float));
+	int		*picks = (int*)malloc(count * sizeof(int)), sign;
+
+	ids = (int*)malloc(count * sizeof(int));
+	selScores = (float*)malloc(count * sizeof(float));
+
+	if( ids == NULL || selScores == NULL || scores == NULL || picks == NULL ) {
+		result = false;
+	}
+
+
+	if( result ) {
+		if( !m_Classify->ScoreBatch(m_checkSet, m_remaining, m_dataset->GetDims(), scores) ) {
+			result = false;
+		}
+	}
+
+
+	vector<int> scoreBins[8];
+	float	binDefs[8] = { -0.5f, -0.25f, 0.0f, 0.1f, 0.25f, 0.3f, 0.5f, 1.0f };
+
+	if( result ) {
+		int 	idx, bin;
+		for(int i = 0; i < m_remaining; i++) {
+	
+			//idx = (int)floor((scores[i] + 1.0f) * 4.0f);
+
+			for(idx = 0; idx < 8; idx++) {
+				if( scores[i] <= binDefs[idx] ) {
+					break;
+				}
+			}
+			scoreBins[idx].push_back(i);
+		}
+		
+		// Randomly select one from each bin
+		for(int i = 0; i < 8; i++) {
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "bin %d, has %d samples", i, scoreBins[i].size());
+
+			bin = i;
+			while( scoreBins[bin].size() == 0 ) {
+				bin = (bin + 1) % 8;
+			}
+			idx = rand() % scoreBins[bin].size();
+			ids[i] = m_dataIndex[scoreBins[bin][idx]];
+			//selScores[i] = ((float)bin / 4.0f) - 1.0f;
+			selScores[i] = binDefs[bin];
+			m_remaining--;
+			m_dataIndex[scoreBins[i][idx]] = m_dataIndex[m_remaining];
+			m_checkSet[scoreBins[i][idx]] = m_checkSet[m_remaining];
+
+		}
+	}
+	if( picks )
+		free(picks);
+	if( scores )
+		free(scores);
+
+	return result;
+}
+
+
 
 
 //------------------------------------------------------------------------------
@@ -437,6 +519,9 @@ RandomSample::RandomSample(MData *dataset) : Sampler(dataset)
 			m_dataIndex[i] = i;
 	}
 }
+
+
+
 
 
 
@@ -478,8 +563,15 @@ bool RandomSample::SelectBatch(int count, int *&ids, float *&scores)
 {
 	bool	result = false;
 
-	// TODO - Need to implement
+	ids = (int*)malloc(count * sizeof(int));
+	scores = (float*)malloc(count * sizeof(float));
 
+	if( ids != NULL && scores != NULL ) {
+		for(int i = 0; i < count; i++) {
+			ids[i] = Select(&scores[i]);
+		}
+		result = true;
+	}	
 	return result;
 }
 

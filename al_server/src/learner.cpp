@@ -297,7 +297,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	if( result ) {
 		// Remove leftover heatmap images
 		string cmd = "rm -f " + m_heatmapPath + "*.jpg";
-		system(cmd.c_str());
+		int ret = system(cmd.c_str());
 	}
 
 
@@ -322,7 +322,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 			result = false;
 		}
 	}
-
+		
 	if( result ) {
 		m_sampler = new UncertainSample(m_classifier, m_dataset);
 		if( m_sampler == NULL ) {
@@ -368,32 +368,18 @@ bool Learner::Select(const int sock, json_t *obj)
 	int		reqIteration, idx;
 	float	score;
 
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
-	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) No active session");
-		result = false;
-	} else {
-		value = json_object_get(obj, "uid");
-		const char *uid = json_string_value(value);
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Invalid UID");
-			result = false;		
-		}
-	}
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid); 
 			
-	value = json_object_get(obj, "iteration");
-	if( value == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode iteration");
-		result = false;
-	} else {
-		reqIteration = json_integer_value(value);
+	if( result ) {
+		value = json_object_get(obj, "iteration");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode iteration");
+			result = false;
+		} else {
+			reqIteration = json_integer_value(value);
+		}
 	}
 	
 	if( result ) {
@@ -501,27 +487,11 @@ bool Learner::Submit(const int sock, json_t *obj)
 	json_t	*sampleArray, *value, *jsonObj;
 	int		iter;
 
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
 	// Check for valid UID
 	//
-	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) No active session");
-		result = false;
-	} else {
-		value = json_object_get(obj, "uid");
-		const char *uid = json_string_value(value);
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(submit) Invalid UID");
-			result = false;		
-		}
-	}
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid); 
 
 	// Sanity check the itereation
 	//
@@ -697,31 +667,13 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	bool	result = true;
 	json_t	*root = json_object(), *sample = NULL, *sampleArray = NULL,
 			*jsonObj = NULL;
-	const char *uid = NULL;
 	int		idx;
 	float	score;
 	string 	fileName = m_classifierName + ".h5", fqfn;
 
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
-	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finalize) No active session");
-		result = false;
-	} else {
-		jsonObj = json_object_get(obj, "uid");
-		const char *uid = json_string_value(jsonObj);
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finalize) Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(finalize) Invalid UID");
-			result = false;		
-		}
-	}
-
+	jsonObj = json_object_get(obj, "uid");
+	const char *uid = json_string_value(jsonObj);
+	result = IsUIDValid(uid); 
 
 	if( result ) {
 		fqfn = m_outPath + fileName;
@@ -814,26 +766,9 @@ bool Learner::Visualize(const int sock, json_t *obj)
 	json_t	*root = json_array(), *sample = NULL, *value = NULL;
 	int		strata, groups;
 
-	
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
-	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) No active session");
-		result = false;
-	} else {
-		value = json_object_get(obj, "uid");
-		const char *uid = json_string_value(value);
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid UID");
-			result = false;		
-		}
-	}
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
 
 	if( result ) {
 		value = json_object_get(obj, "strata");
@@ -1069,12 +1004,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	const char *slideName = NULL;
 	int		xMin, xMax, yMin, yMax;
 
-
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
+	gLogger->LogMsg(EvtLogger::Evt_INFO, "In ApplyClassifier");
 	value = json_object_get(obj, "slide");
 	slideName = json_string_value(value);
 	value = json_object_get(obj, "xMin");
@@ -1090,28 +1020,25 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Unable to decode slide name");
 		result = false;
 	}
-
+	if( xMin == 0 || xMax == 0 || yMin == 0 || yMax == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Unable to decode min/max values");
+		result = false;
+	}
+	
 	double timing = gLogger->WallTime();
-
-	if( strlen(m_UID) == 0 ) {
-		// No session active, load specified training set.
-		result = ApplyGeneralClassifier(sock, xMin, xMax, yMin, yMax, slideName);
-
-	} else {
+	if( result ) {
 		// Session in progress, use current training set.
 		value = json_object_get(obj, "uid");
 		const char *uid = json_string_value(value);
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Invalid UID");
-			result = false;
-		}
+		result = IsUIDValid(uid);
+ 	}
 
-		if( result ) {
-			result = ApplySessionClassifier(sock, xMin, xMax, yMin, yMax, slideName);
-		}
+	if( result ) {
+		// UID was valid, there's a session active
+		result = ApplySessionClassifier(sock, xMin, xMax, yMin, yMax, slideName);
+	} else if( strlen(m_UID) == 0 ) {
+		// No session active, load specified training set.
+		result = ApplyGeneralClassifier(sock, xMin, xMax, yMin, yMax, slideName);
 	}
 
 	timing = gLogger->WallTime() - timing;
@@ -1196,7 +1123,6 @@ bool Learner::ApplySessionClassifier(const int sock, int xMin, int xMax,
 	float 	**ptr;
 	int 	*labels = NULL, dims, slideObjs, offset;
 
-
 	offset = m_dataset->GetSlideOffset(slide, slideObjs);
 	labels = (int*)malloc(slideObjs * sizeof(int));
 
@@ -1213,10 +1139,13 @@ bool Learner::ApplySessionClassifier(const int sock, int xMin, int xMax,
 			// objects are set to the negative class.
 			//
 			memset(labels, -1, slideObjs * sizeof(int));
+			
 			vector<int>::iterator	it;
-
 			for(it = m_samples.begin(); it != m_samples.end(); it++) {
-				labels[*it - offset] = 1;
+				// Only mark samples that are on this slide 
+				if( *it >= offset && *it < (offset + slideObjs) ) {
+					labels[*it - offset] = 1;
+				}
 			}
 		} else {
 
@@ -1255,8 +1184,8 @@ bool Learner::SendClassifyResult(int xMin, int xMax, int yMin, int yMax,
 	if( result ) {
 		char	tag[25];
 		int		offset, slideObjs;
-		offset = m_dataset->GetSlideOffset(slide, slideObjs);
 
+		offset = m_dataset->GetSlideOffset(slide, slideObjs);
 		for(int i = offset; i < offset + slideObjs; i++) {
 
 			if( slide.compare(m_dataset->GetSlide(i)) == 0 &&
@@ -1572,30 +1501,15 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 	bool	result = true;
 	json_t	*sampleArray, *value, *jsonObj;
 
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
 	// Check for valid UID
 	//
-	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(AddObjects) No active session");
-		result = false;
-	} else {
-		value = json_object_get(obj, "uid");
-		const char *uid = json_string_value(value);
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(AddObjects) Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(AddObjects) Invalid UID");
-			result = false;
-		}
-	}
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
 
+	result = IsUIDValid(uid);
 
 	if( result ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Decoding samples array");
 		sampleArray = json_object_get(obj, "samples");
 		if( !json_is_array(sampleArray) ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
@@ -1604,6 +1518,7 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 	}
 
 	if( result ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Updating buffers for new samples");
 		// Make room for the new samples
 		result = UpdateBuffers(json_array_size(sampleArray));
 	}
@@ -1614,7 +1529,7 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 		float	centX, centY;
 		const char *slide;
 
-
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Adding samples");
 		json_array_foreach(sampleArray, index, jsonObj) {
 			value = json_object_get(jsonObj, "id");
 			id = json_integer_value(value);
@@ -1676,8 +1591,9 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 		}
 	}
 
-	json_t *root = NULL;
+	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Done adding samples");
 
+	json_t *root = NULL;
 	if( result ) {
 		root = json_object();
 
@@ -1686,7 +1602,8 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 			result = false;
 		}
 	}
-
+	
+	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Encoding response");
 	if( result ) {
 
 		json_object_set(root, "count", json_integer(m_samples.size()));
@@ -1703,6 +1620,8 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 		json_decref(root);
 		free(jsonObj);
 	}
+
+	gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Done, result: %d", result);
 	return result;
 }
 
@@ -1716,28 +1635,12 @@ bool Learner::PickerStatus(const int sock, json_t *obj)
 	bool	result = true;
 	json_t	*value, *root = NULL;
 
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
 	// Check for valid UID
 	//
-	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(PickerStatus) No active session");
-		result = false;
-	} else {
-		value = json_object_get(obj, "uid");
-		const char *uid = json_string_value(value);
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(PickerStatus) Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(PickerStatus) Invalid UID");
-			result = false;
-		}
-	}
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
 
+	result = IsUIDValid(uid);
 
 	if( result ) {
 		root = json_object();
@@ -1853,14 +1756,14 @@ bool Learner::IsUIDValid(const char *uid)
 	m_UID[UID_LENGTH] = 0;
 
 	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) No active session");
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "No active session");
 		result = false;
 	} else {
 		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Unable to decode UID");
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to decode UID");
 			result = false;
 		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(select) Invalid UID");
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid UID");
 			result = false;		
 		}
 	}

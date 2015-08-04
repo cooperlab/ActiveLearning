@@ -502,6 +502,9 @@ function submitLabels() {
 
 
 function saveSession() {
+
+	$('#saveDiag').modal('show');
+
 	$.ajax({
 		url: "php/finishSession.php",
 		data: "",
