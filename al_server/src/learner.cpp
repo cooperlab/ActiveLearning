@@ -213,7 +213,6 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 			} else if( strncmp(command, "visualize", 9) == 0 ) {
 				result = Visualize(sock, root);
 			} else if( strncmp(command, "pickerInit", 10) == 0) {
-				cout << endl << endl << data << endl << endl;
 				result = InitPicker(sock, root);
 			} else if( strncmp(command, "pickerAdd", 9) == 0) {
 				result = AddObjects(sock, root);
