@@ -49,13 +49,13 @@
 			exit;
 	}
 	
-	if( empty($_POST["posName"]) ) {
+	if( empty($_POST["posClass"]) ) {
 			// Redirect back to the form
 			header("Location:".$_SERVER['HTTP_REFERER']);
 			exit;
 	}
 
-	if( empty($_POST["negName"]) ) {
+	if( empty($_POST["negClass"]) ) {
 			// Redirect back to the form
 			header("Location:".$_SERVER['HTTP_REFERER']);
 			exit;
@@ -80,11 +80,13 @@
 	
 	// Send init command to AL server
 	//	
-	$init_data =  array( "command" => "pickerInit", 
-				   "name" => $_POST["testsetname"],
-			 	   "dataset" => $_POST["dataset"],
-			 	   "features" => $featureFile[0],
-			 	   "uid" => $UID);
+	$init_data =  array("command" => "pickerInit", 
+						"name" => $_POST["testsetname"],
+						"dataset" => $_POST["dataset"],
+						"features" => $featureFile[0],
+						"negClass" => $_POST["negClass"],
+						"posClass" => $_POST["posClass"],
+						"uid" => $UID);
 
 	$init_data = json_encode($init_data);
 
@@ -114,8 +116,8 @@
 		
 		session_start();
 		$_SESSION['uid'] = $UID;
-		$_SESSION['posClass'] = $_POST["posName"];
-		$_SESSION['negClass'] = $_POST["negName"];
+		$_SESSION['posClass'] = $_POST["posClass"];
+		$_SESSION['negClass'] = $_POST["negClass"];
 		$_SESSION['className'] = $_POST["testsetname"];	// Reusing className for test set name
 		$_SESSION['dataset'] = $_POST["dataset"];
 		header("Location: ../picker.html");

@@ -57,7 +57,7 @@
 
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
-		$jsonData = mysqli_fetch_row($result);	
+		$boundaryData = mysqli_fetch_row($result);	
 		mysqli_free_result($result);
 	}		
 	mysqli_close($dbConn);
@@ -70,7 +70,9 @@
 	}	
 	mysqli_close($dbConn);
 
-	array_push($jsonData, $sizes[0], $sizes[1], $sizes[2]);
+	$jsonData = array();
+	array_push($jsonData, $boundaryData[0], intval($boundaryData[1]), floatval($boundaryData[2]), floatval($boundaryData[3]), 
+				$sizes[0], $sizes[1], $sizes[2]);
 	 
 	echo json_encode($jsonData);
 

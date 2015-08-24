@@ -84,6 +84,8 @@
 				   "name" => $_POST["classifiername"],
 			 	   "dataset" => $_POST["dataset"],
 			 	   "features" => $featureFile[0],
+				   "posClass" => $_POST["posName"],
+				   "negClass" => $_POST["negName"],
 			 	   "uid" => $UID);
 
 	$init_data = json_encode($init_data);

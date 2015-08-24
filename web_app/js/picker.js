@@ -422,9 +422,9 @@ function nucleiSelect() {
 							sample['centX'] = data[2];
 							sample['centY'] = data[3];
 							sample['boundary'] = data[0];
-							sample['maxX'] = data[5];
-							sample['maxY'] = data[6];
-							sample['scale'] = data[7];
+							sample['maxX'] = data[4];
+							sample['maxY'] = data[5];
+							sample['scale'] = data[6];
 							sample['label'] = 0;
 							
 							// Add the selected nuclei
@@ -442,15 +442,8 @@ function nucleiSelect() {
 							sizeY = (50.0 * sample['scale']) / sample['maxY'];
 							loc = centX+","+centY+","+sizeX+","+sizeY;
 				
-							var thumbNail;
-							// Slides that are from node15 have NULL as their slide path. We can remove this
-							// check when everything is migrated to the new server
-							//
-							if( pyramids[$('#slideSel').prop('selectedIndex')] === null ) {													
-								thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+curSlide+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
-							} else {
-								thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+SlideLocPre+loc+SlideLocSuffix;						
-							}
+							var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+
+											SlideLocPre+loc+"&WID=100"+SlideLocSuffix;						
 						
 							$(thumbTag).attr("src", thumbNail);
 

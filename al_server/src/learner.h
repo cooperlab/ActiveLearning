@@ -74,8 +74,10 @@ protected:
 	string	m_dataPath;
 	string 	m_outPath;
 	string	m_heatmapPath;
+
 	string	m_classifierName;
 	string	m_curDatasetName;
+	vector<string> m_classNames;
 
 	vector<int> m_samples;
 	vector<int>	m_curSet;

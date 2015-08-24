@@ -33,8 +33,8 @@
 	session_start();
 	
 	$sel_data =  array( "command" => "select", 
-	  			 	     "uid" => $_SESSION['uid'],
-	  			 	     "iteration" => $_SESSION['iteration']);
+	  			 	    "uid" => $_SESSION['uid'],
+	  			 	    "iteration" => $_SESSION['iteration']);
 
 	$sel_data = json_encode($sel_data);
 

@@ -105,6 +105,7 @@ Learner::~Learner(void)
 void Learner::Cleanup(void)
 {
 	m_samples.clear();
+	m_classNames.clear();
 
 	if( m_dataset ) {
 		delete m_dataset;
@@ -212,6 +213,7 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 			} else if( strncmp(command, "visualize", 9) == 0 ) {
 				result = Visualize(sock, root);
 			} else if( strncmp(command, "pickerInit", 10) == 0) {
+				cout << endl << endl << data << endl << endl;
 				result = InitPicker(sock, root);
 			} else if( strncmp(command, "pickerAdd", 9) == 0) {
 				result = AddObjects(sock, root);
@@ -289,6 +291,26 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		classifierName = json_string_value(jsonObj);
 		if( classifierName != NULL ) {
 			m_classifierName = classifierName;
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "negClass");
+		classifierName = json_string_value(jsonObj);
+		if( classifierName != NULL ) {
+			m_classNames.push_back(classifierName);
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "posClass");
+		classifierName = json_string_value(jsonObj);
+		if( classifierName != NULL ) {
+			m_classNames.push_back(classifierName);
 		} else {
 			result = false;
 		}
@@ -970,7 +992,7 @@ bool Learner::SaveTrainingSet(string fileName)
 		result = trainingSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
 							m_labels, m_ids, m_sampleIter, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
 							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
-							m_dataset->GetNumSlides());
+							m_dataset->GetNumSlides(), m_classNames);
 	}
 
 	if( result ) {
@@ -1004,7 +1026,6 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	const char *slideName = NULL;
 	int		xMin, xMax, yMin, yMax;
 
-	gLogger->LogMsg(EvtLogger::Evt_INFO, "In ApplyClassifier");
 	value = json_object_get(obj, "slide");
 	slideName = json_string_value(value);
 	value = json_object_get(obj, "xMin");
@@ -1254,17 +1275,55 @@ bool Learner::InitViewerClassify(const int sock, json_t *obj)
 		result = LoadTrainingSet(trainSetName);
 	}
 
-	// Send result back to client
-	//
-	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
-								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	json_t	*root, *classNames, *name;
 
-	if( bytesWritten != sizeof(failResp) - 1 )
+	root = json_object();
+	if( root == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create class name JSON root object");
 		result = false;
+	}
+
+	if( result ) {
+
+		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loaded %d class names", m_classNames.size());
+		classNames = json_array();
+		if( classNames == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create class name JSON Array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		char	tag[10];
+
+		for(int i = 0; i < m_classNames.size(); i++) {
+
+			name = json_object();
+			if( name == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create name JSON object");
+				result = false;
+				break;
+			}
+			sprintf(tag, "class_%d", i);
+			json_array_append_new(classNames, json_string(m_classNames[i].c_str()));
+		}
+		
+	}
+
+	json_object_set(root, "class_names", classNames);
+	json_decref(classNames);
+
+	char *jsonObj = json_dumps(root, 0);
+	size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+	if( bytesWritten != strlen(jsonObj) )
+		result = false;
+
+	json_decref(root);
+	free(jsonObj);
 
 	return result;
 }
-
 
 
 
@@ -1321,10 +1380,29 @@ bool Learner::LoadTrainingSet(string trainingSetName)
 			result = false;
 		}
 
+		string 	fqn;
+
 		if( result ) {
-			string fqn = m_outPath + trainingSetName;
+			fqn = m_outPath + trainingSetName;
 			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: " + fqn);
 			result = m_classTrain->Load(fqn);
+		}
+
+		if( result ) {
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loaded!");	
+		} else {
+			gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Failed loading %s", fqn.c_str());
+		}
+
+		if( result ) {
+			int 	numClasses = m_classTrain->GetNumClasses();
+			char	**names = m_classTrain->GetClassNames();
+			
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Num classes: %d, names: 0x%x", numClasses, names);
+
+			for(int i = 0; i < numClasses; i++) {
+				m_classNames.push_back(names[i]);
+			}
 		}
 	}
 	return result;
@@ -1459,9 +1537,33 @@ bool Learner::InitPicker(const int sock, json_t *obj)
 		if( testSetName != NULL ) {
 			m_classifierName = testSetName;			// Just reuse m_classifierName
 		} else {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to extract test set name");
 			result = false;
 		}
 	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "negClass");
+		testSetName = json_string_value(jsonObj);
+		if( testSetName != NULL ) {
+			m_classNames.push_back(testSetName);
+		} else {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to extract negative class name");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "posClass");
+		testSetName = json_string_value(jsonObj);
+		if( testSetName != NULL ) {
+			m_classNames.push_back(testSetName);
+		} else {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to extract positive class name");
+			result = false;
+		}
+	}
+
 
 	if( result ) {
 		string fqFileName = m_dataPath + string(fileName);
@@ -1693,7 +1795,7 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 		result = testSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
 							m_labels, m_ids, NULL, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
 							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
-							m_dataset->GetNumSlides());
+							m_dataset->GetNumSlides(), m_classNames);
 	}
 
 	if( result ) {

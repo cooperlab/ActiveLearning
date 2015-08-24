@@ -58,6 +58,8 @@ m_haveIters(false),
 m_iteration(NULL),
 m_means(NULL),
 m_stdDevs(NULL),
+m_classNames(NULL),
+m_numClasses(0),
 m_created(false)
 {
 
@@ -127,7 +129,7 @@ void MData::Cleanup(void)
 	}
 
 	// If data was loaded from an existing file, HDF5 will allocate the
-	// buffers for the variable length strings (sides dataset). If we
+	// buffers for the variable length strings (sides and class names datasets). If we
 	// used the create method to load data, we must free each string
 	// buffer.
 	//
@@ -137,15 +139,28 @@ void MData::Cleanup(void)
 		}
 		free(m_slides);
 		m_slides = NULL;
+
+		for(int i = 0; i < m_numClasses; i++) {
+			free(m_classNames[i]);
+		}
+		free(m_classNames);
+		m_classNames = NULL;
 	} else {
 		if( m_slides ) {
 			// Release mem allocated by H5Dread
-			H5Dvlen_reclaim(m_memType, m_space, H5P_DEFAULT, m_slides);
+			H5Dvlen_reclaim(m_slideMemType, m_slideSpace, H5P_DEFAULT, m_slides);
 			free(m_slides);
 			m_slides = NULL;
 		}
+		
+		if( m_classNames ) {
+			H5Dvlen_reclaim(m_classNameMemType, m_classNameSpace, H5P_DEFAULT, m_classNames);
+			free(m_slides);
+			m_slides = NULL;
+		}			
 	}
 	m_numSlides = 0;
+	m_numClasses = 0;
 }
 
 
@@ -455,16 +470,16 @@ bool MData::Load(string fileName)
 	}
 
 
-	if( slidesExist ) {
+	if( result && slidesExist ) {
 
 		// Read slide names, do this last because we reuse the dims variable
 		//
 		hid_t	dset, fileType;
 		if( result ) {
-			dset = H5Dopen(fileId, "slides", H5P_DEFAULT);
+			dset = H5Dopen(fileId, "/slides", H5P_DEFAULT);
 			fileType = H5Dget_type(dset);
-			m_space = H5Dget_space(dset);
-			H5Sget_simple_extent_dims(m_space, dims, NULL);
+			m_slideSpace = H5Dget_space(dset);
+			H5Sget_simple_extent_dims(m_slideSpace, dims, NULL);
 
 			m_slides = (char**)malloc(dims[0] * sizeof(char*));
 			if( m_slides == NULL ) {
@@ -473,9 +488,9 @@ bool MData::Load(string fileName)
 		}
 
 		if( result ) {
-			m_memType = H5Tcopy(H5T_C_S1);
-			H5Tset_size(m_memType, H5T_VARIABLE);
-			status = H5Dread(dset, m_memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides);
+			m_slideMemType = H5Tcopy(H5T_C_S1);
+			H5Tset_size(m_slideMemType, H5T_VARIABLE);
+			status = H5Dread(dset, m_slideMemType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides);
 			if( status < 0 ) {
 				result = false;
 			} else {
@@ -494,6 +509,34 @@ bool MData::Load(string fileName)
 				if( status < 0 ) {
 					result = false;
 				}
+			}
+		}
+	}
+
+	if( result && H5Lexists(fileId, "/class_names", H5P_DEFAULT) ) {
+		hid_t	dset, fileType;
+		if( result ) {
+			dset = H5Dopen(fileId, "/class_names", H5P_DEFAULT);
+			fileType = H5Dget_type(dset);
+			m_classNameSpace = H5Dget_space(dset);
+			H5Sget_simple_extent_dims(m_classNameSpace, dims, NULL);
+
+			m_classNames = (char**)malloc(dims[0] * sizeof(char*));
+			if( m_classNames == NULL ) {
+				result = false;
+			}
+		}
+
+		if( result ) {
+			m_classNameMemType = H5Tcopy(H5T_C_S1);
+			H5Tset_size(m_classNameMemType, H5T_VARIABLE);
+			status = H5Dread(dset, m_classNameMemType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_classNames);
+			if( status < 0 ) {
+				result = false;
+			} else {
+				m_numClasses = dims[0];
+				H5Dclose(dset);
+				H5Tclose(fileType);
 			}
 		}
 	}
@@ -597,7 +640,7 @@ float MData::GetYCentroid(int index)
 bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 					int *ids, int *iteration, float *means, float *stdDev,
 					float *xCentroid, float *yCentroid, char **slides,
-					int *slideIdx, int numSlides)
+					int *slideIdx, int numSlides, vector<string>& classNames)
 {
 	bool 	result = true;
 	float	**dataSetIdx = NULL;
@@ -702,6 +745,10 @@ bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 		result = CreateSlideData(slides, slideIdx, numSlides, numObjs);
 	}
 
+	if( result ) {
+		result = CreateClassNames(classNames);
+	}
+
 	return result;
 }
 
@@ -779,6 +826,42 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 	if( crossRef ) 
 		free(crossRef);
 		
+	return result;
+}
+
+
+
+
+
+bool MData::CreateClassNames(vector<string>& classNames)
+{
+	bool	result = true;
+	char	**newNames = NULL;
+
+	// Allocate memory for the new string pointers
+	newNames = (char**)malloc(classNames.size() * sizeof(char*));
+	if( newNames == NULL ) {
+		result = false;
+	}
+
+	// Copy the class names
+	if( result ) {
+		vector<string>::iterator 	it;
+		int		pos = 0;
+
+		for(it = classNames.begin(); it != classNames.end(); it++) {
+			newNames[pos] = (char*)malloc(it->length());
+			if( newNames[pos] == NULL ) {
+				result = false;
+				break;
+			}
+			strcpy(newNames[pos], it->c_str());
+			pos++;
+		}
+		m_numClasses = pos;
+		m_classNames = newNames;
+	}
+
 	return result;
 }
 
@@ -869,6 +952,27 @@ bool MData::SaveAs(string filename)
 				result = false;
 			} else {
 				H5Dwrite(dataSet, dType, dSpace, H5S_ALL, H5P_DEFAULT, m_slides);
+				H5Dclose(dataSet);
+				H5Sclose(dSpace);
+				H5Tclose(dType);
+			}
+		}
+	}
+
+	if( result ) {
+		hsize_t size = m_numClasses;
+		hid_t	dSpace = H5Screate_simple(1, &size, NULL),
+				dType, dataSet;
+		if( dSpace < 0 ) {
+			result = false;
+		} else {
+			dType = H5Tcopy(H5T_C_S1);
+			H5Tset_size(dType, H5T_VARIABLE);
+			dataSet = H5Dcreate(fileId, "class_names", dType, dSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+			if( dataSet < 0 ) {
+				result = false;
+			} else {
+				H5Dwrite(dataSet, dType, dSpace, H5S_ALL, H5P_DEFAULT, m_classNames);
 				H5Dclose(dataSet);
 				H5Sclose(dSpace);
 				H5Tclose(dType);

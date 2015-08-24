@@ -28,6 +28,7 @@
 #define _DATA_H_
 
 #include <string>
+#include <vector>
 
 #include "hdf5.h"
 #include "hdf5_hl.h"
@@ -49,7 +50,7 @@ public:
 		bool	Create(float *dataSet, int numObjs, int numDims, int *labels,
 						int *ids, int *iteration, float *means, float *stdDev,
 						float *xCentroid, float *yCentroid, char **slides,
-						int *slideIdx, int slideCnt);
+						int *slideIdx, int slideCnt, vector<string>& classNames);
 		bool	SaveAs(string filename);
 
 		float	**GetData(void) { return m_objects; }
@@ -61,6 +62,9 @@ public:
 		int		GetDims(void) { return m_numDim; }
 		int		GetNumSlides(void) { return m_numSlides; }
 		bool	HaveLabels(void) { return m_haveLabels; }
+
+		int		GetNumClasses(void)		{	return m_numClasses; }
+		char	**GetClassNames(void) { return m_classNames; }
 
 		int		FindItem(float xCent, float yCent, string slide);
 		bool	GetSample(int index, float* sample);
@@ -86,11 +90,13 @@ protected:
 		float	*m_yCentroid;
 		int		*m_slideIdx;
 		char	**m_slides;
-
+		char	**m_classNames;
+		
 		bool	m_haveIters;
 		int		*m_iteration;
 
 		bool	m_haveLabels;
+		int		m_numClasses;
 		int		m_numObjs;
 		int		m_numDim;
 		int		m_numSlides;
@@ -103,19 +109,22 @@ protected:
 
 		int		*m_dataIdx;		// Index where the corresponding slide's feature
 								// data starts.
+
 		// Normalization parameters
 		//
 		float	*m_means;
 		float	*m_stdDevs;
 
-		hid_t	m_space;			// For cleaning up slide names
-		hid_t	m_memType;
-
+		hid_t	m_slideSpace;			// For cleaning up slide and class names
+		hid_t	m_slideMemType;
+		hid_t	m_classNameSpace;
+		hid_t	m_classNameMemType;
+	
 		bool	ReadFeatureData(hid_t fileId);
 		void 	Cleanup(void);
 		bool	SaveProvenance(hid_t fileId);
 		bool	CreateSlideData(char **slides, int *slideIdx, int numSlides, int numObjs);
-
+		bool	CreateClassNames(vector<string>& classNames);
 };
 
 

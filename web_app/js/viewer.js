@@ -461,14 +461,7 @@ function updateClassifier() {
 	curClassifier = class_sel.options[class_sel.selectedIndex].value;
 
  	if( class_sel.selectedIndex != 0 ) {
-							
-		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lightgrey;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
-		document.getElementById('negLegend').innerHTML = box + " " + negClass;
-		box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lime;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
-		document.getElementById('posLegend').innerHTML = box + " " + posClass;
-		
-		$('#legend').show();
-		
+									
 		if( uid === null ) {
 			// No active session, tell al_server to load appropriate dataset
 			console.log("Load dataset "+curDataset+" and classifier "+curClassifier);
@@ -480,12 +473,28 @@ function updateClassifier() {
 						trainset: curClassifier },
 				dataType: "json",
 				success: function(data) {
-					console.log("Response: "+data);			
+					var	classNames = data['class_names'];
+
+					box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lightgrey;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
+					document.getElementById('negLegend').innerHTML = box + " " + classNames[0];
+					box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lime;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
+					document.getElementById('posLegend').innerHTML = box + " " + classNames[1];
+		
+					$('#retrainInfo').hide();
+					$('#legend').show();
+	
 				}
 			});
 		} else {
+			box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lightgrey;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
+			document.getElementById('negLegend').innerHTML = box + " " + negClass;
+			box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lime;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
+			document.getElementById('posLegend').innerHTML = box + " " + posClass;
+		
 			$('#retrainInfo').show();
+			$('#legend').show();
 		}
+
 
 	} else {
 	
@@ -723,7 +732,7 @@ function updateSeg() {
 function updateBoundColors() {
 
 	for( cell in fixes['samples'] ) {
-		var bound = document.getElementById("N"+fixes['samples'][cell]['dbId']);
+		var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
 		
 		if( bound != null ) {
 			bound.setAttribute('stroke', 'yellow');
@@ -751,13 +760,13 @@ function nucleiSelect() {
 
 					if( curClassifier === "none" ) {
 						// No classifier applied, just log results
-	                    console.log(curSlide+","+data[2]+","+data[3]);
+	                    console.log(curSlide+","+data[2]+","+data[3]+", id: "+data[1]);
 	                } else {
 	                	// We're adding an object, make sure the retrain button is enabled.
 	                	$('#retrainBtn').removeAttr('disabled');
 
-						var	obj = {slide: curSlide, centX: data[2], centY: data[3], label: 0, dbId: data[1]};
-	                	var cell = document.getElementById("N"+obj['dbId']);
+						var	obj = {slide: curSlide, centX: data[2], centY: data[3], label: 0, id: data[1]};
+	                	var cell = document.getElementById("N"+obj['id']);
 	                	
 						// Flip the label here. lime indicates the positive class, so we
 						// want to change the label to -1. Change to 1 for lightgrey. If

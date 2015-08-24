@@ -405,9 +405,9 @@ function updateSamples() {
 				//
 				if( sampleArray[sample]['path'] === null ) {	
 					// Hardcoded path for node15 slides												
-					thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+sampleArray[sample]['slide']+SlideSuffix+SlideLocPre+loc+SlideLocSuffix;
+					thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+sampleArray[sample]['slide']+SlideSuffix+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
 				} else {
-					thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+SlideLocSuffix;						
+					thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;						
 				}
 	
 				$(thumbTag).attr("src", thumbNail);

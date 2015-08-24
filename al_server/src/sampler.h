@@ -84,7 +84,6 @@ protected:
 	float	**m_checkSet;
 
 	Classifier 	*m_Classify;
-	bool		UpdateCheckSet(void);
 
 };
 
@@ -120,6 +119,29 @@ public:
 
 	virtual bool	SelectBatch(int count, int *&ids, float *&selScores);
 };
+
+
+
+class UncertRandomSample : public UncertainSample
+{
+public:
+
+				UncertRandomSample(Classifier *classify, MData *dataset);
+	virtual		~UncertRandomSample(void);
+
+
+	virtual bool	SelectBatch(int count, int *&ids, float *&selScores);
+
+protected:
+
+	float	**m_sampledSet;
+	int		m_sampleSize;
+	int		*m_sampleIndex;
+
+
+	bool	UpdateCheckSet(void);
+};
+
 
 
 #endif

@@ -78,5 +78,5 @@
 	socket_write($socket, $cmd, strlen($cmd));	
 	
 	$response = socket_read($socket, 8192);
-	echo json_encode($response);
+	echo $response;
 ?>
