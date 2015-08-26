@@ -1610,7 +1610,6 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 	result = IsUIDValid(uid);
 
 	if( result ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Decoding samples array");
 		sampleArray = json_object_get(obj, "samples");
 		if( !json_is_array(sampleArray) ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
@@ -1619,7 +1618,6 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Updating buffers for new samples");
 		// Make room for the new samples
 		result = UpdateBuffers(json_array_size(sampleArray));
 	}
@@ -1630,7 +1628,6 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 		float	centX, centY;
 		const char *slide;
 
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Adding samples");
 		json_array_foreach(sampleArray, index, jsonObj) {
 			value = json_object_get(jsonObj, "id");
 			id = json_integer_value(value);
@@ -1691,8 +1688,6 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 				break;
 		}
 	}
-
-	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Done adding samples");
 
 	json_t *root = NULL;
 	if( result ) {

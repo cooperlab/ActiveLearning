@@ -140,11 +140,13 @@ void MData::Cleanup(void)
 		free(m_slides);
 		m_slides = NULL;
 
-		for(int i = 0; i < m_numClasses; i++) {
-			free(m_classNames[i]);
+		if( m_classNames ) {
+			for(int i = 0; i < m_numClasses; i++) {
+				free(m_classNames[i]);
+			}
+			free(m_classNames);
+			m_classNames = NULL;
 		}
-		free(m_classNames);
-		m_classNames = NULL;
 	} else {
 		if( m_slides ) {
 			// Release mem allocated by H5Dread
@@ -155,7 +157,7 @@ void MData::Cleanup(void)
 		
 		if( m_classNames ) {
 			H5Dvlen_reclaim(m_classNameMemType, m_classNameSpace, H5P_DEFAULT, m_classNames);
-			free(m_slides);
+			free(m_classNames);
 			m_slides = NULL;
 		}			
 	}
@@ -429,6 +431,17 @@ bool MData::Load(string fileName)
 		}
 	}
 
+	if( result && H5Lexists(fileId, "/db_id", H5P_DEFAULT) ) {
+		m_dbIds = (int*)malloc(dims[0] * sizeof(int));
+		if( m_iteration ) {
+			status = H5LTread_dataset_int(fileId, "/db_id", m_dbIds);
+			if( status < 0 ) {
+				result = false;
+			}
+		} else {
+			result = false;
+		}
+	}
 
 	// Get means
 	//
@@ -838,30 +851,34 @@ bool MData::CreateClassNames(vector<string>& classNames)
 	bool	result = true;
 	char	**newNames = NULL;
 
-	// Allocate memory for the new string pointers
-	newNames = (char**)malloc(classNames.size() * sizeof(char*));
-	if( newNames == NULL ) {
-		result = false;
-	}
+	m_numClasses = 0;
+	m_classNames = NULL;
 
-	// Copy the class names
-	if( result ) {
-		vector<string>::iterator 	it;
-		int		pos = 0;
-
-		for(it = classNames.begin(); it != classNames.end(); it++) {
-			newNames[pos] = (char*)malloc(it->length());
-			if( newNames[pos] == NULL ) {
-				result = false;
-				break;
-			}
-			strcpy(newNames[pos], it->c_str());
-			pos++;
+	if( classNames.size() > 0 ) {
+		// Allocate memory for the new string pointers
+		newNames = (char**)malloc(classNames.size() * sizeof(char*));
+		if( newNames == NULL ) {
+			result = false;
 		}
-		m_numClasses = pos;
-		m_classNames = newNames;
-	}
 
+		// Copy the class names
+		if( result ) {
+			vector<string>::iterator 	it;
+			int		pos = 0;
+
+			for(it = classNames.begin(); it != classNames.end(); it++) {
+				newNames[pos] = (char*)malloc(it->length());
+				if( newNames[pos] == NULL ) {
+					result = false;
+					break;
+				}
+				strcpy(newNames[pos], it->c_str());
+				pos++;
+			}
+			m_numClasses = pos;
+			m_classNames = newNames;
+		}
+	}
 	return result;
 }
 
