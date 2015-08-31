@@ -78,6 +78,7 @@ public:
 		int		*GetIterationList(void) { return m_iteration; }
 		float	*GetMeans(void) { return m_means; }
 		float	*GetStdDevs(void)  { return m_stdDevs; }
+		int		*GetIdList(void)  { return m_dbIds;  }
 
 		float 	**GetSlideData(const string slide, int& numSlideObjs);
 		int		GetSlideOffset(const string slide, int& numSlideObjs);
