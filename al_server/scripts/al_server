@@ -11,10 +11,10 @@
 
 # Author: Michael Nalisnik <mnalisnik@emory.edu>
 
-PATH=/sbin:/usr/sbin:/bin:/usr/bin
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
 DESC="active learning server daemon"
 NAME=al_server
-DAEMON=/usr/bin/al_serverd
+DAEMON=/usr/local/bin/al_serverd
 DAEMON_ARGS=""
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME

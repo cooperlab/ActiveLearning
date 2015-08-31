@@ -46,7 +46,7 @@
  	$boxTop = $cellY - 10;
 	$boxBottom = $cellY + 10;
 
-	$dbConn = boundaryConnect();
+	$dbConn = guestConnect();
 	
 	$sql = 'SELECT boundary, id, centroid_x, centroid_y, '.
 		   '(pow(centroid_x -'.$cellX.',2) + pow(centroid_y -'.$cellY.',2)) AS dist '.

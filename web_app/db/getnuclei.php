@@ -103,7 +103,7 @@
 	}
 
 
-	$dbConn = boundaryConnect();
+	$dbConn = guestConnect();
 	$sql = 'SELECT boundary, id, centroid_x, centroid_y from boundaries where slide="'.$slide.'" AND centroid_x BETWEEN '.$left.' AND '.$right.' AND centroid_y BETWEEN '.$top.' AND '.$bottom;
 
 	if( $result = mysqli_query($dbConn, $sql) ) {

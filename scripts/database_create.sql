@@ -1,22 +1,3 @@
-DROP DATABASE IF EXISTS boundary;
-CREATE DATABASE boundary;
-
-USE boundary;
-
-
-CREATE TABLE boundaries ( 
-	id int(11) NOT NULL AUTO_INCREMENT, 
-	slide varchar(80) NOT NULL, 
-	centroid_x decimal(10,1) NOT NULL, 
-	centroid_y decimal(10,1) NOT NULL, 
-	boundary varchar(4096) NOT NULL, 
-	PRIMARY KEY(slide, centroid_x, centroid_y),
-	UNIQUE KEY (id)
-) ENGINE=InnoDB;
-
-
-
-
 DROP DATABASE IF EXISTS nuclei;
 CREATE DATABASE nuclei;
 
@@ -110,3 +91,18 @@ CREATE TABLE `training_objs` (
   CONSTRAINT `FK_objs_class_id` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `FK_objs_training_set` FOREIGN KEY (`training_set_id`) REFERENCES `training_sets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+
+
+
+
+CREATE TABLE boundaries ( 
+	id int(11) NOT NULL AUTO_INCREMENT, 
+	slide varchar(80) NOT NULL, 
+	centroid_x decimal(10,1) NOT NULL, 
+	centroid_y decimal(10,1) NOT NULL, 
+	boundary varchar(4096) NOT NULL, 
+	PRIMARY KEY(slide, centroid_x, centroid_y),
+	UNIQUE KEY (id)
+) ENGINE=InnoDB;
+
+

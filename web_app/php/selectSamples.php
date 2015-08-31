@@ -58,7 +58,6 @@
 	// Now get the max X & Y from the database for the slide of the samples
 	//
 	$dbConn = guestConnect();
-	$boundaryConn = boundaryConnect();
 	$response = json_decode($response, true);
 		
 	
@@ -85,7 +84,7 @@
 		$sql = 'SELECT id, boundary FROM boundaries WHERE slide="'.$response['samples'][$i]['slide'].'"';
 		$sql = $sql.' AND centroid_x='.$response['samples'][$i]['centX'].' and centroid_y='.$response['samples'][$i]['centY'];
 
-		if( $result = mysqli_query($boundaryConn, $sql) ) {
+		if( $result = mysqli_query($dbConn, $sql) ) {
 			$array = mysqli_fetch_row($result);
 			
 			$response['samples'][$i]['id'] = intval($array[0]);
@@ -96,7 +95,6 @@
 	$_SESSION['iteration'] = $response['iteration'];
 	
 	mysqli_close($dbConn);
-	mysqli_close($boundaryConn);
 	$response = json_encode($response);
 	
 	echo $response;
