@@ -305,41 +305,9 @@ function updateSlideView() {
 		data: { slide: statusObj.curSlide() },
 		success: function(data) {
 		
-			if( data[0] === null ) {
-			
-				// Slides that don't have their path in the database use the digital slide
-				// archive. Eventually all slides will be retrived from the local image server, allowing
-				// this code to be removed.
-				//
-				var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
-				var slideUrl = dataviewUrl+'?slide_name_filter=' + statusObj.curSlide();
-				
-				$.ajax({ 
-					type: 	"GET",
-					url: 	slideUrl,
-					dataType:	"xml",
-					success: function(xml) {
-						
-								
-						// Slides from node15 have /cgi-bin/iipsrv.fcgi? as part of their path
-						// we need to remove it.
-						// This will all go away when all slides are migrated to the new server
-						pyramid = $(xml).find("slide_url").text();
-						var pos = pyramid.indexOf('?');
-						pyramid = pyramid.substring(pos + 1);
-
-						viewer.open(IIPServer + pyramid);
-				
-					}, 
-					error: function() {
-						alert("Unable to get slide information");
-					}
-				});
-			} else {
 				// Zoomer needs '.dzi' appended to the end of the filename
 				pyramid = "DeepZoom="+data[0]+".dzi";
 				viewer.open(IIPServer + pyramid);
-			}
 		}
 	});
 }
@@ -400,15 +368,7 @@ function updateSamples() {
 				sizeY = (50.0 * scale) / sampleArray[sample]['maxY'];
 				loc = centX+","+centY+","+sizeX+","+sizeY;
 				
-				// Slides that are from node15 have NULL as their slide path. We can remove this
-				// check when everything is migrated to the new server
-				//
-				if( sampleArray[sample]['path'] === null ) {	
-					// Hardcoded path for node15 slides												
-					thumbNail = IIPServer+"FIF=/bigdata2/PYRAMIDS/KLUSTER/20XTiles_raw/"+sampleArray[sample]['slide']+SlideSuffix+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
-				} else {
-					thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;						
-				}
+				thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;						
 	
 				$(thumbTag).attr("src", thumbNail);
 				updateClassStatus(sample);
