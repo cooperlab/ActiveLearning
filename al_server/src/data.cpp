@@ -433,7 +433,7 @@ bool MData::Load(string fileName)
 
 	if( result && H5Lexists(fileId, "/db_id", H5P_DEFAULT) ) {
 		m_dbIds = (int*)malloc(dims[0] * sizeof(int));
-		if( m_iteration ) {
+		if( m_dbIds ) {
 			status = H5LTread_dataset_int(fileId, "/db_id", m_dbIds);
 			if( status < 0 ) {
 				result = false;

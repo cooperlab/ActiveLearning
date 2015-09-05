@@ -372,6 +372,9 @@ int main(int argc, char *argv[])
 
  	if( trainSet.Load(trainFile) && testSet.Load(testFile) ) {
 		result = Renormalize(trainSet, testSet);
+	} else {
+		cerr << "Unable to load datafiles" << endl;
+		result = -3;
 	}
 
 	if( result == 0 ) {
