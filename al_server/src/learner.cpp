@@ -40,6 +40,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #include "learner.h"
+#include "commands.h"
 #include "logger.h"
 
 
@@ -76,7 +77,8 @@ m_xCentroid(NULL),
 m_yCentroid(NULL),
 m_pickerMode(false),
 m_debugStarted(false),
-m_scores(NULL)
+m_scores(NULL),
+m_classifierMode(false)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -104,6 +106,7 @@ Learner::~Learner(void)
 
 void Learner::Cleanup(void)
 {
+
 	m_samples.clear();
 	m_classNames.clear();
 
@@ -166,13 +169,11 @@ void Learner::Cleanup(void)
 
 
 
-bool Learner::ParseCommand(const int sock, char *data, int size)
+bool Learner::ParseCommand(const int sock, const char *data, int size)
 {
 	bool		result = true;
 	json_t		*root;
 	json_error_t error;
-
-	data[size] = 0;
 
 	root = json_loads(data, 0, &error);
 	if( !root ) {
@@ -196,13 +197,13 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 			//	check for the prefix only version ("init" in the previous example)
 			//	before the others.
 			//
-			if( strncmp(command, "init", 4) == 0 ) {
+			if( strncmp(command, CMD_INIT, strlen(CMD_INIT)) == 0 ) {
 				result = StartSession(sock, root);
 			} else if( strncmp(command, "prime", 5) == 0 ) {
 				result = Submit(sock, root);
 			} else if( strncmp(command, "select", 6) == 0 ) {
 				result = Select(sock, root);
-			} else if( strncmp(command, "end", 3) == 0 ) {
+			} else if( strncmp(command, CMD_END, strlen(CMD_END)) == 0 ) {
 				result = CancelSession(sock, root);
 			} else if( strncmp(command, "submit", 6) == 0 ) {
 				result = Submit(sock, root);
@@ -226,7 +227,10 @@ bool Learner::ParseCommand(const int sock, char *data, int size)
 				result = GenHeatmap(sock, root);
 			} else if( strncmp(command, "allHeatMaps", 11) == 0) {
 				result = GenAllHeatmaps(sock, root);
-			} else {
+			} else if( strncmp(command, CMD_CLASSEND, strlen(CMD_CLASSEND)) == 0 ) {
+				// Do nothing
+				result = true;
+			}else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
 			}
@@ -314,13 +318,6 @@ bool Learner::StartSession(const int sock, json_t *obj)
 			result = false;
 		}
 	}
-
-	if( result ) {
-		// Remove leftover heatmap images
-		string cmd = "rm -f " + m_heatmapPath + "*.jpg";
-		int ret = system(cmd.c_str());
-	}
-
 
 	if( result ) {
 		string fqFileName = m_dataPath + string(fileName);
@@ -1254,6 +1251,7 @@ bool Learner::InitViewerClassify(const int sock, json_t *obj)
 	json_t	*value;
 	const char *trainSetName = NULL, *dataSetFileName = NULL;
 
+	m_classifierMode = true;
 	// viewerLoad
 	value = json_object_get(obj, "dataset");
 	dataSetFileName = json_string_value(value);
@@ -1947,7 +1945,7 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 			uncertFileName = slide + ".jpg";
 			classFileName = slide + "_class.jpg";
 
-			string	fqfn = m_heatmapPath + uncertFileName;
+			string	fqfn = m_heatmapPath + "/" + uncertFileName;
 			struct stat buffer;
 			int		statResp = stat(fqfn.c_str(), &buffer);
 
@@ -2287,8 +2285,8 @@ void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int 
 		}
 	}
 
-	string	fqn = m_heatmapPath + slide + ".jpg",
-			classFqn = m_heatmapPath + slide + "_class.jpg";
+	string	fqn = m_heatmapPath + "/" + slide + ".jpg",
+			classFqn = m_heatmapPath + "/" + slide + "_class.jpg";
 
 	applyColorMap(grayUncertain, img, COLORMAP_JET);
 	vector<int> params;

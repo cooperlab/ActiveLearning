@@ -25,6 +25,7 @@
 //
 //
 #include <fstream>
+#include <vector>
 #include <cstdlib>
 
 #include <sys/socket.h>
@@ -32,6 +33,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <jansson.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
@@ -40,6 +42,7 @@
 #include <jansson.h>
 #include <libconfig.h++>
 
+#include "sessionMgr.h"
 #include "learner.h"
 #include "logger.h"
 
@@ -67,6 +70,7 @@ bool Daemonize(void)
 {
 	bool	result = true;
 	pid_t	pid, sid;
+
 
 	// Fork child process
 	pid = fork();
@@ -111,25 +115,23 @@ bool Daemonize(void)
 
 // Create the needed objects
 //
-Learner* Initialize(string dataPath, string outPath, string heatmapPath)
+SessionMgr* Initialize(string dataPath, string outPath, string heatmapPath, int sessionTimeout)
 {
 	bool	result = true;
-	Learner	*learner = NULL;
+	SessionMgr	*mgr = NULL;
 
-	learner = new Learner(dataPath, outPath, heatmapPath);
-	if( learner == NULL ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create learner object");
+	mgr = new SessionMgr(dataPath, outPath, heatmapPath, sessionTimeout);
+	if( mgr == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create session manager object");
 	}
-	return learner;
+	return mgr;
 }
 
 
 
 
 
-
-
-bool HandleRequest(const int fd, Learner *learner)
+bool HandleRequest(const int fd, SessionMgr *mgr)
 {
 	bool	result = true;
 	int		bytesRx;
@@ -143,9 +145,10 @@ bool HandleRequest(const int fd, Learner *learner)
 		bytesRx += recv(fd, &gBuffer[bytesRx], RX_BUFFER_SIZE - bytesRx, 0);
 	}
 
-	if( bytesRx > 0 ) {
-		result = learner->ParseCommand(fd, gBuffer, bytesRx);
 
+	if( bytesRx > 0 ) {
+		gBuffer[bytesRx] = 0;
+		result = mgr->HandleRequest(fd, gBuffer);
 	} else {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid request");
 	}
@@ -158,7 +161,7 @@ bool HandleRequest(const int fd, Learner *learner)
 
 
 bool ReadConfig(string& dataPath, string& outPath, short& port, string& interface,
-				string& heatmapPath)
+				string& heatmapPath, int& sessionTimeout)
 {
 	bool	result = true;
 	Config	config;
@@ -204,10 +207,17 @@ bool ReadConfig(string& dataPath, string& outPath, short& port, string& interfac
 	try { 
 		interface = (const char*)config.lookup("interface"); 
 	} catch( const SettingNotFoundException &nfEx ) {
-		// Default to localhost if not in config file.
 		interface = "127.0.0.1";
 	}
 	
+	try {
+		config.lookupValue("session_timeout", sessionTimeout);
+		sessionTimeout *= 60;	// In minutes in the conf file, need seconds internal
+	} catch( const SettingNotFoundException &nfEx ) {
+		// Default to 30 minutes if not in config file.
+		sessionTimeout = 30 * 60 ;
+	}
+
 	return result;
 }
 
@@ -221,9 +231,10 @@ bool ReadConfig(string& dataPath, string& outPath, short& port, string& interfac
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	Learner	*learner = NULL;
+	SessionMgr *sessionMgr = NULL;
 	short 	port;
 	string 	dataPath, outPath, interface, heatmapPath;
+	int		sessionTimeout;
 
 	gLogger = new EvtLogger();
 	if( gLogger == NULL ) {
@@ -234,15 +245,17 @@ int main(int argc, char *argv[])
 
 	if( status == 0 ) {
 		gLogger->LogMsgv(EvtLogger::Evt_INFO, "al_server started, Ver %02d.%02d", AL_SERVER_VERSION_MAJOR, AL_SERVER_VERSION_MINOR);
+
 		
-		if( !ReadConfig(dataPath, outPath, port, interface, heatmapPath) ) {
+		if( !ReadConfig(dataPath, outPath, port, interface, heatmapPath, sessionTimeout) ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to read configuration file");
 			status = -1;
 		} else {
-			char portBuff[10];
-			snprintf(portBuff, 10, "%d", port);
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Listening on interface: " + interface + 
-												 " port: " + string(portBuff));
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Listening on interface: %s, port: %d", interface.c_str(), port);
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Dataset path: %s", dataPath.c_str());
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Output path: %s", outPath.c_str());
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Heatmap path: %s", heatmapPath.c_str());
+			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Session timeout: %d", sessionTimeout);
 		}
 	}
 
@@ -259,9 +272,9 @@ int main(int argc, char *argv[])
 	}
 
 	if( status == 0 ) {
-		// Setup Active learning objects
-		learner = Initialize(dataPath, outPath, heatmapPath);
-		if( learner == NULL ) {
+
+		sessionMgr = Initialize(dataPath, outPath, heatmapPath, sessionTimeout);
+		if( sessionMgr == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to initialize server");
 			status = -1;
 		}
@@ -287,7 +300,6 @@ int main(int argc, char *argv[])
 
 			struct sockaddr_in	peer;
 			int	len = sizeof(peer);
-			char msg[100];
 
 			// Event loop...
 			// TODO - Add signal handler to set a flag to exit this loop on shutodwn
@@ -296,21 +308,19 @@ int main(int argc, char *argv[])
 				// Get a connection
 				connFD = accept(listenFD, (struct sockaddr*)&peer, (socklen_t*)&len);
 
-				snprintf(msg, 100, "Request from %s", inet_ntoa(peer.sin_addr));
-				gLogger->LogMsg(EvtLogger::Evt_INFO, msg);
+				gLogger->LogMsgv(EvtLogger::Evt_INFO, "Request from %s", inet_ntoa(peer.sin_addr));
 
-				if( HandleRequest(connFD, learner) == false ) {
+				if( HandleRequest(connFD, sessionMgr) == false ) {
 					gLogger->LogMsg(EvtLogger::Evt_ERROR, "Request failed");
 				}
-				close(connFD);
 				sleep(1);
 			}
 		}
 
 		if( gBuffer )
 			free(gBuffer);
-		if( learner )
-			delete learner;
+		if( sessionMgr )
+			delete sessionMgr;
 	}
 	if( gLogger )
 		delete gLogger;

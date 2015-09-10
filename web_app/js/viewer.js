@@ -52,6 +52,7 @@ var heatmapLoaded = false;
 var slideReq = null;
 var uncertMin = 0.0, uncertMax = 0.0, classMin = 0.0, classMax = 0.0;
 
+var classifierSession = false;
 
 
 
@@ -202,7 +203,20 @@ $(function() {
 	$("#x_pos").keydown(filter);
 	$("#y_pos").keydown(filter);
 
+
 });
+
+
+
+
+
+function cleanupClassifierSession() {
+
+	$.ajax({
+		url: "php/endClassifier.php",
+		data: ""
+	});  
+}
 
 
 
@@ -245,43 +259,10 @@ function updatePyramid() {
 	panned = false;
 	heatmapLoaded = false;
 
-
-	if( pyramids[$('#slide_sel').prop('selectedIndex')] === null ) {	
-	
-		// Slides that don't have their path in the database use the digital slide
-		// archive. Eventually all slides will be retrived from the local image server, allowing
-		// this code to be removed.
-		//
-		var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
-		var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
-		
-		$.ajax({ 
-			type: 	"GET",
-			url: 	slideUrl,
-			dataType:	"xml",
-			success: function(xml) {
-
-				pyramid = $(xml).find("slide_url").text();
-				// Slides from node15 have /cgi-bin/iipsrv.fcgi? as part of their path
-				// we need to remove it.
-				// This will all go away when all slides are migrated to the new server
-				var pos = pyramid.indexOf('?');
-				pyramid = pyramid.substring(pos + 1);
-
-				viewer.open(IIPServer + pyramid);
-			}, 
-			error: function() {
-				alert("Unable to get slide information");	
-			}
-		});
-	} else {
-		// Zoomer needs '.dzi' appended to the end of the filename
-		pyramid = "DeepZoom="+pyramids[$('#slide_sel').prop('selectedIndex')]+".dzi";
-		viewer.open(IIPServer + pyramid);
-	}
+	// Zoomer needs '.dzi' appended to the end of the filename
+	pyramid = "DeepZoom="+pyramids[$('#slide_sel').prop('selectedIndex')]+".dzi";
+	viewer.open(IIPServer + pyramid);
 }
-
-
 
 
 //
@@ -462,8 +443,22 @@ function updateClassifier() {
 
  	if( class_sel.selectedIndex != 0 ) {
 									
-		if( uid === null ) {
-			// No active session, tell al_server to load appropriate dataset
+		if( uid === null || classifierSession ) {
+			// No active session, start a classification session
+			//
+			if( classifierSession == false ) {
+				window.onbeforeunload = cleanupClassifierSession; 	
+				classifierSession = true;
+				$.ajax({
+						url: "php/getSession.php",
+						data: "",
+						dataType: "json",
+						success: function(data) {
+			
+							uid = data['uid'];
+						}
+				});
+			}
 			console.log("Load dataset "+curDataset+" and classifier "+curClassifier);
 			
 			$.ajax({
@@ -482,7 +477,19 @@ function updateClassifier() {
 		
 					$('#retrainInfo').hide();
 					$('#legend').show();
-	
+					$('#heatmap').hide();
+
+					// Need to get the session UID
+					$.ajax({
+						url: "php/getSession.php",
+						data: "",
+						dataType: "json",
+						success: function(data) {
+			
+							uid = data['uid'];
+						}
+					});
+			
 				}
 			});
 		} else {
@@ -518,11 +525,11 @@ function updateHeatmap() {
 	var ele = document.getElementById('heatmap');
 
 	if( $('#heatmapUncertain').is(':checked') ) {
-		ele.setAttribute("xlink:href", "heatmaps/" + curSlide + ".jpg");
+		ele.setAttribute("xlink:href", "heatmaps/" + uid + "/" + curSlide + ".jpg");
 		document.getElementById('heatMin').innerHTML = uncertMin.toFixed(2);
 		document.getElementById('heatMax').innerHTML = uncertMax.toFixed(2);
 	} else {
-		ele.setAttribute("xlink:href", "heatmaps/" + curSlide + "_class.jpg");
+		ele.setAttribute("xlink:href", "heatmaps/" + uid + "/" + curSlide + "_class.jpg");
 		document.getElementById('heatMin').innerHTML = classMin.toFixed(2);
 		document.getElementById('heatMax').innerHTML = classMax.toFixed(2);
 	}
@@ -666,7 +673,7 @@ function updateSeg() {
 
 		// Only display heatmap for active sessions
 		//
-		if( curClassifier != 'none' && uid != null && heatmapLoaded == false ) {
+		if( curClassifier != 'none' && classifierSession == false && heatmapLoaded == false ) {
 
 		    $.ajax({
 				type: "POST",
@@ -706,11 +713,11 @@ function updateSeg() {
 					classMax = data.classMax;
 
 					if( $('#heatmapUncertain').is(':checked') ) {
-						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+data.uncertFilename);
+						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+uid+"/"+data.uncertFilename);
 						document.getElementById('heatMin').innerHTML = data.uncertMin.toFixed(2);
 						document.getElementById('heatMax').innerHTML = data.uncertMax.toFixed(2);
 					} else {
-						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+data.classFilename);
+						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+uid+"/"+data.classFilename);
 						document.getElementById('heatMin').innerHTML = data.classMin.toFixed(2);
 						document.getElementById('heatMax').innerHTML = data.classMax.toFixed(2);
 					}
@@ -747,48 +754,50 @@ function updateBoundColors() {
 
 function nucleiSelect() {
 
-    $.ajax({
-        type:   "POST",
-        url:    "db/getsingle.php",
-        dataType: "json",
-        data:   { slide:    curSlide,
-                  cellX:    Math.round(statusObj.mouseImgX()),
-                  cellY:    Math.round(statusObj.mouseImgY())
-                },
-        success: function(data) {
-                if( data !== null ) {
+	if( classifierSession == false ) {
+		$.ajax({
+		    type:   "POST",
+		    url:    "db/getsingle.php",
+		    dataType: "json",
+		    data:   { slide:    curSlide,
+		              cellX:    Math.round(statusObj.mouseImgX()),
+		              cellY:    Math.round(statusObj.mouseImgY())
+		            },
+		    success: function(data) {
+		            if( data !== null ) {
 
-					if( curClassifier === "none" ) {
-						// No classifier applied, just log results
-	                    console.log(curSlide+","+data[2]+","+data[3]+", id: "+data[1]);
-	                } else {
-	                	// We're adding an object, make sure the retrain button is enabled.
-	                	$('#retrainBtn').removeAttr('disabled');
+						if( curClassifier === "none" ) {
+							// No classifier applied, just log results
+			                console.log(curSlide+","+data[2]+","+data[3]+", id: "+data[1]);
+			            } else {
+			            	// We're adding an object, make sure the retrain button is enabled.
+			            	$('#retrainBtn').removeAttr('disabled');
 
-						var	obj = {slide: curSlide, centX: data[2], centY: data[3], label: 0, id: data[1]};
-	                	var cell = document.getElementById("N"+obj['id']);
-	                	
-						// Flip the label here. lime indicates the positive class, so we
-						// want to change the label to -1. Change to 1 for lightgrey. If
-						// the color is niether, the sample has been picked already so
-						// ignore.
-						//
-						if( cell.getAttribute('stroke') === "lime" ) {
-							obj['label'] = -1;
-						} else if( cell.getAttribute('stroke') === "lightgrey" ) {
-							obj['label'] = 1;
-						}
+							var	obj = {slide: curSlide, centX: data[2], centY: data[3], label: 0, id: data[1]};
+			            	var cell = document.getElementById("N"+obj['id']);
+			            	
+							// Flip the label here. lime indicates the positive class, so we
+							// want to change the label to -1. Change to 1 for lightgrey. If
+							// the color is niether, the sample has been picked already so
+							// ignore.
+							//
+							if( cell.getAttribute('stroke') === "lime" ) {
+								obj['label'] = -1;
+							} else if( cell.getAttribute('stroke') === "lightgrey" ) {
+								obj['label'] = 1;
+							}
 
-						if( obj['label'] != 0 ) {
-		                    fixes['samples'].push(obj);
-		                    
-		                    updateBoundColors();
-		                    statusObj.samplesToFix(statusObj.samplesToFix() + 1);
-		                }
-	                }
-                }
-            }
-    });
+							if( obj['label'] != 0 ) {
+				                fixes['samples'].push(obj);
+				                
+				                updateBoundColors();
+				                statusObj.samplesToFix(statusObj.samplesToFix() + 1);
+				            }
+			            }
+		            }
+		        }
+		});
+	}
 }
 
 

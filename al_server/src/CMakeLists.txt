@@ -107,7 +107,7 @@ ADD_CUSTOM_COMMAND(
 # Executables
 #
 add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.cpp 
-                sampler.cpp ocvrandforest.cpp logger.cpp)
+                sampler.cpp ocvrandforest.cpp logger.cpp sessionMgr.cpp)
 
 add_executable(validate validate-main.cpp classifier.cpp ocvsvm.cpp ocvrandforest.cpp 
                 data.cpp logger.cpp val-cmdline.c)

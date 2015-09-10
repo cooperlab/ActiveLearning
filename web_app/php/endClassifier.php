@@ -27,67 +27,58 @@
 //
 //
 
-	require '../db/logging.php';		// Also includes connect.php
 	require 'hostspecs.php';
-
+	require '../db/logging.php';
 	session_start();
-
-	$dataSet = $_POST['dataset'];
-	$trainSet = $_POST['trainset'];
-
-	// Get the dataset file from the database
+	
+	$prog = true;
+	
+	// Send finalize command to al server to save the training set and
+	// get the pertinent info to save in the database
 	//
-	$dbConn = guestConnect();
-	$sql = 'SELECT features_file FROM datasets WHERE name="'.$dataSet.'"';
+	$end_data =  array( "command" => "viewerEnd", 
+			 	   		"uid" => $_SESSION['uid']);
+	$end_data = json_encode($end_data);
+			 	   
 
-	if( $result = mysqli_query($dbConn, $sql) ) {
-
-		$featureFile = mysqli_fetch_row($result);			
-		mysqli_free_result($result);
-	}
-
-	$sql = 'SELECT filename FROM training_sets WHERE name="'.$trainSet.'"';
-
-	if( $result = mysqli_query($dbConn, $sql) ) {
-
-		$trainSetFile = mysqli_fetch_row($result);			
-		mysqli_free_result($result);
-	}
-
-	mysqli_close($dbConn);
-
-	if( $_SESSION['uid'] === null ) {
-		write_log("INFO", "No session active");
-
-		$UID = uniqid("", true);
-		$_SESSION['uid'] = $UID;
-
-	}	
-
-
-	$cmd =  array( "command" => "viewerLoad", 
-				   "uid" => $_SESSION['uid'],
-			 	   "dataset" => $featureFile[0],
-			 	   "trainset" => $trainSetFile[0]
-		 	   );
-				 	
-   
-	$cmd = json_encode($cmd);
-		
 	$addr = gethostbyname($host);
 	set_time_limit(0);
 	
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
 	if( $socket === false ) {
-		log_error("socket_create failed:  ". socket_strerror(socket_last_error()));
+		log_error("socket_create failed: ".socket_strerror(socket_last_error()));
+		$prog = false;
 	}
 	
-	$result = socket_connect($socket, $addr, $port);
-	if( !$result ) {
-		log_error("socket_connect failed: ".socket_strerror(socket_last_error()));
-	}	
-	socket_write($socket, $cmd, strlen($cmd));	
+	if( $prog ) {
+		$result = socket_connect($socket, $addr, $port);
+		if( !$result ) {
+			log_error("socket_connect failed: ".socket_strerror(socket_last_error()));
+			$prog = false;
+		}
+	}
 	
-	$response = socket_read($socket, 8192);
-	echo $response;
+	if( $prog ) {
+		socket_write($socket, $end_data, strlen($end_data));
+
+		$response = socket_read($socket, 8192);
+		$additional = socket_read($socket, 8192);
+		while( $additional != false ) {
+			$response = $response.$additional;
+			$additional = socket_read($socket, 8192);
+		}
+		socket_close($socket);
+	}
+
+	if( $prog ) {
+		echo "PASS";
+	}
+	
+	if( $prog == false ) {
+		echo "FAIL";
+	}
+		
+	// Cleanup session variables
+	//
+	session_destroy();	
 ?>

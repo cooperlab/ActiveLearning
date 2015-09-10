@@ -186,7 +186,7 @@ function genSVG(width, height, rowNo, index) {
 	imageRef = IIPServer + "FIF=" + path + "&WID=600&CVT=jpeg";
 
 	// Uncertainty heatmap
-	heatRef = "heatmaps/" + slide + ".jpg";
+	heatRef = "heatmaps/" + uid + "/" + slide + ".jpg";
 
 	theSvg = document.getElementById('svg'+rowNo+'_1');
 	theSvg.setAttribute('width', svgWidth);
@@ -212,7 +212,7 @@ function genSVG(width, height, rowNo, index) {
 	theSvg.appendChild(ele);
 
 	// Class count heatmap
-	heatRef = "heatmaps/" + slide + "_class.jpg";
+	heatRef = "heatmaps/" + uid + "/" + slide + "_class.jpg";
 
 	theSvg = document.getElementById('svg'+rowNo+'_2');
 	theSvg.setAttribute('width', svgWidth);

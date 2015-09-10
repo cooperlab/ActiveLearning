@@ -63,7 +63,7 @@ public:
 			Learner(string dataPath = "./", string outPath = "./", string heatmapPath = "./");
 			~Learner(void);
 
-	bool	ParseCommand(const int sock, char *data, int size);
+	bool	ParseCommand(const int sock, const char *data, int size);
 
 
 protected:
@@ -106,7 +106,7 @@ protected:
 	Sampler		*m_sampler;
 
 	bool		m_pickerMode;
-
+	bool		m_classifierMode;
 	bool		m_debugStarted;
 
 
