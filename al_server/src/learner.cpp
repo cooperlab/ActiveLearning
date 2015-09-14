@@ -78,7 +78,9 @@ m_yCentroid(NULL),
 m_pickerMode(false),
 m_debugStarted(false),
 m_scores(NULL),
-m_classifierMode(false)
+m_classifierMode(false),
+m_xClick(NULL),
+m_yClick(NULL)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -153,6 +155,16 @@ void Learner::Cleanup(void)
 	if( m_yCentroid ) {
 		free(m_yCentroid);
 		m_yCentroid = NULL;
+	}
+
+	if( m_xClick ) {
+		free(m_xClick);
+		m_xClick = NULL;
+	}
+
+	if( m_yClick ) {
+		free(m_yClick);
+		m_yClick = NULL;
 	}
 
 	if( m_scores ) {
@@ -872,7 +884,7 @@ bool Learner::Visualize(const int sock, json_t *obj)
 
 
 
-bool Learner::UpdateBuffers(int updateSize)
+bool Learner::UpdateBuffers(int updateSize, bool includeClick)
 {
 	bool	result = true;
 	int		*newBuff = NULL, newSize = m_samples.size() + updateSize;
@@ -922,6 +934,22 @@ bool Learner::UpdateBuffers(int updateSize)
 			m_slideIdx = newBuff;
 		else
 			result = false;
+	}
+
+	if( includeClick && result ) {
+		floatBuff = (float*)realloc(m_xClick, newSize * sizeof(float));
+		if( floatBuff != NULL )
+			m_xClick = floatBuff;
+		else
+			result = false;
+
+		if( result ) {
+			floatBuff = (float*)realloc(m_yClick, newSize * sizeof(float));
+			if( floatBuff != NULL )
+				m_yClick = floatBuff;
+			else
+				result = false;
+		}
 	}
 
 	if( result ) {
@@ -1617,13 +1645,13 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 
 	if( result ) {
 		// Make room for the new samples
-		result = UpdateBuffers(json_array_size(sampleArray));
+		result = UpdateBuffers(json_array_size(sampleArray), true);
 	}
 
 	if( result ) {
 		size_t	index;
 		int		id, label, idx, dims = m_dataset->GetDims();
-		float	centX, centY;
+		float	centX, centY, clickX, clickY;
 		const char *slide;
 
 		json_array_foreach(sampleArray, index, jsonObj) {
@@ -1646,6 +1674,18 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 				centY = (float)json_real_value(value);
 			else
 				centY = (float)json_integer_value(value);
+
+			value = json_object_get(jsonObj, "clickX");
+			if( json_is_real(value) )
+				clickX = (float)json_real_value(value);
+			else
+				clickX = (float)json_integer_value(value);
+
+			value = json_object_get(jsonObj, "clickY");
+			if( json_is_real(value) )
+				clickY = (float)json_real_value(value);
+			else
+				clickY = (float)json_integer_value(value);
 
 			value = json_object_get(jsonObj, "label");
 			label = json_integer_value(value);
@@ -1674,6 +1714,8 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
 				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
 				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
+				m_xClick[pos] = clickX;
+				m_yClick[pos] = clickY;
 				result = m_dataset->GetSample(idx, m_trainSet[pos]);
 				m_samples.push_back(idx);
 			} else {
@@ -1787,7 +1829,7 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 		result = testSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
 							m_labels, m_ids, NULL, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
 							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
-							m_dataset->GetNumSlides(), m_classNames);
+							m_dataset->GetNumSlides(), m_classNames, m_xClick, m_yClick);
 	}
 
 	if( result ) {

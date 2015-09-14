@@ -94,6 +94,8 @@ protected:
 	int			*m_slideIdx;
 	float		*m_xCentroid;
 	float		*m_yCentroid;
+	float		*m_xClick;
+	float		*m_yClick;
 
 	int			m_iteration;
 	bool		m_heatmapReload;
@@ -137,7 +139,7 @@ protected:
 
 	bool	InitViewerClassify(const int sock, json_t *obj);
 
-	bool 	UpdateBuffers(int updateSize);
+	bool 	UpdateBuffers(int updateSize, bool includeClick = false);
 	void	Cleanup(void);
 
 	bool	SaveTrainingSet(string filename);

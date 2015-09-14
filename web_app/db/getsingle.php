@@ -36,8 +36,8 @@
 	/* 
 		Get the bounding box centroid and slide name passed by the ajax call
 	*/
-	$cellX = intval($_POST['cellX']);
-	$cellY = intval($_POST['cellY']);
+	$cellX = floatval($_POST['cellX']);
+	$cellY = floatval($_POST['cellY']);
 	$slide = $_POST['slide'];
 
 
@@ -72,7 +72,7 @@
 
 	$jsonData = array();
 	array_push($jsonData, $boundaryData[0], intval($boundaryData[1]), floatval($boundaryData[2]), floatval($boundaryData[3]), 
-				$sizes[0], $sizes[1], $sizes[2]);
+				$sizes[0], $sizes[1], $sizes[2], $cellX, $cellY);
 	 
 	echo json_encode($jsonData);
 

@@ -60,7 +60,9 @@ m_means(NULL),
 m_stdDevs(NULL),
 m_classNames(NULL),
 m_numClasses(0),
-m_created(false)
+m_created(false),
+m_xClick(NULL),
+m_yClick(NULL)
 {
 
 }
@@ -653,7 +655,8 @@ float MData::GetYCentroid(int index)
 bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 					int *ids, int *iteration, float *means, float *stdDev,
 					float *xCentroid, float *yCentroid, char **slides,
-					int *slideIdx, int numSlides, vector<string>& classNames)
+					int *slideIdx, int numSlides, vector<string>& classNames,
+					float *xClick, float *yClick)
 {
 	bool 	result = true;
 	float	**dataSetIdx = NULL;
@@ -749,6 +752,24 @@ bool MData::Create(float *dataSet, int numObjs, int numDims, int *labels,
 		m_yCentroid = (float*)malloc(numObjs * sizeof(float));
 		if( m_yCentroid != NULL ) {
 			memcpy(m_yCentroid, yCentroid, numObjs * sizeof(float));
+		} else {
+			result = false;
+		}
+	}
+
+	if( result && xClick != NULL ) {
+		m_xClick = (float*)malloc(numObjs * sizeof(float));
+		if( m_xClick != NULL ) {
+			memcpy(m_xClick, xClick, numObjs * sizeof(float));
+		} else {
+			result = false;
+		}
+	}
+
+	if( result && yClick != NULL ) {
+		m_yClick = (float*)malloc(numObjs * sizeof(float));
+		if( m_yClick != NULL ) {
+			memcpy(m_yClick, yClick, numObjs * sizeof(float));
 		} else {
 			result = false;
 		}
@@ -942,6 +963,22 @@ bool MData::SaveAs(string filename)
 	if( result ) {
 		dims[1] = 1;
 		status = H5LTmake_dataset(fileId, "/y_centroid", 2, dims, H5T_NATIVE_FLOAT, m_yCentroid);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
+	if( m_xClick && result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/x_click", 2, dims, H5T_NATIVE_FLOAT, m_xClick);
+		if( status < 0 ) {
+			result = false;
+		}
+	}
+
+	if( m_yClick && result ) {
+		dims[1] = 1;
+		status = H5LTmake_dataset(fileId, "/y_click", 2, dims, H5T_NATIVE_FLOAT, m_yClick);
 		if( status < 0 ) {
 			result = false;
 		}

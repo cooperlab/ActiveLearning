@@ -50,7 +50,9 @@ public:
 		bool	Create(float *dataSet, int numObjs, int numDims, int *labels,
 						int *ids, int *iteration, float *means, float *stdDev,
 						float *xCentroid, float *yCentroid, char **slides,
-						int *slideIdx, int slideCnt, vector<string>& classNames);
+						int *slideIdx, int slideCnt, vector<string>& classNames,
+						float *xClick = NULL, float *yClick = NULL);
+
 		bool	SaveAs(string filename);
 
 		float	**GetData(void) { return m_objects; }
@@ -92,7 +94,9 @@ protected:
 		int		*m_slideIdx;
 		char	**m_slides;
 		char	**m_classNames;
-		
+		float	*m_xClick;
+		float	*m_yClick;
+
 		bool	m_haveIters;
 		int		*m_iteration;
 

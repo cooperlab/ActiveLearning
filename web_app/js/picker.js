@@ -414,6 +414,9 @@ function updateSeg() {
 
 
 
+//
+//	Adds another thumbnail div to the thumbnail slider
+//
 function addThumbnail(index) {
 
 	var slider = document.getElementById('thumbSlider'),
@@ -458,8 +461,8 @@ function nucleiSelect() {
             url:    "db/getsingle.php",
             dataType: "json",
             data:   { slide:    curSlide,
-                      cellX:    Math.round(statusObj.mouseImgX()),
-                      cellY:    Math.round(statusObj.mouseImgY())
+                      cellX:    statusObj.mouseImgX().toFixed(1),
+                      cellY:    statusObj.mouseImgY().toFixed(1)
             },
             success: function(data) {
 					if( data !== null ) {
@@ -472,7 +475,6 @@ function nucleiSelect() {
 						// Need to add thumbnail box if we have 8 or more samples
 						//
 						if( statusObj.totalSel() >= 8 ) {
-							console.log("Adding new thumnail div");
 							addThumbnail(statusObj.totalSel() + 1);
 						}
 
@@ -488,6 +490,8 @@ function nucleiSelect() {
 						sample['maxY'] = data[5];
 						sample['scale'] = data[6];
 						sample['label'] = defaultClass;
+						sample['clickX'] = data[7];
+						sample['clickY'] = data[8];
 						
 						// Add the selected nuclei
 						//		
