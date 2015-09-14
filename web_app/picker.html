@@ -52,7 +52,7 @@
 
 			<div class="row">	<!-- Grid display of selected nuclei -->
 				<div class="col-sm-1 col-md-1 col-lg-1" id="overflow">
-					<div class="slider">
+					<div class="slider" id="thumbSlider">
 						<div id="box_1" style="display: none;">
 							<b id="label_1">Class</b>
 							<img id="thumb_1" class="img-thumbnail" height="100" width="100">
@@ -104,21 +104,36 @@
 						<strong>Selected:</strong>
 						<span data-bind="text:(haveImage()) ? totalSel().toFixed(0) : '-'"></span>
 						<br>
-						<strong id="posLabel"></strong>
-						<span data-bind="text:(haveImage()) ? posSel().toFixed(0) : '-'"></span>
-						<br>
-						<strong id="negLabel"></strong>
-						<span data-bind="text:(haveImage()) ? negSel().toFixed(0) : '-'"></span>
-					</div>
-				</div>
-				
-				<div class="col-sm-4 col-md-4 col-lg-4">   <!-- Test set size -->
-					<div data-bind="with: statusObj">
 						<strong>Test set count:</strong>
 						<span data-bind="text: testSetCnt().toFixed(0)"></span>
 					</div>
 				</div>
-								
+				
+							
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<div id="classSel">
+						<strong>Default class:</strong>
+						<div class="radio">
+							<label>
+								<input type="radio" name="classSel" id="negClassRadio" value="negClass" checked>
+								<div id="radioNeg">
+									Neg Class
+								</div>
+							</label>
+						</div>
+
+						<div class="radio">
+							<label>
+								<input type="radio" name="classSel" id="posClassRadio" value="posClass">
+								<div id="radioPos">		
+									Pos Class
+								</div>
+							</label>
+						</div>
+
+					</div>
+				</div>
+
 			</div>  <!-- Second row  (slide selection, status & instructions)-->
 
 			<div class="row top-buffer"></div>   <!-- A little space between -->

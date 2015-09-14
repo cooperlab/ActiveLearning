@@ -50,7 +50,7 @@ var pyramids;
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
 
 var boundsLeft, boundsRight, boundsTop, boundsBottom;
-
+var defaultClass;
 
 
 
@@ -163,6 +163,10 @@ $(function() {
 				updateSlideList();
 				$('#posLabel').text(posClass);
 				$('#negLabel').text(negClass);
+				document.getElementById('radioNeg').innerHTML = negClass;
+				document.getElementById('radioPos').innerHTML = posClass;
+
+				defaultClass = -1;
 			}
 		}
 	});
@@ -190,6 +194,8 @@ $(function() {
 	$("#slideSel").change(updateSlide);
 	clickCount = 0;
 
+	// Handler for default class radio buttons
+	$('input[name=classSel]').change(updateDefaultClass);
 
 	// Assign click handlers to each of the thumbnail divs
 	//
@@ -271,6 +277,19 @@ function updateSlide() {
 
 	curSlide = $('#slideSel').val();
 	updateSlideView();
+}
+
+
+
+
+
+function updateDefaultClass() {
+	
+	if( $('#posClassRadio').is(':checked') ) {
+		defaultClass = 1;
+	} else {
+		defaultClass = -1;
+	}
 }
 
 
@@ -384,9 +403,47 @@ function updateSeg() {
 						
 						segGrp.appendChild(ele);
 					}
+
+					if( selectedJSON.length > 0 ) {
+						updateBoundColors();
+					}
         		}
     	});
 	} 
+}
+
+
+
+function addThumbnail(index) {
+
+	var slider = document.getElementById('thumbSlider'),
+		thumbDiv, ele;
+
+	
+	thumbDiv = document.createElement("div");
+	thumbDiv.setAttribute('id', 'box_' + index);
+	thumbDiv.setAttribute('style', 'display: none;');
+
+	ele = document.createElement("b");
+	ele.setAttribute('id', 'label_' + index);
+	ele.innerHTML = "Class";
+	thumbDiv.appendChild(ele);
+
+	ele = document.createElement("img");
+	ele.setAttribute('id', 'thumb_' + index);
+	ele.setAttribute('class', 'img-thumbnail');
+	ele.setAttribute('height', '100');
+	ele.setAttribute('width', '100');
+	thumbDiv.appendChild(ele);
+
+	slider.appendChild(thumbDiv);
+
+	width = 0;
+	$('#overflow .slider div').each(function() {
+		width += $(this).outerWidth(true);
+	});
+	$('#overflow .slider').css('width', width + "px");
+
 }
 
 
@@ -412,44 +469,47 @@ function nucleiSelect() {
 							$('#addBtn').removeAttr('disabled');
 						}
 						
-						if( statusObj.totalSel() < 8 ) {
-				
-							sample = {};
-						
-							// Distance from nuclei is element 4
-							sample['slide'] = curSlide;
-							sample['id'] = data[1];
-							sample['centX'] = data[2];
-							sample['centY'] = data[3];
-							sample['boundary'] = data[0];
-							sample['maxX'] = data[4];
-							sample['maxY'] = data[5];
-							sample['scale'] = data[6];
-							sample['label'] = 0;
-							
-							// Add the selected nuclei
-							//		
-							statusObj.totalSel(statusObj.totalSel() + 1);								
-							selectedJSON.push(sample);
-						
-							var box = "#box_" + statusObj.totalSel(), thumbTag = "#thumb_" + statusObj.totalSel(),
-								labelTag = "#label_" + statusObj.totalSel(), loc;
+						// Need to add thumbnail box if we have 8 or more samples
+						//
+						if( statusObj.totalSel() >= 8 ) {
+							console.log("Adding new thumnail div");
+							addThumbnail(statusObj.totalSel() + 1);
+						}
 
-							$(box).show();
-							centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
-							centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
-							sizeX = (50.0 * sample['scale']) / sample['maxX'];
-							sizeY = (50.0 * sample['scale']) / sample['maxY'];
-							loc = centX+","+centY+","+sizeX+","+sizeY;
-				
-							var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+
-											SlideLocPre+loc+"&WID=100"+SlideLocSuffix;						
+						sample = {};
+					
+						// Distance from nuclei is element 4
+						sample['slide'] = curSlide;
+						sample['id'] = data[1];
+						sample['centX'] = data[2];
+						sample['centY'] = data[3];
+						sample['boundary'] = data[0];
+						sample['maxX'] = data[4];
+						sample['maxY'] = data[5];
+						sample['scale'] = data[6];
+						sample['label'] = defaultClass;
 						
-							$(thumbTag).attr("src", thumbNail);
+						// Add the selected nuclei
+						//		
+						statusObj.totalSel(statusObj.totalSel() + 1);								
+						selectedJSON.push(sample);
+					
+						var box = "#box_" + statusObj.totalSel(), thumbTag = "#thumb_" + statusObj.totalSel(),
+							labelTag = "#label_" + statusObj.totalSel(), loc;
 
-					} else {
-						window.alert("Add samples to the training set before selecting more");
-					}
+						$(box).show();
+						centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
+						centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
+						sizeX = (50.0 * sample['scale']) / sample['maxX'];
+						sizeY = (50.0 * sample['scale']) / sample['maxY'];
+						loc = centX+","+centY+","+sizeX+","+sizeY;
+			
+						var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+
+										SlideLocPre+loc+"&WID=100"+SlideLocSuffix;						
+					
+						$(thumbTag).attr("src", thumbNail);
+						updateClassStatus(statusObj.totalSel() - 1);
+						updateBoundColors();
 				}
 			}
     	});
@@ -507,6 +567,7 @@ function thumbDoubleClick(box) {
 	$(dest).hide();
 	
 	statusObj.totalSel(statusObj.totalSel() - 1)
+	updateSeg();
 };
 
 
@@ -523,6 +584,20 @@ function updateClassStatus(sample) {
 	} else {
 		$(labelTag).text(negClass);				
 		$(labelTag).css('background', '#DD0000');
+	}
+}
+
+
+
+
+function updateBoundColors() {
+
+	for( cell in selectedJSON ) {
+		var bound = document.getElementById("N"+selectedJSON[cell]['id']);
+		
+		if( bound != null ) {
+			bound.setAttribute('stroke', 'yellow');
+		}
 	}
 }
 
