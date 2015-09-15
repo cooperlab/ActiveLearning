@@ -103,6 +103,13 @@ $(function() {
 
 
 
+function displayProg() {
+
+	$('#progDiag').modal('show');
+}
+
+
+
 
 function resetAlServer() {
 

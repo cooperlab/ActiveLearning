@@ -339,6 +339,90 @@ int GenerateMap(MData& trainSet, MData& testSet, Classifier *classifier,
 
 
 
+int ApplyClassifier(MData& trainSet, MData& testSet, Classifier *classifier,
+					string testFileName, string outFileName)
+{
+	int		result = 0, dims = trainSet.GetDims(), *trainLabel = trainSet.GetLabels(),
+			numTestObjs = testSet.GetNumObjs();
+	float	**test = testSet.GetData(), **train = trainSet.GetData(),
+			*predScore = NULL;
+
+	if( dims != testSet.GetDims() ) {
+		cerr << "Training and test set dimensions do not match" << endl;
+		result = -30;
+	}
+
+	if( result == 0 ) {
+		cout << "Allocating prediction buffer" << endl;
+		predScore = (float*)malloc(numTestObjs * sizeof(float));
+		if( predScore == NULL ) {
+			cerr << "Unable to allocae prediction buffer" << endl;
+			result = -31;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Training classifier..." << endl;
+		if( !classifier->Train(train[0], trainLabel, trainSet.GetNumObjs(), dims) ) {
+			cerr << "Classifier training failed" << endl;
+			result = -32;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Applying classifier..." << endl;
+		if( ! classifier->ScoreBatch(test, numTestObjs, dims, predScore) ) {
+			cerr << "Applying classifier failed" << endl;
+			result = -33;
+		}
+	}
+
+	if( result == 0 ) {
+		// Copy original test file so we can just append the
+		// score data
+		//
+		string cmd = "cp " + testFileName + " " + outFileName;
+		result = system(cmd.c_str());
+	}
+
+	if( result == 0 ) {
+		hid_t		fileId;
+		hsize_t		dims[2];
+		herr_t		status;
+
+		fileId = H5Fopen(outFileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+		if( fileId < 0 ) {
+			cerr << "Unable to open: " << outFileName << endl;
+			result = -34;
+		}
+
+		if( result == 0 ) {
+			dims[0] = numTestObjs;
+			dims[1] = 1;
+
+			status = H5LTmake_dataset(fileId, "/pred_score", 2, dims,
+										H5T_NATIVE_FLOAT, predScore);
+			if( status < 0 ) {
+				cerr << "Unable to write score data" << endl;
+				result = -35;
+			}
+		}
+
+		if( fileId >= 0 ) {
+			H5Fclose(fileId);
+		}
+	}
+
+	if( predScore )
+		free(predScore);
+
+	return result;
+}
+
+
+
+
+
 
 
 int main(int argc, char *argv[])
@@ -395,6 +479,8 @@ int main(int argc, char *argv[])
 			result = CalcROC(trainSet, testSet, classifier, testFile, outFileName);
 		} else if( command.compare("map") == 0 ) {
 			result = GenerateMap(trainSet, testSet, classifier, slide, outFileName);
+		} else if( command.compare("apply") == 0 ) {
+			result = ApplyClassifier(trainSet, testSet, classifier, testFile, outFileName);
 		}
 	}
 

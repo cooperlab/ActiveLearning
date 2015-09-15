@@ -571,6 +571,8 @@ function primeSession() {
 	} else if( statusObj.negSel() != 4 ) {
 		window.alert("Need to select 4 "+ negClass+" examples");
 	} else {
+
+		$('#progDiag').modal('show');
 	
 		// No need to send boundaries to the server
 		for( i = 0; i < selectedJSON.length; i++ ) {

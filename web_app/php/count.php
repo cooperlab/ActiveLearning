@@ -31,7 +31,6 @@
 	$trainSet = '../trainingsets/'.$_POST['trainset'];
 	$dataSet = '../datasets/'.$_POST['dataset'];
 
-
 	// Extract just the file name of the training set
 	$parts = explode("/",$_POST['trainset']);
 	$ele = count($parts);
@@ -49,11 +48,11 @@
 	} else {
 		$dataName = $parts[0];
 	}
-	$outFile = '../trainingsets/tmp/'.$trainName.'_'.$dataName.'.h5';
+	$outFile = '../trainingsets/tmp/'.$trainName.'_'.$dataName.'.csv';
 
 	if( file_exists($trainSet) && file_exists($dataSet) ) {
 		
-		$cmd = 'validate -t '.$trainSet.' -f '.$dataSet.' -m apply -o '.$outFile;
+		$cmd = 'validate -t '.$trainSet.' -f '.$dataSet.' -m count -o '.$outFile;
 		write_log("INFO","Executing: ".$cmd);
 
 		exec($cmd, $output, $resultVal);
@@ -71,8 +70,8 @@
 			header('Content-Length: '. filesize($outFile));
 			readfile($outFile);
 			exit;
+		} else {
+			log_error("Can't find ".$trainSet." or ".$dataSet);
 		}
-	} else {
-		log_error("Can't find ".$trainSet." or ".$dataSet);
 	}
 ?>

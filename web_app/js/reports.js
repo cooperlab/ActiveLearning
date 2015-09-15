@@ -44,6 +44,7 @@ $(function() {
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][1]));
 				$('#datasetMapSel').append(new Option(data[item][0], data[item][1]));
+				$('#applyDatasetSel').append(new Option(data[item][0], data[item][1]));
 			}
 			updateSlideList();
 		}
@@ -61,10 +62,14 @@ $(function() {
 				trainsetSel.append(new Option(data[item][0], data[item][1]));
 				downloadsetSel.append(new Option(data[item][0], data[item][1]));
 				$('#trainsetMapSel').append(new Option(data[item][0], data[item][1]));
+				$('#applyTrainsetSel').append(new Option(data[item][0], data[item][1]));
 			}
 		}
 	});
 	
+	// Need to montior changes for the map score select controls. Slide image
+	//	size is dependant on these.
+	//
 	$("#datasetMapSel").change(updateDataset);
 	$("#slideMapSel").change(updateSlideSize);
 
@@ -78,9 +83,7 @@ $(function() {
 function updateSlideList() {
 
 	var	dataset = datasetMapSel.options[datasetMapSel.selectedIndex].label;
-
-	console.log("Updating slides for dataset: "+dataset);
-
+	
 	// Get the list of slides for the current dataset
 	$.ajax({
 		type: "POST",
@@ -113,7 +116,6 @@ function updateDataset() {
 function updateSlideSize() {
 
 	var	slide = slideMapSel.options[slideMapSel.selectedIndex].label;
-	console.log("Updating slide size for "+slide);
 
 	$.ajax({
 		type: "POST",

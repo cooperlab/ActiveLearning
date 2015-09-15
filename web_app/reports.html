@@ -76,7 +76,7 @@
 			
 			<div class="row">
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					<h3>Apply a classifier</h3>
+					<h3>Slide class counts</h3>
 				</div>
 				
 				<div class="col-sm-3 col-md-3 col-lg-3">
@@ -92,7 +92,7 @@
 			<div class="row">
 			
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					<form role="form" id="apply_form" method="POST" action="php/apply.php">
+					<form role="form" id="count_form" method="POST" action="php/count.php">
 						<div class="form-group">
 							<label for="datasetSel">Dataset</label>
 							<select class="form-control" id="datasetSel" name="dataset"> 
@@ -105,7 +105,7 @@
 							</select>
 						</div>
 												
-						<button id="applyClassifier" type="submit" name="submit-classify" class="btn btn-default" value="classify" >Classify</button>
+						<button id="applyCount" type="submit" name="submit-count" class="btn btn-default" value="count" >Count</button>
 					</form>
 				</div>
 				
@@ -138,6 +138,7 @@
 				</div>
 				
 				<div class="col-sm-4 col-md-4 col-lg-4">
+					<h3>Apply classifier</h3>
 				</div>
 			</div>
 			
@@ -176,7 +177,29 @@
 					</form>
 				</div>
 
+
+				<div class="col-sm-3 col-md-3 col-lg-3">
+				</div>
+
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<form role="form" id="apply_form" method="POST" action="php/apply.php">
+						<div class="form-group">
+							<label for="applyDatasetSel">Dataset</label>
+							<select class="form-control" id="applyDatasetSel" name="dataset"> 
+							</select>
+						</div>
+
+						<div class="form-group">
+							<label for="applyTrainsetSel">Training Set</label>
+							<select class="form-control" id="applyTrainsetSel" name="trainset"> 
+							</select>
+						</div>
+												
+						<button id="applyClassifier" type="submit" name="submit-classify" class="btn btn-default" value="classify" >Classify</button>
+					</form>
+				</div>
 			</div>
+
 		</div>
 		
 		<script src="js/reports.js"></script>
