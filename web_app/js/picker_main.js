@@ -55,25 +55,6 @@ $(function() {
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
 
-/*
-			if( uid === null ) {
-				$('#nav_select').hide();
-				$('#nav_visualize').hide();
-			} else {
-				// There's an active session, disable the "start session" 
-				// form.
-				//
-				$('#beginSession').attr('disabled', 'true');
-				$('#trainset').attr('disabled', 'true');
-				$('#datasetSel').attr('disabled', 'true');
-				$('#posClass').attr('disabled', 'true');
-				$('#negClass').attr('disabled', 'true');
-				
-				// TODO - Populate the text fields with the session values.
-				// This way we can see the criteria for the
-				// current session
-			}
-*/
 		}
 	});
 
@@ -93,5 +74,15 @@ $(function() {
 	});
 
 });
+
+
+
+function displayProg() {
+
+	$('#progDiag').modal('show');
+}
+
+
+
 
 
