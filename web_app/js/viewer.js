@@ -522,13 +522,14 @@ function updateClassifier() {
 //
 function updateHeatmap() {
 	
-	var ele = document.getElementById('heatmap');
+	var ele = document.getElementById('heatmapImg');
 
 	if( $('#heatmapUncertain').is(':checked') ) {
 		ele.setAttribute("xlink:href", "heatmaps/" + uid + "/" + curSlide + ".jpg");
 		document.getElementById('heatMin').innerHTML = uncertMin.toFixed(2);
 		document.getElementById('heatMax').innerHTML = uncertMax.toFixed(2);
 	} else {
+		
 		ele.setAttribute("xlink:href", "heatmaps/" + uid + "/" + curSlide + "_class.jpg");
 		document.getElementById('heatMin').innerHTML = classMin.toFixed(2);
 		document.getElementById('heatMax').innerHTML = classMax.toFixed(2);
@@ -705,7 +706,7 @@ function updateSeg() {
 					ele.setAttributeNS(null, "width", data.width);
 					ele.setAttributeNS(null, "height", data.height);
 					ele.setAttributeNS(null, 'opacity', 0.25);
-					ele.setAttribute('id', 'heatmap');
+					ele.setAttribute('id', 'heatmapImg');
 
 					uncertMin = data.uncertMin;
 					uncertMax = data.uncertMax;

@@ -388,6 +388,10 @@ function updateSamples() {
 					$(boxDiv).css('background', '#FFFFFF');
 					curBox = -1;
 				}
+		
+				// Select first sample automatically
+				statusObj.curSlide("");
+				thumbSingleClick("box_1");
 			}
 		},
 		error: function() {
