@@ -224,6 +224,7 @@ $(function() {
 
 
 
+
 function updateSlideList() {
 	var slideSel = $("#slideSel");
 
@@ -420,24 +421,31 @@ function updateSeg() {
 function addThumbnail(index) {
 
 	var slider = document.getElementById('thumbSlider'),
-		thumbDiv, ele;
+		thumbDiv, ele, divEle;
 
 	
 	thumbDiv = document.createElement("div");
 	thumbDiv.setAttribute('id', 'box_' + index);
+	thumbDiv.setAttribute('class', 'slider_div');
 	thumbDiv.setAttribute('style', 'display: none;');
 
-	ele = document.createElement("b");
+	divEle = document.createElement("div");
+	divEle.setAttribute('class', 'classLabel');
+
+	ele = document.createElement("strong");
 	ele.setAttribute('id', 'label_' + index);
 	ele.innerHTML = "Class";
-	thumbDiv.appendChild(ele);
+	divEle.appendChild(ele);
+	thumbDiv.appendChild(divEle);
 
+	divEle = document.createElement("div");
+	
 	ele = document.createElement("img");
 	ele.setAttribute('id', 'thumb_' + index);
-	ele.setAttribute('class', 'img-thumbnail');
 	ele.setAttribute('height', '100');
 	ele.setAttribute('width', '100');
-	thumbDiv.appendChild(ele);
+	divEle.appendChild(ele);
+	thumbDiv.appendChild(divEle);
 
 	slider.appendChild(thumbDiv);
 
@@ -565,7 +573,6 @@ function thumbDoubleClick(box) {
 	}
 	dest = "#label_" + statusObj.totalSel();
 	$(dest).text("Class");
-	$(dest).css('background', '#FFFFFF');
 
 	dest = "#box_" + statusObj.totalSel();
 	$(dest).hide();
@@ -580,14 +587,18 @@ function thumbDoubleClick(box) {
 
 function updateClassStatus(sample) {
 
-	labelTag = "#label_"+(parseInt(sample)+1);
+	var labelTag = "#label_"+(parseInt(sample)+1),
+		label = $('#box_'+(parseInt(sample)+1)).children(".classLabel");
+
+	label.removeClass("negLabel");
+	label.removeClass("posLabel");
 
 	if( selectedJSON[sample]['label'] === 1 ) {
 		$(labelTag).text(posClass);
-		$(labelTag).css('background', '#00DD00');
+		label.addClass("posLabel");
 	} else {
 		$(labelTag).text(negClass);				
-		$(labelTag).css('background', '#DD0000');
+		label.addClass("negLabel");
 	}
 }
 
@@ -740,7 +751,6 @@ function addObjects() {
 		
 						labelTag = "#label_"+(parseInt(i)+1);
 						$(labelTag).text("Class");
-						$(labelTag).css('background', '#FFFFFF');
 					}			 
 					selectedJSON = [];
 					statusObj.totalSel(0);

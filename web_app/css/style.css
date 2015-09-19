@@ -16,22 +16,40 @@ div#slideZoom{height: 500px}
 
 
 #overflow{ 
-	border:	1px solid #000;
+	border:	1px solid #000000;
 	height: 150px;
 	width:	100%;
 	overflow-x:	scroll;
 	overflow-y: hidden;
 }
 
-#overflow .slider{}
 
-
-#overflow .slider div{
+.slider_div{
 	border:	1px solid #BBB;
 	float:	left;
 	width:	130px;
 	height:	130px;
 	float:	left;
+	text-align: center;
+}
+
+
+.posLabel {
+	border-radius: 10px;
+	background: linear-gradient(green, white);
+}
+
+
+.negLabel {
+	border-radius: 10px;
+	background: linear-gradient(red, white);
+}
+
+
+
+.ignoreLabel {
+	border-radius: 10px;
+	background: linear-gradient(grey, white);
 }
 
 
@@ -100,6 +118,7 @@ div#slideZoom{height: 500px}
 .img-valign {
 	vertical-align: middle;
 }
+
 
 
 

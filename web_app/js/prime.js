@@ -427,8 +427,9 @@ function nucleiSelect() {
 							selectedJSON.push(sample);
 					
 							var box = "#box_" + total, thumbTag = "#thumb_" + total,
-								labelTag = "#label_" + total, loc;
-					
+								labelTag = "#label_" + total, loc, label;
+
+							label = $(box).children(".classLabel")
 							$(box).show();
 
 							centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
@@ -445,10 +446,10 @@ function nucleiSelect() {
 
 							if( sample['label'] === 1 ) {
 								$(labelTag).text(posClass);
-								$(labelTag).css('background', '#00DD00');
+								label.addClass("posLabel");
 							} else {
 								$(labelTag).text(negClass);				
-								$(labelTag).css('background', '#DD0000');
+								label.addClass("negLabel");
 							}
 					
 							if( total === 4 ) {

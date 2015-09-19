@@ -387,12 +387,11 @@ function updateSamples() {
 					boxDiv = "#"+boxes[curBox];
 					$(boxDiv).css('background', '#FFFFFF');
 					curBox = -1;
-				}
-		
-				// Select first sample automatically
-				statusObj.curSlide("");
-				thumbSingleClick("box_1");
+				}		
 			}
+			// Select first sample automatically
+			thumbSingleClick("box_1");
+
 		},
 		error: function() {
 			console.log("Selection failed");
@@ -404,17 +403,22 @@ function updateSamples() {
 
 function updateClassStatus(sample) {
 
-	labelTag = "#label_"+(parseInt(sample)+1);
+	var labelTag = "#label_"+(parseInt(sample)+1),
+		label = $('#box_'+(parseInt(sample)+1)).children(".classLabel")
+
+	label.removeClass("negLabel");
+	label.removeClass("ignoreLabel");
+	label.removeClass("posLabel");
 
 	if( sampleDataJson['samples'][sample]['label'] === 1 ) {
 		$(labelTag).text(posClass);
-		$(labelTag).css('background', '#00DD00');
+		label.addClass("posLabel");
 	} else if( sampleDataJson['samples'][sample]['label'] === -1 ) {
 		$(labelTag).text(negClass);				
-		$(labelTag).css('background', '#DD0000');
+		label.addClass("negLabel");
 	} else {
 		$(labelTag).text("Ignore");				
-		$(labelTag).css('background', '#888888');
+		label.addClass("ignoreLabel");
 	}
 }
 
