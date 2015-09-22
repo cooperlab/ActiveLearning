@@ -120,5 +120,10 @@ div#slideZoom{height: 500px}
 }
 
 
+@media (min-width: 1500px) {
+	.container {
+		width:	1470px !important;
+	}
+}
 
 
