@@ -279,7 +279,7 @@ def load_data():
         # we need them as ints (we use labels as index, and if they are
         # floats it doesn't make sense) therefore instead of returning
         # ``shared_y`` we will have to cast it to int. This little hack
-        # lets ous get around this issue
+        # lets us get around this issue
         return shared_x, T.cast(shared_y, 'int32')
 
     test_set_x, test_set_y = shared_dataset(test_set)
@@ -339,7 +339,7 @@ def sgd_optimization_mnist(learning_rate=0.159, n_epochs=2000,
 
     # construct the logistic regression class
     # Each MNIST image has size 28*28
-    #classifier = LogisticRegression(input=x, n_in=28 * 28, n_out=10)
+    # classifier = LogisticRegression(input=x, n_in=28 * 28, n_out=10)
     classifier = LogisticRegression(input=x, n_in=50 * 50, n_out=8)
     
     # the cost we minimize during training is the negative log likelihood of
@@ -409,7 +409,7 @@ def sgd_optimization_mnist(learning_rate=0.159, n_epochs=2000,
                                   # considered significant
     validation_frequency = min(n_train_batches, patience / 2)
                                   # go through this many
-                                  # minibatche before checking the network
+                                  # minibatches before checking the network
                                   # on the validation set; in this case we
                                   # check every epoch
 

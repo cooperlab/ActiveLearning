@@ -7,12 +7,12 @@ paper's MNIST results.
 
 This implementation simplifies the model in the following ways:
 
- - LeNetConvPool doesn't implement location-specific gain and bias parameters
+ - LeNetConvPool doesn't implement location-specific gain and bias parameters.
  - LeNetConvPool doesn't implement pooling by average, it implements pooling
    by max.
  - Digit classification is implemented with a logistic regression rather than
-   an RBF network
- - LeNet5 was not fully-connected convolutions at second layer
+   an RBF network.
+ - LeNet5 was not fully-connected convolutions at second layer.
 
 References:
  - Y. LeCun, L. Bottou, Y. Bengio and P. Haffner:
@@ -28,7 +28,7 @@ To run:
    
 Result: 
    Best validation error of 6.818182 % obtained at iteration 4332, with test error 8.636364 %
-   The code for file convolutional_mlp81.py ran for 18.66m
+   The code for file convolutional_mlp.py ran for 18.66m
 
 """
 
@@ -274,7 +274,7 @@ def evaluate_lenet5(learning_rate=0.095, n_epochs=2000,
                                    # considered significant
     validation_frequency = min(n_train_batches, patience / 2)
                                   # go through this many
-                                  # minibatche before checking the network
+                                  # minibatches before checking the network
                                   # on the validation set; in this case we
                                   # check every epoch
 
