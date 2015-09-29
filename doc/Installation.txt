@@ -1,0 +1,139 @@
++++ Installation
+
+VALS has been installed and tested on Ubuntu 14.04 LTS. It should, with minor modification, work on other distributions. 
+
+VALS consists of 4 components: Web server, database, image server and learning server. 
+MySQl and Apache need to be installed on the same server. The IIPImage server and learning server can be installed on the same server as apache or on their own server. The following assumes that all components are installed on the same server.
+
+
++++ Prerequisites
+
+The following can be installed using the package manager
+	MySQL
+	Apache2
+	Apache PHP module
+	PHP
+	PHP mysql module
+	Python
+	python mysqldb module
+	numpy & scipy
+	
+IIPImage server needs to be built from the project's repository, since the Ubuntu package does not work with large tiff's. The project's web site is: 
+	
+	http://iipimage.sourceforge.net
+
+
+
++++ Learning server
+
+The following are needed to build the leraning server.
+
+	CMake
+	HDF5					http://www.hdfgroup.org
+	libconfig				http://www.hyperrealm.com/libconfig/
+	gengetopt				http://www.gnu.org/software/gengetopt/gengetopt.html
+	h5py					http://www.h5py.org
+	jannson					http://www.digip.org/jansson/
+	OpenCV	v2.4.10 		http://opencv.org
+	
+OpenCV changed the interface to the machine learning modules in version 3.0, so version 2.4.10 is required. 
+
+
+
++++ Building the learning server
+
+
+	Clone git repository
+
+	cd ActiveLearning/al_server/build/release
+	cmake -D CMAKE_BUILD_TYPE=Release ../..
+	make 
+
+	cd ../..
+	sudo cp bin/al_serverd /usr/local/bin
+	sudo cp bin/validate /usr/local/lib
+	
+	cd ../scripts
+	sudo cp al_server /etc/init.d
+	sudo mkdir /etc/al_server
+	sudo cp al_server.conf
+	
+	
+	
++++ Installing the web app
+
+Before running the following scripts, make sure you have a user account in MySql that has privileges to create users, databases and tables. This user is needed for some of the following install scripts. The scripts below need to be run in the order presented.
+Depending on the permissions of the root web directory, some of the following may need to be done with sudo.
+
+
+
+-- Web site
+
+	Change to the 'scripts' directory in the repo.  ActiveLearning/scripts
+
+	./web_install.sh <web root directory>
+	
+This will create the directory structure and copy the files for the web app. 
+
+
+-- Configuring hostspecs.php
+
+The file hostspecs.php contains the address of the learning server and image server and needs to be modified. 
+
+$port = 10000; specifies the port the active learning server listens on
+$host = "localhost"; specifies the hostname of the learning server.
+
+Since these instructions assume installation of all components on the same server you can leave these as is.
+
+$IIPServer = "http://<your Image Server hostname here!!! >/fcgi-bin/iipsrv.fcgi";
+
+
+<your Image Server hostname here!!! > Needs to be changed to the fully qualified hostname of the image server. You can not use localhost since this address is used by the web browser to load images.
+
+After editing hostspecs.php, copy it to the php directory of the web site
+
+	cp hostspecs.php /var/www/html/VALS/php
+	
+	
+	
+-- Web app users
+
+In the 'scripts' directory run:
+	
+	./add_users.py <privileged user>
+	
+Where <privileged user> is a user account capable of creating users, databases and tables and granting privileges. A file named accounts.php is created by this script. This file needs to be copied to the web site directories:
+
+	cp accounts.php <Web root>/VALS/db
+	
+
+	
+
+-- Create database
+
+In the 'scripts' directory run:
+	
+	mysql -u <privileged user> -p < database_create.sql
+	
+Where <privileged user> is a user account capable of creating users, databases and tables and granting privileges. 
+	
+
+
+-- Grant privileges
+
+In the 'scripts' directory run:
+	
+	mysql -u <privileged user> -p < set_privileges.sql
+	
+Where <privileged user> is a user account capable of creating users, databases and tables and granting privileges. 
+
+
+
+
++++ Starting the learning server
+
+The learning server uses a System V init script and is therefore started automatically on boot. The start the server manually, without rebooting after installation, use the service command:
+
+	sudo service al_server start
+	
+	
