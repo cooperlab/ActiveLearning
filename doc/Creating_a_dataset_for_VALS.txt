@@ -1,19 +1,25 @@
-Creating and loading a new dataset
+-- Creating and loading a new dataset
 
 A dataset consists of the images, object boundaries and extracted features. For the GBM dataset, this consistes of the whole slide image, cell boundaries and histological features. Scripts specific to the dataset need to be created since the extracted features and boundaries may not be provided in the same format. 
 
 
-Whole slide images:
+-- Whole slide images:
 
-The images will be handled on the IIPImage server. This requires them to be formatted in a multi-resolution 'pyramid'. Vips is used to do the conversion. The pyramid files are located in /fastdata/pyramids on turing, The path to the image is saved in the database. VALS uses the database to get the path when forming a request for the IIPIMage server.
-
-
+The images will be handled on the IIPImage server. This requires them to be formatted in a multi-resolution 'pyramid'. Vips is used to do the conversion. The path to the image needs to be saved in the database. VALS uses the database to get the path when forming a request for the IIPIMage server.
 
 
 
-Boundaries:
+-- Boundaries:
 
-Scripts are available to create a file suitable for importing into Mysql via the 'INFILE' command. 
+Scripts are available to create a file suitable for importing into Mysql via the 'INFILE' command from the output of the segmentation pipeline. If you use your own, segmentation code, the boundaries data should be formatted as follows:
+
+	<slide name> \t <centroid x coordinate> \t <centroid y coordinate> \t <boundary points>
+
+Where \t is a tab character and <boundary points> are formatted as:
+
+	x1,y1 x2,y2 x3,y3 ... xN,yN (Spaces between coordinates, no spaces within coordinates)
+	
+			
 
 To load the boundaries into the database use the following:
 
@@ -26,8 +32,7 @@ Load the data:
 
 
 
-
-Features:
+-- Features:
 
 Tools have been written to extract the features from the segmentation pipeline output. Currently there is a script for each slide type (GBM, SOX2) because the number of features is hard coded. (Needs to be generalized to determine # of features from the file)
 The scripts require a particular directory structure. 
@@ -44,27 +49,45 @@ slides
 		----- <segmentation files> 1 for each tile of this slide
 		
 		
+If generating your own features, they need to be saved in an HDF5 file with the following datasets at the root.
+
+
+	/features - Vector of floats representing the features. Each row is a sample, samples from the same slide/image are contiguous. Data is normalized using z-score.
 	
-Tables to be updated in the database:
+	/mean -  Mean value of each feature. (Used for z-score normalization)
+	/std_dev - Standard deviation of each feature. (Used for z-score normalization)
+	
+	/slides	-	Names of the slides/images in the dataset
+	/slideIdx - Index into the slides data for each sample, 0 is the first slide, 1 the sceond...
+	
+	/dataIdx - Index into the features data of the first sample from the corresponding slide. 
+	
+	/x_centroid - Float, x location of the sample in the image.
+	/y_centroid - Float, y location of the sample in the image.
+	
+	
+	
+-- Tables to be updated in the database:
 
 Importing the boundaries will update the boundaries table. The slides table will need an entry for each slide imported. Since datasets can be made up of 1 or many slides, they are handled separately.	The tables 'datasets' and 'dataset_slides' also need to be updated for the specific dataset. This is shown in the following. 
 
 
++ Adding images to the database:
 
-Adding images to the database:
+Create a .csv file for import int the database, formatted
 
-To create a .csv file for import int the database, use the following command:
-
-	genlist <image dir> <image list> <outfile>
+	<slide name>,<width in pixels>,<height in pixels>,<path the pyramid on IIPServer>,<scale>
 	
-<image dir> should be the directory that contains the images to import. <image list> is a csv file that contains the slide name and scale. Use the following command to add the images to the database.
+where scale = 1 for 20x and 2 for 40x.
 
+		
+Use the following command to load into the database:
+	
 	LOAD DATA LOCAL INFILE ‘filename in quotes’ INTO TABLE slides fields terminated by ‘,’ lines terminated by ‘\n’ (name, x_size, y_size, pyramid_path, scale);
 
 
 
-
-Creating a dataset:
++ Creating a dataset:
 
 Run the following to create the dataset in the database:
 
