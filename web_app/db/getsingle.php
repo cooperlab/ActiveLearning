@@ -27,7 +27,7 @@
 //
 //
 
-	require 'connect.php';
+	require 'logging.php';		// Also includes connect.php
 
 	/* 	Retrieve a single nuclei that has the closest centroid to the specified point
 		Return as a json object
@@ -55,26 +55,30 @@
 		   ' AND centroid_y BETWEEN '.$boxTop.' AND '.$boxBottom.
 		   ' ORDER BY dist LIMIT 1';
 
+
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
 		$boundaryData = mysqli_fetch_row($result);	
 		mysqli_free_result($result);
-	}		
+	}
 	mysqli_close($dbConn);
 
-	$dbConn = guestConnect();
-	$sql = 'SELECT x_size, y_size, scale FROM slides WHERE name="'.$slide.'"';
-	if( $result = mysqli_query($dbConn, $sql) ) {
-		$sizes = mysqli_fetch_row($result);
-		mysqli_free_result($result);
-	}	
-	mysqli_close($dbConn);
 
-	$jsonData = array();
-	array_push($jsonData, $boundaryData[0], intval($boundaryData[1]), floatval($boundaryData[2]), floatval($boundaryData[3]), 
-				$sizes[0], $sizes[1], $sizes[2], $cellX, $cellY);
-	 
-	echo json_encode($jsonData);
+	if( sizeof($boundaryData) > 0 ) {
+		$dbConn = guestConnect();
+		$sql = 'SELECT x_size, y_size, scale FROM slides WHERE name="'.$slide.'"';
+		if( $result = mysqli_query($dbConn, $sql) ) {
+			$sizes = mysqli_fetch_row($result);
+			mysqli_free_result($result);
 
+		}
+		mysqli_close($dbConn);
+
+		$jsonData = array();	
+		array_push($jsonData, $boundaryData[0], intval($boundaryData[1]), floatval($boundaryData[2]), floatval($boundaryData[3]), 
+					$sizes[0], $sizes[1], $sizes[2], $cellX, $cellY);
+
+		echo json_encode($jsonData);
+	}
 ?>
 
