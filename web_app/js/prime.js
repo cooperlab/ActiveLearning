@@ -216,34 +216,9 @@ function updateSlideList() {
 function updateSlideView() {
 
 	
-	if( pyramids[$('#slideSel').prop('selectedIndex')] === null ) {	
-		var dataviewUrl="http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php"
-		var slideUrl = dataviewUrl+'?slide_name_filter=' + curSlide;
-
-		$.ajax({ 
-			type: 	"GET",
-			url: 	slideUrl,
-			dataType:	"xml",
-			success: function(xml) {
-			
-				// Slides from node15 have /cgi-bin/iipsrv.fcgi? as part of their path
-				// we need to remove it.
-				// This will all go away when all slides are migrated to the new server
-				pyramid = $(xml).find("slide_url").text();
-				var pos = pyramid.indexOf('?');
-				pyramid = pyramid.substring(pos + 1);
-
-				viewer.open(IIPServer + pyramid);			
-			}, 
-			error: function() {
-				alert("Unable to get slide information");
-			}
-		});
-	} else {
-		// Zoomer needs '.dzi' appended to the end of the file
-		pyramid = "DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')]+".dzi";
-		viewer.open(IIPServer + pyramid);	
-	}
+	// Zoomer needs '.dzi' appended to the end of the file
+	pyramid = "DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')]+".dzi";
+	viewer.open(IIPServer + pyramid);	
 }
 
 
