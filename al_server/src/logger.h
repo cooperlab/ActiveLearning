@@ -41,8 +41,7 @@ public:
 			~EvtLogger();
 
 	bool	Open(std::string logFile);
-	bool	LogMsg(LogType type, std::string msg);
-	bool	LogMsgv(LogType type, const char *msg, ...);
+	bool	LogMsg(LogType type, const char *msg, ...);
 	double 	WallTime(void);
 
 

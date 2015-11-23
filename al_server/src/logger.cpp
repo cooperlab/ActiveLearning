@@ -109,7 +109,7 @@ bool EvtLogger::Open(string logFile)
 
 
 
-bool EvtLogger::LogMsgv(LogType type, const char* msg, ...)
+bool EvtLogger::LogMsg(LogType type, const char* msg, ...)
 {
 	bool	result = true;
 
@@ -124,32 +124,18 @@ bool EvtLogger::LogMsgv(LogType type, const char* msg, ...)
 		va_end(args);
 
 		result = LogMsg(type, buffer);
-	}
-	return result;
-}
 
-
-
-
-
-
-
-bool EvtLogger::LogMsg(LogType type, string msg)
-{
-	bool	result = false;
-
-	if( m_isOpen ) {
 		time_t	now;
 
 		if( m_logFile.is_open() ) {
-		
+
 			pthread_mutex_lock(&m_fileMtx);
 			now = time(0);
 
 			tm	*ltm = localtime(&now);
 			char	timeBuff[100];
 			string	typeName;
-	
+
 			switch( type ) {
 			case Evt_ERROR:
 				typeName = "[ERROR]";
@@ -173,11 +159,12 @@ bool EvtLogger::LogMsg(LogType type, string msg)
 			snprintf(timeBuff, 100, "%02d-%02d-%d %02d:%02d:%02d",
 					ltm->tm_mon + 1, ltm->tm_mday, 1900 + ltm->tm_year,
 					ltm->tm_hour, ltm->tm_min, ltm->tm_sec);
-			m_logFile << typeName << " " << timeBuff << " - " << msg << endl;
+			m_logFile << typeName << " " << timeBuff << " - " << buffer << endl;
 			result = true;
 
 			pthread_mutex_unlock(&m_fileMtx);
 		}
+
 	}
 	return result;
 }

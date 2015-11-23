@@ -244,18 +244,18 @@ int main(int argc, char *argv[])
 	}
 
 	if( status == 0 ) {
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "al_server started, Ver %02d.%02d", AL_SERVER_VERSION_MAJOR, AL_SERVER_VERSION_MINOR);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "al_server started, Ver %02d.%02d", AL_SERVER_VERSION_MAJOR, AL_SERVER_VERSION_MINOR);
 
 		
 		if( !ReadConfig(dataPath, outPath, port, interface, heatmapPath, sessionTimeout) ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to read configuration file");
 			status = -1;
 		} else {
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Listening on interface: %s, port: %d", interface.c_str(), port);
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Dataset path: %s", dataPath.c_str());
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Output path: %s", outPath.c_str());
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Heatmap path: %s", heatmapPath.c_str());
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Session timeout: %d", sessionTimeout);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Listening on interface: %s, port: %d", interface.c_str(), port);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Dataset path: %s", dataPath.c_str());
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Output path: %s", outPath.c_str());
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Heatmap path: %s", heatmapPath.c_str());
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Session timeout: %d", sessionTimeout);
 		}
 	}
 
@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
 				// Get a connection
 				connFD = accept(listenFD, (struct sockaddr*)&peer, (socklen_t*)&len);
 
-				gLogger->LogMsgv(EvtLogger::Evt_INFO, "Request from %s", inet_ntoa(peer.sin_addr));
+				gLogger->LogMsg(EvtLogger::Evt_INFO, "Request from %s", inet_ntoa(peer.sin_addr));
 
 				if( HandleRequest(connFD, sessionMgr) == false ) {
 					gLogger->LogMsg(EvtLogger::Evt_ERROR, "Request failed");

@@ -303,7 +303,7 @@ bool UncertainSample::SelectBatch(int count, int *&ids, float *&selScores)
 				}
 			}
 
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Uncertain obj count: %d", minObjs.size());
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Uncertain obj count: %d", minObjs.size());
 			minIdx = 0;
 			for(int i = 0; i < count; i++ ) {
 				int obj = rand() % minObjs.size();
@@ -525,7 +525,7 @@ bool UncertRandomSample::SelectBatch(int count, int *&ids, float *&selScores)
 				}
 			}
 
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Uncertain obj count: %d", minObjs.size());
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Uncertain obj count: %d", minObjs.size());
 			minIdx = 0;
 			for(int i = 0; i < count; i++ ) {
 				int obj = rand() % minObjs.size();
@@ -646,7 +646,7 @@ bool DistSample::SelectBatch(int count, int *&ids, float *&selScores)
 		
 		// Randomly select one from each bin
 		for(int i = 0; i < 8; i++) {
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "bin %d, has %d samples", i, scoreBins[i].size());
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "bin %d, has %d samples", i, scoreBins[i].size());
 
 			bin = i;
 			while( scoreBins[bin].size() == 0 ) {

@@ -202,7 +202,7 @@ bool Learner::ParseCommand(const int sock, const char *data, int size)
 		} else {
 			const char	*command = json_string_value(cmdObj);
 
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Processing: " + string(command));
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Processing: %s", command);
 
 			// 	Be careful with command names that can be a prefix of another.
 			// 	i.e. init can be a prefix of initPicker. If you want to do this
@@ -270,7 +270,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	m_UID[UID_LENGTH] = 0;
 
 	if( strlen(m_UID) > 0 ) {
-		gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
  		result = false;
 	}
 
@@ -334,17 +334,17 @@ bool Learner::StartSession(const int sock, json_t *obj)
 	if( result ) {
 		string fqFileName = m_dataPath + string(fileName);
 
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading %s", fqFileName.c_str());
 		double	start = gLogger->WallTime();
 		result = m_dataset->Load(fqFileName);
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
 		
 	}
 
 	// Create classifier and sampling objects
 	//
 	if( result ) {
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loaded... %d objects of %d dimensions",
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loaded... %d objects of %d dimensions",
 							m_dataset->GetNumObjs(), m_dataset->GetDims());
 
  		m_classifier = new OCVBinaryRF();
@@ -364,7 +364,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		// Allocate buffer for object scores to calculate heatmaps
 		m_scores = (float*)malloc(m_dataset->GetNumObjs() * sizeof(float));
 		if( m_scores == NULL ) {
-			gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to allocate buffer for object scores");
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to allocate buffer for object scores");
 			result = false;
 		}
 	}
@@ -441,7 +441,7 @@ bool Learner::Select(const int sock, json_t *obj)
 			double	start = gLogger->WallTime();
 			// Get new samples
 			m_sampler->SelectBatch(SAMPLE_OBJS, selIdx, selScores);
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Select took %f", gLogger->WallTime() - start);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Select took %f", gLogger->WallTime() - start);
 		}
 
 		for(int i = 0; i < SAMPLE_OBJS; i++) {
@@ -623,7 +623,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 						result = m_dataset->GetSample(idx, m_trainSet[pos]);
 						m_samples.push_back(idx);
 					} else {
-						gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
+						gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
 						result = false;
 					}
 				}
@@ -632,7 +632,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			if( !result )
 				break;
 		}
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Submit took %f", gLogger->WallTime() - start);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Submit took %f", gLogger->WallTime() - start);
 
 		// 
 		// Indicate training set has been updated and heatmaps need to be rebuilt
@@ -664,7 +664,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			m_iteration++;
 		}
 		result = m_classifier->Train(m_trainSet[0], m_labels, m_samples.size(), m_dataset->GetDims());
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Classifier training took %f", gLogger->WallTime() - start);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Classifier training took %f", gLogger->WallTime() - start);
 		
 		if( result ) {
 			m_curAccuracy = 0.0; //CalcAccuracy();
@@ -678,7 +678,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			if( result == false ) {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
 			}
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Dataset classification took %f", gLogger->WallTime() - start);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Dataset classification took %f", gLogger->WallTime() - start);
 		}		
 
 		// Need to select new samples.
@@ -755,7 +755,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 			json_decref(sample);
 		}
 		
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Finalize took %f", gLogger->WallTime() - start);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Finalize took %f", gLogger->WallTime() - start);
 	}
 
 	if( result ) {
@@ -863,7 +863,7 @@ bool Learner::Visualize(const int sock, json_t *obj)
 				free(sampleScores);
 			}
 		}
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Visualize took %f", gLogger->WallTime() - start);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Visualize took %f", gLogger->WallTime() - start);
 	}
 
 	if( result ) {
@@ -1020,8 +1020,9 @@ bool Learner::SaveTrainingSet(string fileName)
 	}
 
 	if( result ) {
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving training set to: " + m_outPath + fileName);
-		result = trainingSet->SaveAs(m_outPath + fileName);
+		fileName = m_outPath + fileName;
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving training set to: %s", fileName.c_str());
+		result = trainingSet->SaveAs(fileName);
 	}
 	
 	if( trainingSet != NULL )
@@ -1087,7 +1088,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 	}
 
 	timing = gLogger->WallTime() - timing;
-	gLogger->LogMsgv(EvtLogger::Evt_INFO, "Classification took: %f", timing);
+	gLogger->LogMsg(EvtLogger::Evt_INFO, "Classification took: %f", timing);
 
 	return result;
 }
@@ -1310,7 +1311,7 @@ bool Learner::InitViewerClassify(const int sock, json_t *obj)
 
 	if( result ) {
 
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loaded %d class names", m_classNames.size());
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loaded %d class names", m_classNames.size());
 		classNames = json_array();
 		if( classNames == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create class name JSON Array");
@@ -1375,7 +1376,7 @@ bool Learner::LoadDataset(string dataSetFileName)
 
 		if( result ) {
 			string fqn = m_dataPath + dataSetFileName;
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: " + fqn);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: %s", fqn.c_str());
 			result = m_dataset->Load(fqn);
 		}
 	}
@@ -1409,21 +1410,21 @@ bool Learner::LoadTrainingSet(string trainingSetName)
 
 		if( result ) {
 			fqn = m_outPath + trainingSetName;
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: " + fqn);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading: %s", fqn.c_str());
 			result = m_classTrain->Load(fqn);
 		}
 
 		if( result ) {
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loaded!");	
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Loaded!");
 		} else {
-			gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Failed loading %s", fqn.c_str());
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Failed loading %s", fqn.c_str());
 		}
 
 		if( result ) {
 			int 	numClasses = m_classTrain->GetNumClasses();
 			char	**names = m_classTrain->GetClassNames();
 			
-			gLogger->LogMsgv(EvtLogger::Evt_INFO, "Num classes: %d, names: 0x%x", numClasses, names);
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Num classes: %d, names: 0x%x", numClasses, names);
 
 			for(int i = 0; i < numClasses; i++) {
 				m_classNames.push_back(names[i]);
@@ -1526,7 +1527,7 @@ bool Learner::InitPicker(const int sock, json_t *obj)
 	m_UID[UID_LENGTH] = 0;
 
 	if( strlen(m_UID) > 0 ) {
-		gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
  		result = false;
 	}
 
@@ -1593,10 +1594,10 @@ bool Learner::InitPicker(const int sock, json_t *obj)
 	if( result ) {
 		string fqFileName = m_dataPath + string(fileName);
 
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading " + fqFileName);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading %s", fqFileName.c_str());
 		double	start = gLogger->WallTime();
 		result = m_dataset->Load(fqFileName);
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
 
 		m_pickerMode = true;
 	}
@@ -1719,7 +1720,7 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 				result = m_dataset->GetSample(idx, m_trainSet[pos]);
 				m_samples.push_back(idx);
 			} else {
-				gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
 				result = false;
 			}
 
@@ -1757,7 +1758,7 @@ bool Learner::AddObjects(const int sock, json_t *obj)
 		free(jsonObj);
 	}
 
-	gLogger->LogMsgv(EvtLogger::Evt_ERROR, "Done, result: %d", result);
+	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Done, result: %d", result);
 	return result;
 }
 
@@ -1818,12 +1819,13 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 
 	if( testSet != NULL ) {
 
-		fqfn = m_dataPath + fileName;
+		fqfn = m_outPath + fileName;
 		struct stat buffer;
 		if( stat(fqfn.c_str(), &buffer) == 0 ) {
 			string 	tag = &m_UID[UID_LENGTH - 3];
 
 			fileName = m_classifierName + "_" + tag + ".h5";
+			fqfn = m_outPath + fileName;
 		}
 
 		result = testSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
@@ -1833,8 +1835,8 @@ bool Learner::PickerFinalize(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving test set to: " + m_outPath + fileName);
-		result = testSet->SaveAs(m_outPath + fileName);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving test set to: %s", fqfn.c_str());
+		result = testSet->SaveAs(fqfn);
 	}
 
 	if( testSet != NULL )
@@ -2026,7 +2028,7 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Viewer heatmap generation took %f", gLogger->WallTime() - timing);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Viewer heatmap generation took %f", gLogger->WallTime() - timing);
 
 		json_object_set(root, "width", json_integer(width));
 		json_object_set(root, "height", json_integer(height));
@@ -2179,14 +2181,14 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 		} 
 
 		sort(m_statList.begin(), m_statList.end(), SortFunc);
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "GenAllHeatmaps took %f", gLogger->WallTime() - timing);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "GenAllHeatmaps took %f", gLogger->WallTime() - timing);
 	
 		// Indicate heatmaps have been updated
 		//
 		m_heatmapReload = false;
 
 	} else {
-		gLogger->LogMsgv(EvtLogger::Evt_INFO, "Training set not updated since heatmaps were last generated");
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Training set not updated since heatmaps were last generated");
 	}
 
 
