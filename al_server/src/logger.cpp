@@ -115,15 +115,11 @@ bool EvtLogger::LogMsg(LogType type, const char* msg, ...)
 
 	if( m_isOpen ) {
 		char	buffer[1024];
-
-
 		va_list	args;
 
 		va_start(args, msg);
 		vsnprintf(buffer, 1024, msg, args);
 		va_end(args);
-
-		result = LogMsg(type, buffer);
 
 		time_t	now;
 
