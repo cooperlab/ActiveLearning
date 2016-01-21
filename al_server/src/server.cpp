@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -136,6 +136,10 @@ bool HandleRequest(const int fd, SessionMgr *mgr)
 	bool	result = true;
 	int		bytesRx;
 
+	//
+	// TODO - Validate the JSON message to determine if it was received
+	// 		  in its entirety.
+	//
 
 	bytesRx = recv(fd, gBuffer, RX_BUFFER_SIZE, 0);
 	// Make sure we read all the data by looking for the end of the JSON

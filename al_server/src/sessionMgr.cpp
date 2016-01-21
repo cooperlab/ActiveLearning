@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -99,7 +99,7 @@ void SessionMgr::ParseCommand(const int sock, string data)
 					strncmp(command, CMD_PICKINIT, strlen(CMD_PICKINIT)) == 0 ||
 					strncmp(command, CMD_CLASSINIT, strlen(CMD_CLASSINIT)) == 0 ) {
 
-					result = CreateSession(uid, data, sock);
+					result = CreateSession(uid, data, command, sock);
 
 				} else if( strncmp(command, CMD_END, strlen(CMD_END)) == 0 ||
 						   strncmp(command, CMD_FINAL, strlen(CMD_FINAL)) == 0 ||
@@ -108,7 +108,10 @@ void SessionMgr::ParseCommand(const int sock, string data)
 
 					result = EndSession(uid, data, sock);
 
+				} else if( strncmp(command, CMD_STATUS, strlen(CMD_STATUS)) == 0 ) {
+					result = Status(uid, data, sock);
 				} else {
+					// Command handled by learner object
 					result = CmdSession(uid, data, sock);
 				}
 			}
@@ -138,7 +141,7 @@ void SessionMgr::ParseCommand(const int sock, string data)
 
 
 
-bool SessionMgr::CreateSession(string uid, string data, int sock)
+bool SessionMgr::CreateSession(string uid, string data, const char *cmd, int sock)
 {
 	bool	result = true;
 	Session *session = new Session;
@@ -148,6 +151,7 @@ bool SessionMgr::CreateSession(string uid, string data, int sock)
 		result = false;
 	} else {
 		session->UID = uid;
+		session->sessionType = cmd;
 		session->learner = new Learner(m_dataPath, m_outPath, m_heatmapPath+uid);
 		time(&session->touchTime);
 		m_sessions.push_back(session);
@@ -203,6 +207,71 @@ bool SessionMgr::CmdSession(string uid, string data, int sock)
 				time(&m_sessions[i]->touchTime);
 				result = m_sessions[i]->learner->ParseCommand(sock, data.c_str(), data.size());
 		}
+	}
+	return result;
+}
+
+
+
+
+
+bool SessionMgr::Status(string uid, string data, int sock)
+{
+	bool	result = true;
+	json_t *root = json_object(), *sessions = NULL, *stat = NULL;
+
+	gLogger->LogMsg(EvtLogger::Evt_INFO,  "Processing: status");
+
+	if( root == NULL ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(SessionMgr::Status) Error creating JSON object");
+		result = false;
+	}
+
+	if( result ) {
+		sessions = json_array();
+		if( sessions == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(SessionMgr::Status) Unable to create JSON array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		time_t	now;
+
+		time(&now);
+
+		json_object_set(root, "count", json_integer(m_sessions.size()));
+		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
+
+		for(int i = 0; i < m_sessions.size(); i++ ) {
+			stat = json_object();
+			if( stat == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(SessionMgr::Status) Unable to create stat object");
+				result = false;
+				break;
+			}
+
+			json_object_set(stat, "id", json_string(m_sessions[i]->UID.c_str()));
+			json_object_set(stat, "type", json_string(m_sessions[i]->sessionType.c_str()));
+			json_object_set(stat, "idle", json_real(difftime(now, m_sessions[i]->touchTime)));
+
+			json_array_append(sessions, stat);
+			json_decref(stat);
+		}
+		json_object_set(root, "sessions", sessions);
+		json_decref(sessions);
+
+		// Send result back to client
+		//
+		char *jsonObj = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+
 	}
 	return result;
 }

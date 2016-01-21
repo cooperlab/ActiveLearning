@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -43,6 +43,8 @@
 #define CMD_PICKEND		"pickerSave"
 #define CMD_CLASSINIT	"viewerLoad"
 #define CMD_CLASSEND	"viewerEnd"
+
+#define CMD_STATUS		"sysStatus"
 
 
 #endif /* SRC_COMMANDS_H_ */

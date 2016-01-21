@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -38,6 +38,7 @@ using namespace std;
 
 struct Session {
 	string	UID;
+	string  sessionType;
 	Learner *learner;
 	time_t	touchTime;
 	int	socket;
@@ -65,9 +66,11 @@ protected:
 	vector<Session*> m_sessions;
 
 	void	ParseCommand(const int sock, string data);
-	bool	CreateSession(string uid, string data, int sock);
+	bool	CreateSession(string uid, string data, const char *cmd, int sock);
 	bool	EndSession(string uid, string data, int sock);
 	bool	CmdSession(string uid, string data, int sock);
+
+	bool 	Status(string uid, string data, int sock);
 };
 
 
