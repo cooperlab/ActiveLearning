@@ -7,7 +7,7 @@ set(AL_SERVER_VERSION_MINOR 40)
 #
 ### HDF5 package
 #
-find_package(HDF5 REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS HL)
 
 
 if( NOT HDF5_FOUND )
@@ -18,8 +18,7 @@ include_directories(${HDF5_INCLUDE_DIRS})
 set(LIBRARIES ${LIBRARIES} ${HDF5_LIBRARIES})
 set(LIBRARIES ${LIBRARIES} ${HDF5_HL_LIBRARIES})
 
-message(STATUS "HDF5: " ${HDF5_LIBRARIES})
-message(STATUS "HDF5: " ${HDF5_HL_LIBRARIES})
+
 
 #
 ### OpenCV
@@ -88,11 +87,9 @@ endif( GENGETOPT STREQUAL "GENGETOPT-NOTFOUND")
 
 
 #
-## Generate cmdline.c, cmdline.h and base_config.h
+## Generate gengetopt files and cmdline.c, cmdline.h
 # 
 configure_file("${PROJECT_SOURCE_DIR}/src/validate-opt.ggo.in" "${CMAKE_CURRENT_BINARY_DIR}/validate-opt.ggo")
-configure_file("${PROJECT_SOURCE_DIR}/src/base_config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/base_config.h")
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_CUSTOM_COMMAND(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.h
@@ -104,14 +101,23 @@ ADD_CUSTOM_COMMAND(
 
 
 #
+## Generate base_config.h
+#
+configure_file("${PROJECT_SOURCE_DIR}/src/base_config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/base_config.h")
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+
+
+
+#
 # Executables
 #
 add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.cpp 
                 sampler.cpp ocvrandforest.cpp logger.cpp sessionMgr.cpp)
 
 add_executable(validate validate-main.cpp classifier.cpp ocvsvm.cpp ocvrandforest.cpp 
-                data.cpp logger.cpp val-cmdline.c)
-add_dependencies(validate ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c)
+                data.cpp logger.cpp ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c)
+
 
 
 target_link_libraries(al_server ${LIBRARIES})
