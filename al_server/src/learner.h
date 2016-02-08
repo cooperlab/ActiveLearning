@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -36,9 +36,10 @@
 #include "ocvsvm.h"
 #include "ocvrandforest.h"
 #include "sampler.h"
+#include "sessionClient.h"
 
 
-#define UID_LENGTH 		23
+
 
 
 struct SlideStat{
@@ -57,18 +58,17 @@ struct SlideStat{
 
 
 
-class Learner
+class Learner : public SessionClient
 {
 public:
 			Learner(string dataPath = "./", string outPath = "./", string heatmapPath = "./");
 			~Learner(void);
 
-	bool	ParseCommand(const int sock, const char *data, int size);
+	virtual bool	ParseCommand(const int sock, const char *data, int size);
 
 
 protected:
 
-	char	m_UID[UID_LENGTH + 1];
 	MData	*m_dataset;
 	MData	*m_classTrain;	// Used for applying classifier when no session active
 	string	m_dataPath;
@@ -107,12 +107,8 @@ protected:
 	Classifier 	*m_classifier;
 	Sampler		*m_sampler;
 
-	bool		m_pickerMode;
 	bool		m_classifierMode;
 	bool		m_debugStarted;
-
-
-	bool	IsUIDValid(const char *uid);
 
 
 	bool	StartSession(const int sock, json_t *obj);
@@ -122,10 +118,6 @@ protected:
 	bool	FinalizeSession(const int sock, json_t *obj);
 	bool	ApplyClassifier(const int sock, json_t *obj);
 	bool	Visualize(const int sock, json_t *obj);
-	bool	InitPicker(const int sock, json_t *obj);
-	bool	AddObjects(const int sock, json_t *obj);
-	bool	PickerStatus(const int sock, json_t *obj);
-	bool	PickerFinalize(const int sock, json_t *obj);
 	bool	GenHeatmap(const int sock, json_t *obj);
 	bool	GenAllHeatmaps(const int sock, json_t *obj);
 

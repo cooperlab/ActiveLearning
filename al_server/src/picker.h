@@ -24,55 +24,80 @@
 //	DAMAGE.
 //
 //
-#if !defined(SRC_SESSIONMGR_H_)
-#define SRC_SESSIONMGR_H_
+#if !defined(PICKER_H_)
+#define PICKER_H_
 
 #include <vector>
+#include <string>
+#include <set>
+#include <jansson.h>
 
+#include "data.h"
+#include "ocvsvm.h"
+#include "ocvrandforest.h"
+#include "sampler.h"
 #include "sessionClient.h"
 
 
-using namespace std;
 
 
 
-struct Session {
-	string	UID;
-	string  sessionType;
-	SessionClient *client;
-	time_t	touchTime;
-	int	socket;
-};
 
-
-
-class SessionMgr {
+class Picker : public SessionClient
+{
 
 public:
 
-		SessionMgr(string dataPath = "./", string outPath = "./", string heatmapPath = "./",
-					int sessionTimeout = 30);
-		~SessionMgr(void);
+	Picker(string dataPath = "./", string outPath = "./", string heatmapPath = "./");
+	~Picker(void);
 
-	bool	HandleRequest(const int sock, string data);
+	virtual bool	ParseCommand(const int sock, const char *data, int size);
+
 
 protected:
 
-	int			m_sessionTimeout;
-	string		m_dataPath;
-	string		m_outPath;
-	string		m_heatmapPath;
+	MData	*m_dataset;
 
-	vector<Session*> m_sessions;
+	MData	*m_classTrain;	// Used for applying classifier when no session active
 
-	void	ParseCommand(const int sock, string data);
-	bool	CreateSession(string uid, string data, const char *cmd, int sock);
-	bool	EndSession(string uid, string data, int sock);
-	bool	CmdSession(string uid, string data, int sock);
+	string	m_dataPath;
+	string 	m_outPath;
 
-	bool 	Status(string uid, string data, int sock);
+	string	m_testsetName;
+	string	m_curDatasetName;
+	vector<string> m_classNames;
+
+	vector<int> m_samples;
+
+	// Training set info
+	//
+	int			*m_labels;
+	int			*m_ids;
+	float		**m_trainSet;
+	int			*m_slideIdx;
+	float		*m_xCentroid;
+	float		*m_yCentroid;
+	float		*m_xClick;
+	float		*m_yClick;
+
+	bool	CancelSession(const int sock, json_t *obj);
+	bool	GetSelected(const int sock, json_t *obj);
+	bool	InitPicker(const int sock, json_t *obj);
+	bool	AddObjects(const int sock, json_t *obj);
+	bool	PickerStatus(const int sock, json_t *obj);
+	bool	PickerFinalize(const int sock, json_t *obj);
+
+	bool	SendSelected(int xMin, int xMax, int yMin, int yMax,
+			 	 	 	 string slide, int *results, const int sock);
+
+
+	bool 	UpdateBuffers(int updateSize, bool includeClick = false);
+	void	Cleanup(void);
+
+	bool	SaveTrainingSet(string filename);
+
+	bool	LoadDataset(string dataSetFileName);
 };
 
 
-
-#endif /* SRC_SESSIONMGR_H_ */
+#endif /* PICKER_H_ */

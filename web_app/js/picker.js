@@ -49,7 +49,7 @@ var	selectedJSON = [];
 var pyramids;
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
 
-var boundsLeft, boundsRight, boundsTop, boundsBottom;
+var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 var defaultClass;
 
 
@@ -129,7 +129,7 @@ $(function() {
 				
 				if( centerX < boundsLeft || centerX > boundsRight ||
 					centerY < boundsTop || centerY > boundsBottom ) {
-					
+					console.log("Updating segmentation");
 					updateSeg();
 				}
 			} else {

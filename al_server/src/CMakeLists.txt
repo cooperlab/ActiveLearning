@@ -113,7 +113,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # Executables
 #
 add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.cpp 
-                sampler.cpp ocvrandforest.cpp logger.cpp sessionMgr.cpp)
+                sampler.cpp ocvrandforest.cpp logger.cpp sessionMgr.cpp picker.cpp
+                sessionClient.cpp)
 
 add_executable(validate validate-main.cpp classifier.cpp ocvsvm.cpp ocvrandforest.cpp 
                 data.cpp logger.cpp ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c)

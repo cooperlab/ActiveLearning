@@ -75,7 +75,6 @@ m_curAccuracy(0.0f),
 m_heatmapReload(false),
 m_xCentroid(NULL),
 m_yCentroid(NULL),
-m_pickerMode(false),
 m_debugStarted(false),
 m_scores(NULL),
 m_classifierMode(false),
@@ -171,8 +170,6 @@ void Learner::Cleanup(void)
 		free(m_scores);
 		m_scores = NULL;
 	}
-
-	m_pickerMode = false;
 	m_debugStarted = false;
 }
 
@@ -211,33 +208,25 @@ bool Learner::ParseCommand(const int sock, const char *data, int size)
 			//
 			if( strncmp(command, CMD_INIT, strlen(CMD_INIT)) == 0 ) {
 				result = StartSession(sock, root);
-			} else if( strncmp(command, "prime", 5) == 0 ) {
+			} else if( strncmp(command, CMD_PRIME, strlen(CMD_PRIME)) == 0 ) {
 				result = Submit(sock, root);
-			} else if( strncmp(command, "select", 6) == 0 ) {
+			} else if( strncmp(command, CMD_SELECT, strlen(CMD_SELECT)) == 0 ) {
 				result = Select(sock, root);
 			} else if( strncmp(command, CMD_END, strlen(CMD_END)) == 0 ) {
 				result = CancelSession(sock, root);
-			} else if( strncmp(command, "submit", 6) == 0 ) {
+			} else if( strncmp(command, CMD_SUBMIT, strlen(CMD_SUBMIT)) == 0 ) {
 				result = Submit(sock, root);
-			} else if( strncmp(command, "finalize", 8) == 0 ) {
+			} else if( strncmp(command, CMD_FINAL, strlen(CMD_FINAL)) == 0 ) {
 				result = FinalizeSession(sock, root);
-			} else if( strncmp(command, "apply", 8) == 0 ) {
+			} else if( strncmp(command, CMD_APPLY, strlen(CMD_APPLY)) == 0 ) {
 				result = ApplyClassifier(sock, root);
-			} else if( strncmp(command, "visualize", 9) == 0 ) {
+			} else if( strncmp(command, CMD_VISUAL, strlen(CMD_VISUAL)) == 0 ) {
 				result = Visualize(sock, root);
-			} else if( strncmp(command, "pickerInit", 10) == 0) {
-				result = InitPicker(sock, root);
-			} else if( strncmp(command, "pickerAdd", 9) == 0) {
-				result = AddObjects(sock, root);
-			} else if( strncmp(command, "pickerCnt", 9) == 0) {
-				result = PickerStatus(sock, root);
-			} else if( strncmp(command, "pickerSave", 10) == 0) {
-				result = PickerFinalize(sock, root);
-			} else if( strncmp(command, "viewerLoad", 10) == 0) {
+			} else if( strncmp(command, CMD_VIEWLOAD, strlen(CMD_VIEWLOAD)) == 0) {
 				result = InitViewerClassify(sock, root);
-			} else if( strncmp(command, "heatMap", 7) == 0) {
+			} else if( strncmp(command, CMD_HEATMAP, strlen(CMD_HEATMAP)) == 0) {
 				result = GenHeatmap(sock, root);
-			} else if( strncmp(command, "allHeatMaps", 11) == 0) {
+			} else if( strncmp(command, CMD_ALLHEATMAPS, strlen(CMD_ALLHEATMAPS)) == 0) {
 				result = GenAllHeatmaps(sock, root);
 			} else if( strncmp(command, CMD_CLASSEND, strlen(CMD_CLASSEND)) == 0 ) {
 				// Do nothing
@@ -1179,26 +1168,9 @@ bool Learner::ApplySessionClassifier(const int sock, int xMin, int xMax,
 
 	if( result ) {
 
-		if( m_pickerMode ) {
-			// In picker mode, we just set selected objects to the positive
-			// class to indicate they've been selected already. All other
-			// objects are set to the negative class.
-			//
-			memset(labels, -1, slideObjs * sizeof(int));
-			
-			vector<int>::iterator	it;
-			for(it = m_samples.begin(); it != m_samples.end(); it++) {
-				// Only mark samples that are on this slide 
-				if( *it >= offset && *it < (offset + slideObjs) ) {
-					labels[*it - offset] = 1;
-				}
-			}
-		} else {
-
-			ptr = m_dataset->GetSlideData(slide, slideObjs);
-			dims = m_dataset->GetDims();
-			result = m_classifier->ClassifyBatch(ptr, slideObjs, dims, labels);
-		}
+		ptr = m_dataset->GetSlideData(slide, slideObjs);
+		dims = m_dataset->GetDims();
+		result = m_classifier->ClassifyBatch(ptr, slideObjs, dims, labels);
 	}
 
 	if( result ) {
@@ -1512,378 +1484,7 @@ bool Learner::CreateSet(vector<int> folds, int fold, float *&trainX, int *&train
 
 
 
-
-
-
-bool Learner::InitPicker(const int sock, json_t *obj)
-{
-	bool	result = true, uidUpdated = false;
-	json_t	*jsonObj;
-	const char *fileName, *uid, *testSetName;
-
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
-	if( strlen(m_UID) > 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
- 		result = false;
-	}
-
-	if( result ) {
-		jsonObj = json_object_get(obj, "features");
-		fileName = json_string_value(jsonObj);
-		if( fileName == NULL ) {
-			result = false;
-		}
-	}
-
-	if( result ) {
-		jsonObj = json_object_get(obj, "uid");
-		uid = json_string_value(jsonObj);
-		if( uid == NULL ) {
-			result = false;
-		}
-	}
-
-	if( result ) {
-		strncpy(m_UID, uid, UID_LENGTH);
-		uidUpdated = true;
-		m_dataset = new MData();
-		if( m_dataset == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
-			result = false;
-		}
-	}
-
-	if( result ) {
-		jsonObj = json_object_get(obj, "name");
-		testSetName = json_string_value(jsonObj);
-		if( testSetName != NULL ) {
-			m_classifierName = testSetName;			// Just reuse m_classifierName
-		} else {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to extract test set name");
-			result = false;
-		}
-	}
-
-	if( result ) {
-		jsonObj = json_object_get(obj, "negClass");
-		testSetName = json_string_value(jsonObj);
-		if( testSetName != NULL ) {
-			m_classNames.push_back(testSetName);
-		} else {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to extract negative class name");
-			result = false;
-		}
-	}
-
-	if( result ) {
-		jsonObj = json_object_get(obj, "posClass");
-		testSetName = json_string_value(jsonObj);
-		if( testSetName != NULL ) {
-			m_classNames.push_back(testSetName);
-		} else {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to extract positive class name");
-			result = false;
-		}
-	}
-
-
-	if( result ) {
-		string fqFileName = m_dataPath + string(fileName);
-
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading %s", fqFileName.c_str());
-		double	start = gLogger->WallTime();
-		result = m_dataset->Load(fqFileName);
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
-
-		m_pickerMode = true;
-	}
-
-
-	// Send result back to client
-	//
-	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
-								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
-
-	if( bytesWritten != sizeof(failResp) - 1 )
-		result = false;
-
-	if( !result && uidUpdated ){
-		// Initialization failed, clear current UID
-		memset(m_UID, 0, UID_LENGTH + 1);
-	}
-
-
-	return result;
-}
-
-
-
-
-
-bool Learner::AddObjects(const int sock, json_t *obj)
-{
-	bool	result = true;
-	json_t	*sampleArray, *value, *jsonObj;
-
-	// Check for valid UID
-	//
-	value = json_object_get(obj, "uid");
-	const char *uid = json_string_value(value);
-
-	result = IsUIDValid(uid);
-
-	if( result ) {
-		sampleArray = json_object_get(obj, "samples");
-		if( !json_is_array(sampleArray) ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
-			result = false;
-		}
-	}
-
-	if( result ) {
-		// Make room for the new samples
-		result = UpdateBuffers(json_array_size(sampleArray), true);
-	}
-
-	if( result ) {
-		size_t	index;
-		int		id, label, idx, dims = m_dataset->GetDims();
-		float	centX, centY, clickX, clickY;
-		const char *slide;
-
-		json_array_foreach(sampleArray, index, jsonObj) {
-			value = json_object_get(jsonObj, "id");
-			id = json_integer_value(value);
-
-			// The dynamic typing in PHP or javascript can make a float
-			// an int if it has no decimal portion. Since the centroids can
-			// be whole numbers, we need to check if they are real, if not
-			// we just assume they are integer
-			//
-			value = json_object_get(jsonObj, "centX");
-			if( json_is_real(value) )
-				centX = (float)json_real_value(value);
-			else
-				centX = (float)json_integer_value(value);
-
-			value = json_object_get(jsonObj, "centY");
-			if( json_is_real(value) )
-				centY = (float)json_real_value(value);
-			else
-				centY = (float)json_integer_value(value);
-
-			value = json_object_get(jsonObj, "clickX");
-			if( json_is_real(value) )
-				clickX = (float)json_real_value(value);
-			else
-				clickX = (float)json_integer_value(value);
-
-			value = json_object_get(jsonObj, "clickY");
-			if( json_is_real(value) )
-				clickY = (float)json_real_value(value);
-			else
-				clickY = (float)json_integer_value(value);
-
-			value = json_object_get(jsonObj, "label");
-			label = json_integer_value(value);
-
-			//
-			// FIXME!!! - Need to handle slide names that are numbers better
-			//
-			value = json_object_get(jsonObj, "slide");
-			if( json_is_string(value) )
-				slide = json_string_value(value);
-			else {
-				char name[255];
-				int num = json_integer_value(value);
-				snprintf(name, 255, "%d", num);
-				slide = name;
-			}
-
-			// Get the dataset index for this object
-			idx = m_dataset->FindItem(centX, centY, slide);
- 			int	pos = m_samples.size();
-
-			if( idx != -1 ) {
-				m_labels[pos] = label;
-				m_ids[pos] = id;
-				m_sampleIter[pos] = m_iteration;
-				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
-				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
-				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
-				m_xClick[pos] = clickX;
-				m_yClick[pos] = clickY;
-				result = m_dataset->GetSample(idx, m_trainSet[pos]);
-				m_samples.push_back(idx);
-			} else {
-				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to find item: %s, %f, %f ", slide, centX, centY);
-				result = false;
-			}
-
-			// Something is wrong, stop processing
-			if( !result )
-				break;
-		}
-	}
-
-	json_t *root = NULL;
-	if( result ) {
-		root = json_object();
-
-		if( root == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(AddObjects) Error creating JSON object");
-			result = false;
-		}
-	}
-	
-	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Encoding response");
-	if( result ) {
-
-		json_object_set(root, "count", json_integer(m_samples.size()));
-		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
-
-		// Send result back to client
-		//
-		char *jsonObj = json_dumps(root, 0);
-		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
-
-		if( bytesWritten != strlen(jsonObj) )
-			result = false;
-
-		json_decref(root);
-		free(jsonObj);
-	}
-
-	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Done, result: %d", result);
-	return result;
-}
-
-
-
-
-
-
-bool Learner::PickerStatus(const int sock, json_t *obj)
-{
-	bool	result = true;
-	json_t	*value, *root = NULL;
-
-	// Check for valid UID
-	//
-	value = json_object_get(obj, "uid");
-	const char *uid = json_string_value(value);
-
-	result = IsUIDValid(uid);
-
-	if( result ) {
-		root = json_object();
-		if( root == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(PickerStatus) Error creating JSON object");
-			result = false;
-		}
-	}
-
-	if( result ) {
-		json_object_set(root, "count", json_integer(m_samples.size()));
-		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
-
-		// Send result back to client
-		//
-		char *jsonObj = json_dumps(root, 0);
-		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
-
-		if( bytesWritten != strlen(jsonObj) )
-			result = false;
-
-		json_decref(root);
-		free(jsonObj);
-	}
-	return true;
-}
-
-
-
-
-
-
-
-bool Learner::PickerFinalize(const int sock, json_t *obj)
-{
-	bool	result = false;
-	MData 	*testSet = new MData();
-	string 	fileName = m_classifierName + ".h5", fqfn;
-
-	if( testSet != NULL ) {
-
-		fqfn = m_outPath + fileName;
-		struct stat buffer;
-		if( stat(fqfn.c_str(), &buffer) == 0 ) {
-			string 	tag = &m_UID[UID_LENGTH - 3];
-
-			fileName = m_classifierName + "_" + tag + ".h5";
-			fqfn = m_outPath + fileName;
-		}
-
-		result = testSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
-							m_labels, m_ids, NULL, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
-							m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
-							m_dataset->GetNumSlides(), m_classNames, m_xClick, m_yClick);
-	}
-
-	if( result ) {
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving test set to: %s", fqfn.c_str());
-		result = testSet->SaveAs(fqfn);
-	}
-
-	if( testSet != NULL )
-		delete testSet;
-
-	json_t	*root;
-
-	if( result ) {
-		root = json_object();
-		if( root == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(PickerStatus) Error creating JSON object");
-			result = false;
-		}
-	}
-
-	if( result ) {
-		// This session is done, clear the UID and cleanup associated
-		// data
-		//
-		memset(m_UID, 0, UID_LENGTH + 1);
-		Cleanup();
-	}
-
-	if( result ) {
-
-		json_object_set(root, "filename", json_string(fqfn.c_str()));
-		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
-
-		// Send result back to client
-		//
-		char *jsonObj = json_dumps(root, 0);
-		size_t bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
-
-		if( bytesWritten != strlen(jsonObj) )
-			result = false;
-
-		json_decref(root);
-		free(jsonObj);
-	}
-
-	return result;
-}
-
-
-
-
-
+#if 0
 
 bool Learner::IsUIDValid(const char *uid) 
 {
@@ -1907,7 +1508,7 @@ bool Learner::IsUIDValid(const char *uid)
 	}
 	return result;
 }
-
+#endif
 
 
 

@@ -24,40 +24,45 @@
 //	DAMAGE.
 //
 //
-#if !defined(SRC_COMMANDS_H_)
-#define SRC_COMMANDS_H_
+#include <cstring>
+
+#include "sessionClient.h"
+#include "logger.h"
 
 
-// JSON object tags
-//
-#define UID_TAG		"uid"
-#define CMD_TAG		"command"
+
+using namespace std;
 
 
-// Server commands
-//
-#define CMD_INIT		"init"
-#define CMD_END			"end"
-#define CMD_FINAL		"finalize"
-#define CMD_CLASSINIT	"viewerLoad"
-#define CMD_CLASSEND	"viewerEnd"
-#define CMD_PRIME		"prime"
-#define CMD_SELECT		"select"
-#define CMD_SUBMIT		"submit"
-#define CMD_APPLY		"apply"
-#define CMD_VISUAL		"visualize"
-
-#define CMD_PICKINIT	"pickerInit"
-#define CMD_PICKADD		"pickerAdd"
-#define CMD_PICKCNT		"pickerCnt"
-#define CMD_PICKEND		"pickerSave"
-
-#define CMD_VIEWLOAD	"viewerLoad"
-
-#define CMD_HEATMAP		"heatMap"
-#define CMD_ALLHEATMAPS	"allHeatMaps"
-
-#define CMD_STATUS		"sysStatus"
+extern EvtLogger *gLogger;
 
 
-#endif /* SRC_COMMANDS_H_ */
+
+
+
+
+bool SessionClient::IsUIDValid(const char *uid)
+{
+	bool	result = true;
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+
+	if( strlen(m_UID) == 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "No active session");
+		result = false;
+	} else {
+		if( uid == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to decode UID");
+			result = false;
+		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid UID");
+			result = false;
+		}
+	}
+	return result;
+}
+
+
+

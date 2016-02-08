@@ -24,40 +24,29 @@
 //	DAMAGE.
 //
 //
-#if !defined(SRC_COMMANDS_H_)
-#define SRC_COMMANDS_H_
+#if !defined(SRC_SESSIONCLIENT_H_)
+#define SRC_SESSIONCLIENT_H_
 
 
-// JSON object tags
-//
-#define UID_TAG		"uid"
-#define CMD_TAG		"command"
+#define UID_LENGTH 		23
 
 
-// Server commands
-//
-#define CMD_INIT		"init"
-#define CMD_END			"end"
-#define CMD_FINAL		"finalize"
-#define CMD_CLASSINIT	"viewerLoad"
-#define CMD_CLASSEND	"viewerEnd"
-#define CMD_PRIME		"prime"
-#define CMD_SELECT		"select"
-#define CMD_SUBMIT		"submit"
-#define CMD_APPLY		"apply"
-#define CMD_VISUAL		"visualize"
 
-#define CMD_PICKINIT	"pickerInit"
-#define CMD_PICKADD		"pickerAdd"
-#define CMD_PICKCNT		"pickerCnt"
-#define CMD_PICKEND		"pickerSave"
+class SessionClient {
+public:
 
-#define CMD_VIEWLOAD	"viewerLoad"
+	virtual bool	ParseCommand(const int sock, const char *data, int size) = 0;
 
-#define CMD_HEATMAP		"heatMap"
-#define CMD_ALLHEATMAPS	"allHeatMaps"
+protected:
 
-#define CMD_STATUS		"sysStatus"
+	char	m_UID[UID_LENGTH + 1];
 
 
-#endif /* SRC_COMMANDS_H_ */
+	bool	IsUIDValid(const char *uid);
+
+};
+
+
+
+
+#endif

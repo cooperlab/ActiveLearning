@@ -33,6 +33,8 @@
 #include "sessionMgr.h"
 #include "logger.h"
 #include "commands.h"
+#include "learner.h"
+#include "picker.h"
 
 
 extern EvtLogger	*gLogger;
@@ -129,7 +131,7 @@ void SessionMgr::ParseCommand(const int sock, string data)
 		elapsedTime =  difftime(now, m_sessions[i]->touchTime);
 		if( elapsedTime > (double)m_sessionTimeout ) {
 
-			delete m_sessions[i]->learner;
+			delete m_sessions[i]->client;
 			delete m_sessions[i];
 			m_sessions.erase(m_sessions.begin() + i);
 		}
@@ -151,8 +153,16 @@ bool SessionMgr::CreateSession(string uid, string data, const char *cmd, int soc
 		result = false;
 	} else {
 		session->UID = uid;
+
+
 		session->sessionType = cmd;
-		session->learner = new Learner(m_dataPath, m_outPath, m_heatmapPath+uid);
+
+		if( strncmp(cmd, CMD_PICKINIT, strlen(CMD_PICKINIT)) == 0 ) {
+			session->client = new Picker(m_dataPath, m_outPath, m_heatmapPath + uid);
+		} else {
+			session->client = new Learner(m_dataPath, m_outPath, m_heatmapPath+uid);
+		}
+
 		time(&session->touchTime);
 		m_sessions.push_back(session);
 
@@ -161,7 +171,7 @@ bool SessionMgr::CreateSession(string uid, string data, const char *cmd, int soc
 		string cmd = "mkdir " + m_heatmapPath + uid;
 		int ret = system(cmd.c_str());
 
-		result = session->learner->ParseCommand(sock, data.c_str(), data.size());
+		result = session->client->ParseCommand(sock, data.c_str(), data.size());
 	}
 	return result;
 }
@@ -176,9 +186,9 @@ bool SessionMgr::EndSession(string uid, string data, int sock)
 
 	for(int i = 0; i < m_sessions.size(); i++) {
 		if( m_sessions[i]->UID.compare(uid) == 0 ) {
-			result = m_sessions[i]->learner->ParseCommand(sock, data.c_str(), data.size());
+			result = m_sessions[i]->client->ParseCommand(sock, data.c_str(), data.size());
 
-			delete m_sessions[i]->learner;
+			delete m_sessions[i]->client;
 			delete m_sessions[i];
 			m_sessions.erase(m_sessions.begin() + i);
 
@@ -205,7 +215,7 @@ bool SessionMgr::CmdSession(string uid, string data, int sock)
 			if( m_sessions[i]->UID.compare(uid) == 0 ) {
 
 				time(&m_sessions[i]->touchTime);
-				result = m_sessions[i]->learner->ParseCommand(sock, data.c_str(), data.size());
+				result = m_sessions[i]->client->ParseCommand(sock, data.c_str(), data.size());
 		}
 	}
 	return result;

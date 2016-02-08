@@ -48,7 +48,7 @@ var clickCount = 0;
 var	selectedJSON = [];
 var pyramids;
 
-var boundsLeft, boundsRight, boundsTop, boundsBottom;
+var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 
 
 
