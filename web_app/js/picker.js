@@ -425,8 +425,8 @@ function addThumbnail(index) {
 
 	
 	thumbDiv = document.createElement("div");
-	thumbDiv.setAttribute('id', 'box_' + index);
 	thumbDiv.setAttribute('class', 'slider_div');
+	thumbDiv.setAttribute('id', 'box_' + index);
 	thumbDiv.setAttribute('style', 'display: none;');
 
 	divEle = document.createElement("div");
@@ -475,6 +475,8 @@ function nucleiSelect() {
             success: function(data) {
 					if( data !== null ) {
 						
+						var newBox = false;
+
 						if( statusObj.totalSel() === 0 ) {
 							// First object added, enable "add" button
 							$('#addBtn').removeAttr('disabled');
@@ -484,6 +486,7 @@ function nucleiSelect() {
 						//
 						if( statusObj.totalSel() >= 8 ) {
 							addThumbnail(statusObj.totalSel() + 1);
+							newBox = true;
 						}
 
 						sample = {};
@@ -505,7 +508,28 @@ function nucleiSelect() {
 						//		
 						statusObj.totalSel(statusObj.totalSel() + 1);								
 						selectedJSON.push(sample);
-					
+						
+						if( newBox ) {
+							var index = statusObj.totalSel();
+							var	box = document.getElementById('box_'+index);
+							var	clickCount = 0;
+	
+							box.addEventListener('click', function() {
+										clickCount++;
+										if( clickCount === 1 ) {
+											singleClickTimer = setTimeout(function() {
+												clickCount = 0;
+												thumbSingleClick('box_'+index);
+												}, 200);
+										} else if( clickCount === 2 ) {
+											clearTimeout(singleClickTimer);
+											clickCount = 0;
+											thumbDoubleClick('box_'+index);
+										}
+									}, false);
+							boxes.push('box_'+index);
+						}					
+
 						var box = "#box_" + statusObj.totalSel(), thumbTag = "#thumb_" + statusObj.totalSel(),
 							labelTag = "#label_" + statusObj.totalSel(), loc;
 
@@ -571,12 +595,20 @@ function thumbDoubleClick(box) {
 		
 		updateClassStatus(i - 1);
 	}
-	dest = "#label_" + statusObj.totalSel();
-	$(dest).text("Class");
 
-	dest = "#box_" + statusObj.totalSel();
-	$(dest).hide();
-	
+	if( statusObj.totalSel() > 8 ) {
+		
+		boxes.pop();
+		dest = document.getElementById("box_" + statusObj.totalSel());
+		dest.parentNode.removeChild(dest);
+
+	} else {
+		dest = "#label_" + statusObj.totalSel();
+		$(dest).text("Class");
+
+		dest = "#box_" + statusObj.totalSel();
+		$(dest).hide();
+	}
 	statusObj.totalSel(statusObj.totalSel() - 1)
 	updateSeg();
 };
