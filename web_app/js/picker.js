@@ -784,6 +784,14 @@ function addObjects() {
 						labelTag = "#label_"+(parseInt(i)+1);
 						$(labelTag).text("Class");
 					}			 
+
+					for(i = statusObj.totalSel(); i > 8; i--) {
+						// Remove any boxes that were added
+						boxes.pop();
+						var	dest = document.getElementById("box_" + i);
+						dest.parentNode.removeChild(dest);
+					}
+
 					selectedJSON = [];
 					statusObj.totalSel(0);
 					$('#addBtn').attr('disabled', 'true');
