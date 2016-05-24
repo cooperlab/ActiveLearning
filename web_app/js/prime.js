@@ -8,7 +8,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -16,7 +16,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -41,7 +41,7 @@ var viewer = null;
 var imgHelper = null, osdCanvas = null, viewerHook = null;
 var curSlide = "", curDataset = "";
 
-var displaySeg = false, selectNuc = false;
+var displaySeg = false, selectNuc = false, isDuplicate = false;
 var lastScaleFactor = 0;
 var clickCount = 0;
 
@@ -56,7 +56,7 @@ var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 
 //
 //	Initialization
-//	
+//
 //
 $(function() {
 
@@ -77,16 +77,16 @@ $(function() {
 					{tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick}
 			]});
 
-	annoGrpTransformFunc = ko.computed(function() { 
+	annoGrpTransformFunc = ko.computed(function() {
 										return 'translate(' + svgOverlayVM.annoGrpTranslateX() +
 										', ' + svgOverlayVM.annoGrpTranslateY() +
 										') scale(' + svgOverlayVM.annoGrpScale() + ')';
-									}, this); 
-									
+									}, this);
+
 
 	//
 	// Image handlers
-	//	
+	//
 	viewer.addHandler('open', function(event) {
 		osdCanvas = $(viewer.canvas);
 		statusObj.haveImage(true);
@@ -99,14 +99,14 @@ $(function() {
 		statusObj.imgHeight(imgHelper.imgHeight);
 		statusObj.imgAspectRatio(imgHelper.imgAspectRatio);
 		statusObj.scaleFactor(imgHelper.getZoomFactor());
-		
+
 	});
 
 
 	viewer.addHandler('close', function(event) {
 		osdCanvas = $(viewer.canvas);
 		statusObj.haveImage(false);
-		
+
         osdCanvas.off('mouseenter.osdimaginghelper', onMouseEnter);
         osdCanvas.off('mousemove.osdimaginghelper', onMouseMove);
 		osdCanvas.off('mouseleave.osdimaginghelper', onMouseLeave);
@@ -119,20 +119,20 @@ $(function() {
 	viewer.addHandler('animation-finish', function(event) {
 
 		if( displaySeg ) {
-		
+
 			if( statusObj.scaleFactor() > 0.5 ) {
 				$('.overlaySvg').css('visibility', 'visible');
-				var centerX = statusObj.dataportLeft() + 
+				var centerX = statusObj.dataportLeft() +
 							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
-				var centerY = statusObj.dataportTop() + 
+				var centerY = statusObj.dataportTop() +
 							  ((statusObj.dataportBottom() - statusObj.dataportTop()) / 2);
-				
+
 				if( centerX < boundsLeft || centerX > boundsRight ||
 					centerY < boundsTop || centerY > boundsBottom ) {
 
 					updateSeg();
 				}
-				
+
 			} else {
 				$('.overlaySvg').css('visibility', 'hidden');
 			}
@@ -140,23 +140,23 @@ $(function() {
 	});
 
 
-	
+
 	// get session vars and load the first slide
 	$.ajax({
 		url: "php/getSession.php",
 		data: "",
 		dataType: "json",
 		success: function(data) {
-			
+
 			uid = data['uid'];
 			classifier = data['className'];
 			posClass = data['posClass'];
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
-			
-			
-			if( uid == null ) {			
+
+
+			if( uid == null ) {
 				window.alert("No session active");
 				window.history.back();
 			} else {
@@ -166,10 +166,11 @@ $(function() {
 			}
 		}
 	});
-	
+
+
 	// Set the update handler for the slide selector
 	$("#slideSel").change(updateSlide);
-	
+
 	posSel = 0;
 	negSel = 0;
 	clickCount = 0;
@@ -197,11 +198,11 @@ function updateSlideList() {
 			slideSel.empty();
 			// Add the slides we have segmentation boundaries for to the dropdown
 			// selector
-			for( var item in data['slides'] ) {			
+			for( var item in data['slides'] ) {
 				slideSel.append(new Option(data['slides'][item], data['slides'][item]));
 			}
 
-			// Get the slide pyrimaid and display	
+			// Get the slide pyrimaid and display
 			updateSlideView();
 		}
 	});
@@ -215,10 +216,10 @@ function updateSlideList() {
 
 function updateSlideView() {
 
-	
+
 	// Zoomer needs '.dzi' appended to the end of the file
 	pyramid = "DeepZoom="+pyramids[$('#slideSel').prop('selectedIndex')]+".dzi";
-	viewer.open(IIPServer + pyramid);	
+	viewer.open(IIPServer + pyramid);
 }
 
 
@@ -226,7 +227,7 @@ function updateSlideView() {
 
 
 //
-//	A new slide has been selected from the drop-down menu, update the 
+//	A new slide has been selected from the drop-down menu, update the
 // 	slide zoomer.
 //
 //
@@ -241,7 +242,7 @@ function updateSlide() {
 
 
 //
-//	Update annotation and viewport information when the view changes 
+//	Update annotation and viewport information when the view changes
 //  due to panning or zooming.
 //
 //
@@ -249,7 +250,7 @@ function onImageViewChanged(event) {
 	var boundsRect = viewer.viewport.getBounds(true);
 
 	// Update viewport information. dataportXXX is the view port coordinates
-	// using pixel locations. ie. if dataPortLeft is  0 the left edge of the 
+	// using pixel locations. ie. if dataPortLeft is  0 the left edge of the
 	// image is aligned with the left edge of the viewport.
 	//
 	statusObj.viewportX(boundsRect.x);
@@ -261,13 +262,13 @@ function onImageViewChanged(event) {
 	statusObj.dataportRight(imgHelper.physicalToDataX(imgHelper.logicalToPhysicalX(boundsRect.x + boundsRect.width)));
 	statusObj.dataportBottom(imgHelper.physicalToDataY(imgHelper.logicalToPhysicalY(boundsRect.y + boundsRect.height))* imgHelper.imgAspectRatio);
 	statusObj.scaleFactor(imgHelper.getZoomFactor());
-	
+
 	var p = imgHelper.logicalToPhysicalPoint(new OpenSeadragon.Point(0, 0));
-	
+
 	svgOverlayVM.annoGrpTranslateX(p.x);
 	svgOverlayVM.annoGrpTranslateY(p.y);
-	svgOverlayVM.annoGrpScale(statusObj.scaleFactor());	
-	
+	svgOverlayVM.annoGrpScale(statusObj.scaleFactor());
+
 	var annoGrp = document.getElementById('annoGrp');
 	annoGrp.setAttribute("transform", annoGrpTransformFunc());
 }
@@ -279,27 +280,27 @@ function onImageViewChanged(event) {
 //
 //	Retreive the boundaries for nuclei within the viewport bounds.
 //	TODO - Look into expanding the nuclei request to a 'viewport' width
-//			boundary around the view port. Since we are now using the 
+//			boundary around the view port. Since we are now using the
 //			'animation-finish' event to trigger the request, it may be
-//			possible to retreive that many boundaries in a sufficient 
+//			possible to retreive that many boundaries in a sufficient
 //			amount of time
 //
 function updateSeg() {
 
 	if( statusObj.scaleFactor() > 0.5 ) {
-	
+
 		var left, right, top, bottom, width, height;
 
 		// Grab nuclei a viewport width surrounding the current viewport
 		//
 		width = statusObj.dataportRight() - statusObj.dataportLeft();
 		height = statusObj.dataportBottom() - statusObj.dataportTop();
-		
+
 		left = (statusObj.dataportLeft() - width > 0) ?	statusObj.dataportLeft() - width : 0;
 		right = statusObj.dataportRight() + width;
 		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
 		bottom = statusObj.dataportBottom() + height;
-		
+
 	    $.ajax({
 			type: "POST",
        	 	url: "db/getnuclei.php",
@@ -312,9 +313,9 @@ function updateSeg() {
 					top:	top,
 					bottom:	bottom,
 			},
-		
+
 			success: function(data) {
-					
+
 					var ele;
 					var segGrp = document.getElementById('segGrp');
 					var annoGrp = document.getElementById('anno');
@@ -338,22 +339,39 @@ function updateSeg() {
 
 					for( cell in data ) {
 						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-						
+
 						ele.setAttribute('points', data[cell][0]);
 						ele.setAttribute('id', 'N' + data[cell][1]);
 						ele.setAttribute('stroke', 'aqua');
 						ele.setAttribute('fill', 'none');
-						
+
 						segGrp.appendChild(ele);
 					}
         		}
     	});
-	} 
+	}
 }
 
+//
+// Check if a sample selected is duplicated or not
+// Parameters
+// centroid position (X,Y) of the selected sample
+// Return
+// true: if duplicated
+// false: if not duplicated
+//
+function duplicateCheck(x,y) {
 
+	var centX = x;
+	var centY = y;
 
+	for( i = 0; i < selectedJSON.length; i++ ) {
+			if ((selectedJSON[i]['centX'] == centX) && (selectedJSON[i]['centY'] == centY))
+			return true;
+	}
 
+	return false;
+}
 
 function nucleiSelect() {
 
@@ -370,19 +388,11 @@ function nucleiSelect() {
 					if( data !== null ) {
 
 						var total = statusObj.posSel() + statusObj.negSel();
-						
+
 						if( total < 8 ) {
-																							
-							if( statusObj.posSel() < 4 ) {
-								statusObj.posSel(statusObj.posSel() + 1); 
-							} else if( statusObj.negSel() < 4 ) {
-								statusObj.negSel(statusObj.negSel() + 1); 			
-							} 
-				
-							total = statusObj.posSel() + statusObj.negSel();
-	
+
 							sample = {};
-					
+
 							// Distance from nuclei is element 4
 							sample['slide'] = curSlide;
 							sample['id'] = data[1];
@@ -392,44 +402,59 @@ function nucleiSelect() {
 							sample['maxX'] = data[4];
 							sample['maxY'] = data[5];
 							sample['scale'] = data[6];
-					
-							if( total <= 4 ) {
-								sample['label'] = 1;
+
+							// check if a sample selected is duplicated or not
+							if (!duplicateCheck(sample['centX'], sample['centY'])){
+
+								if( statusObj.posSel() < 4 ) {
+									statusObj.posSel(statusObj.posSel() + 1);
+								} else if( statusObj.negSel() < 4 ) {
+									statusObj.negSel(statusObj.negSel() + 1);
+								}
+
+								total = statusObj.posSel() + statusObj.negSel();
+
+								if( total <= 4 ) {
+									sample['label'] = 1;
+								} else {
+									sample['label'] = -1;
+								}
+
+
+								selectedJSON.push(sample);
+
+								var box = "#box_" + total, thumbTag = "#thumb_" + total,
+									labelTag = "#label_" + total, loc, label;
+
+								label = $(box).children(".classLabel")
+								$(box).show();
+
+								centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
+								centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
+								sizeX = (50.0 * sample['scale']) / sample['maxX'];
+								sizeY = (50.0 * sample['scale']) / sample['maxY'];
+
+								loc = centX+","+centY+","+sizeX+","+sizeY;
+
+								var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]
+														+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
+
+								$(thumbTag).attr("src", thumbNail);
+
+								if( sample['label'] === 1 ) {
+									$(labelTag).text(posClass);
+									label.addClass("posLabel");
+								} else {
+									$(labelTag).text(negClass);
+									label.addClass("negLabel");
+								}
+
+								if( total === 4 ) {
+									// make sure instructions are updated
+									$('#instruct').text("Selecting "+negClass+" samples");
+								}
 							} else {
-								sample['label'] = -1;
-							}
-																	
-							selectedJSON.push(sample);
-					
-							var box = "#box_" + total, thumbTag = "#thumb_" + total,
-								labelTag = "#label_" + total, loc, label;
-
-							label = $(box).children(".classLabel")
-							$(box).show();
-
-							centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
-							centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
-							sizeX = (50.0 * sample['scale']) / sample['maxX'];
-							sizeY = (50.0 * sample['scale']) / sample['maxY'];
-
-							loc = centX+","+centY+","+sizeX+","+sizeY;
-
-							var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]
-													+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
-					
-							$(thumbTag).attr("src", thumbNail);
-
-							if( sample['label'] === 1 ) {
-								$(labelTag).text(posClass);
-								label.addClass("posLabel");
-							} else {
-								$(labelTag).text(negClass);				
-								label.addClass("negLabel");
-							}
-					
-							if( total === 4 ) {
-								// make sure instructions are updated
-								$('#instruct').text("Selecting "+negClass+" samples");
+								window.alert("This sample is duplicted !!");
 							}
 						} else {
 							window.alert("All samples selected, click prime button to submit");
@@ -462,7 +487,7 @@ function onMouseMove(event) {
 	var offset = osdCanvas.offset();
 
 	statusObj.mouseRelX(event.pageX - offset.left);
-	statusObj.mouseRelY(event.pageY - offset.top);		
+	statusObj.mouseRelY(event.pageY - offset.top);
 	statusObj.mouseImgX(imgHelper.physicalToDataX(statusObj.mouseRelX()));
 	statusObj.mouseImgY(imgHelper.physicalToDataY(statusObj.mouseRelY()));
 }
@@ -479,7 +504,7 @@ function onMouseLeave(event) {
 
 
 
-// 
+//
 //	The double click handler doesn't seem to work. So we create
 //	our own with a timer.
 //
@@ -506,7 +531,7 @@ function onMouseClick(event) {
 
 
 
-// 
+//
 //	+++++++++++++	Button handlers +++++++++++++++++++++++++++++++++++++++++++
 //
 
@@ -528,7 +553,7 @@ function showSegmentation() {
 		segBtn.val("Hide Segmentation");
 		$('.overlaySvg').css('visibility', 'visible');
 		displaySeg = true;
-		
+
 		updateSeg();
 	}
 }
@@ -549,7 +574,7 @@ function primeSession() {
 	} else {
 
 		$('#progDiag').modal('show');
-	
+
 		// No need to send boundaries to the server
 		for( i = 0; i < selectedJSON.length; i++ ) {
 			selectedJSON[i]['boundary'] = "";
@@ -566,7 +591,7 @@ function primeSession() {
 					window.location = "grid.html";
 				} else {
 					// TODO - Indicate failure
-				}				
+				}
 			}
 		});
 	}
@@ -576,8 +601,8 @@ function primeSession() {
 
 
 //
-// Toggles the nuclei selection process. A total of 8 nuclei need to be 
-//	selected. 4 from each class. They can only be selected if in the 
+// Toggles the nuclei selection process. A total of 8 nuclei need to be
+//	selected. 4 from each class. They can only be selected if in the
 //	'selection' mode.
 //
 function setSelectMode() {
@@ -588,15 +613,15 @@ function setSelectMode() {
 		selBtn.val("Select Nuclei");
 		selBtn.css('color', 'white');
 		selectNuc = false;
-		$('#instruct').text("");	
+		$('#instruct').text("");
 	} else {
 		// Not currently selecting nuclei, start
 		selBtn.val("Stop Selecting");
 		selBtn.css('color', 'red');
 		selectNuc = true;
-		
+
 		if( statusObj.posSel() < 4 ) {
-			$('#instruct').text("Selecting "+posClass+" samples");		
+			$('#instruct').text("Selecting "+posClass+" samples");
 		} else if( statusObj.negSel() < 4 ) {
 			$('#instruct').text("Selecting "+negClass+" samples");
 		} else {
@@ -669,4 +694,3 @@ var vm = {
 // and mouse positions
 //
 ko.applyBindings(vm);
-
