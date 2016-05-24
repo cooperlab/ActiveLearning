@@ -41,7 +41,7 @@ var viewer = null;
 var imgHelper = null, osdCanvas = null, viewerHook = null;
 var curSlide = "", curDataset = "";
 
-var displaySeg = false, selectNuc = false, isDuplicate = false;
+var displaySeg = false, selectNuc = false;
 var lastScaleFactor = 0;
 var clickCount = 0;
 
