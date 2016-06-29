@@ -50,8 +50,8 @@ var pyramids;
 
 var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 
-
-
+// 8 boxes used for a deleting function performed when the user double-clicking a box
+var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
 
 
 //
@@ -139,6 +139,27 @@ $(function() {
 		}
 	});
 
+	// Assign click handlers to each of the thumbnail divs
+	// also used when the user double-clicking the thumbnail box
+	boxes.forEach(function(entry) {
+
+		var	box = document.getElementById(entry);
+		var	clickCount = 0;
+
+		box.addEventListener('click', function() {
+			clickCount++;
+			if( clickCount === 1 ) {
+				singleClickTimer = setTimeout(function() {
+					clickCount = 0;
+				}, 200);
+			} else if( clickCount === 2 ) {
+				clearTimeout(singleClickTimer);
+				clickCount = 0;
+				// if the box are doubleclicked, call deleteSample with entry number
+				deleteSample(entry);
+			}
+		}, false);
+	});
 
 
 	// get session vars and load the first slide
@@ -373,6 +394,79 @@ function duplicateCheck(x,y) {
 	return false;
 }
 
+//
+// Delete a sample selected from a thumbnail box
+// Parameters
+// box id ex) box_1, box_2, ...
+// Call displayThumbNail()
+//
+function deleteSample(box) {
+
+	var index = boxes.indexOf(box);
+
+	for( i =0; i < selectedJSON.length; i++ ) {
+			// remove sample
+			var thumbTag = "#thumb_"+(i+1);
+			$(thumbTag).attr("src", "");
+			// remove box
+			var boxDiv = "#box_"+(i+1);
+			$(boxDiv).hide();
+	}
+	// reduce positive and negative numbers by 1
+	if( selectedJSON[index]['label'] == 1 ) {
+		statusObj.posSel(statusObj.posSel()-1);
+	} else if( selectedJSON[index]['label'] == -1 ) {
+		statusObj.negSel(statusObj.negSel()-1);
+	}
+
+	selectedJSON.splice(index,1);
+
+	displayThumbNail();
+
+	if( statusObj.posSel()  > 3 ) {
+		$('#instruct').text("Selecting "+negClass+" samples");
+	}
+	else {
+		$('#instruct').text("Selecting "+posClass+" samples");
+	}
+}
+
+//
+// Display thubmnails
+// When the user removed a box, new thumbnail should be displayed again.
+//
+function displayThumbNail(){
+
+	for( i =0; i < selectedJSON.length; i++ ) {
+	 		var box = "#box_" + (i + 1), thumbTag = "#thumb_" + (i + 1),
+					labelTag = "#label_" + (i + 1), loc, label;
+
+		centX = (selectedJSON[i]['centX'] - (25 * selectedJSON[i]['scale'])) / selectedJSON[i]['maxX'];
+		centY = (selectedJSON[i]['centY'] - (25 * selectedJSON[i]['scale'])) / selectedJSON[i]['maxY'];
+		sizeX = (50.0 * selectedJSON[i]['scale']) / selectedJSON[i]['maxX'];
+		sizeY = (50.0 * selectedJSON[i]['scale']) / selectedJSON[i]['maxY'];
+
+		loc = centX+","+centY+","+sizeX+","+sizeY;
+
+		var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]
+								+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
+
+		$(thumbTag).attr("src", thumbNail);
+
+		label = $(box).children(".classLabel")
+		$(box).show();
+
+		if( selectedJSON[i]['label'] == 1 ) {
+			$(labelTag).text(posClass);
+			label.removeClass("negLabel").addClass("posLabel");
+		} else if ( selectedJSON[i]['label'] == -1 ){
+			$(labelTag).text(negClass);
+			label.removeClass("posLabel").addClass("negLabel");
+		}
+	}
+}
+
+
 function nucleiSelect() {
 
 	if( selectNuc ) {
@@ -407,66 +501,45 @@ function nucleiSelect() {
 							if (!duplicateCheck(sample['centX'], sample['centY'])){
 
 								if( statusObj.posSel() < 4 ) {
+									sample['label'] = 1;
 									statusObj.posSel(statusObj.posSel() + 1);
 								} else if( statusObj.negSel() < 4 ) {
+									sample['label'] = -1;
 									statusObj.negSel(statusObj.negSel() + 1);
 								}
 
 								total = statusObj.posSel() + statusObj.negSel();
 
-								if( total <= 4 ) {
-									sample['label'] = 1;
-								} else {
-									sample['label'] = -1;
+								if (selectedJSON.length == 0){
+									selectedJSON.push(sample);
+								} else{
+									if (sample['label'] == 1){
+										selectedJSON.splice(statusObj.posSel()-1, 0, sample);
+									}	else{
+										selectedJSON.splice(total-1, 0, sample);
+									}
 								}
 
+								// display current samples
+								displayThumbNail();
 
-								selectedJSON.push(sample);
-
-								var box = "#box_" + total, thumbTag = "#thumb_" + total,
-									labelTag = "#label_" + total, loc, label;
-
-								label = $(box).children(".classLabel")
-								$(box).show();
-
-								centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
-								centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
-								sizeX = (50.0 * sample['scale']) / sample['maxX'];
-								sizeY = (50.0 * sample['scale']) / sample['maxY'];
-
-								loc = centX+","+centY+","+sizeX+","+sizeY;
-
-								var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]
-														+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
-
-								$(thumbTag).attr("src", thumbNail);
-
-								if( sample['label'] === 1 ) {
-									$(labelTag).text(posClass);
-									label.addClass("posLabel");
-								} else {
-									$(labelTag).text(negClass);
-									label.addClass("negLabel");
-								}
-
-								if( total === 4 ) {
+								if( statusObj.posSel()  > 3 ) {
 									// make sure instructions are updated
 									$('#instruct').text("Selecting "+negClass+" samples");
+								} else {
+									$('#instruct').text("Selecting "+posClass+" samples");
 								}
-							} else {
-								window.alert("This sample is duplicted !!");
+							}	else {
+								window.alert("Selected sample is duplicted !!");
 							}
-						} else {
+						}	else {
 							window.alert("All samples selected, click prime button to submit");
 						}
 					}
 			}
-    	});
+  		});
 	}
 }
-
-
-
 //
 //	+++++++++++    Openseadragon mouse event handlers  ++++++++++++++++
 //
