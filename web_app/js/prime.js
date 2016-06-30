@@ -368,7 +368,17 @@ function updateSeg() {
 
 						segGrp.appendChild(ele);
 					}
-        		}
+
+					if( selectedJSON.length > 0 ) {
+						for( i = 0; i < selectedJSON.length; i++ ) {
+							var bound = document.getElementById("N"+selectedJSON[i]['id']);
+							if( bound != null ) {
+									bound.setAttribute('stroke', 'yellow');
+							}
+						}
+					}
+
+	  		}
     	});
 	}
 }
