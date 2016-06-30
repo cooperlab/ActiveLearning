@@ -395,13 +395,12 @@ function duplicateCheck(x,y) {
 }
 
 //
-// Delete a sample selected from a thumbnail box
+// Delete a sample selected from thumbnail box
 // Parameters
 // box id ex) box_1, box_2, ...
-// Call displayThumbNail()
+// Call undoBoundColors() and displayThumbNail()
 //
 function deleteSample(box) {
-
 	var index = boxes.indexOf(box);
 
 	for( i =0; i < selectedJSON.length; i++ ) {
@@ -412,12 +411,14 @@ function deleteSample(box) {
 			var boxDiv = "#box_"+(i+1);
 			$(boxDiv).hide();
 	}
-	// reduce positive and negative numbers by 1
+
 	if( selectedJSON[index]['label'] == 1 ) {
-		statusObj.posSel(statusObj.posSel()-1);
+		statusObj.posSel(statusObj.posSel() - 1);
 	} else if( selectedJSON[index]['label'] == -1 ) {
-		statusObj.negSel(statusObj.negSel()-1);
+		statusObj.negSel(statusObj.negSel() - 1);
 	}
+	// call undoBoundColors
+	undoBoundColors(selectedJSON[index]['id']);
 
 	selectedJSON.splice(index,1);
 
@@ -441,6 +442,7 @@ function displayThumbNail(){
 	 		var box = "#box_" + (i + 1), thumbTag = "#thumb_" + (i + 1),
 					labelTag = "#label_" + (i + 1), loc, label;
 
+
 		centX = (selectedJSON[i]['centX'] - (25 * selectedJSON[i]['scale'])) / selectedJSON[i]['maxX'];
 		centY = (selectedJSON[i]['centY'] - (25 * selectedJSON[i]['scale'])) / selectedJSON[i]['maxY'];
 		sizeX = (50.0 * selectedJSON[i]['scale']) / selectedJSON[i]['maxX'];
@@ -456,12 +458,51 @@ function displayThumbNail(){
 		label = $(box).children(".classLabel")
 		$(box).show();
 
+
 		if( selectedJSON[i]['label'] == 1 ) {
 			$(labelTag).text(posClass);
 			label.removeClass("negLabel").addClass("posLabel");
 		} else if ( selectedJSON[i]['label'] == -1 ){
 			$(labelTag).text(negClass);
 			label.removeClass("posLabel").addClass("negLabel");
+		}
+	}
+}
+
+//
+// Update colors when a sample is selected
+// Parameters
+// selectedJSON id
+//
+function updateBoundColors(currentID) {
+
+	for( i = 0; i < selectedJSON.length; i++ ) {
+
+		var bound = document.getElementById("N"+selectedJSON[i]['id']);
+
+		if( bound != null ) {
+			if (selectedJSON[i]['id'] == currentID) {
+				bound.setAttribute('stroke', 'yellow');
+			}
+		}
+	}
+}
+
+//
+// Undo colors when a sample is deleted
+// Parameters
+// selectedJSON id
+//
+function undoBoundColors(currentID) {
+
+	for( i = 0; i < selectedJSON.length; i++ ) {
+
+		var bound = document.getElementById("N"+selectedJSON[i]['id']);
+
+		if( bound != null ) {
+			if (selectedJSON[i]['id'] == currentID){
+				bound.setAttribute('stroke', 'aqua');
+			}
 		}
 	}
 }
@@ -500,6 +541,10 @@ function nucleiSelect() {
 							// check if a sample selected is duplicated or not
 							if (!duplicateCheck(sample['centX'], sample['centY'])){
 
+								var cell = document.getElementById("N"+sample['id']);
+								var currentID = sample['id'];
+								var undo = false;
+
 								if( statusObj.posSel() < 4 ) {
 									sample['label'] = 1;
 									statusObj.posSel(statusObj.posSel() + 1);
@@ -509,14 +554,19 @@ function nucleiSelect() {
 								}
 
 								total = statusObj.posSel() + statusObj.negSel();
-
+								// if there is no sample selected, update color
 								if (selectedJSON.length == 0){
 									selectedJSON.push(sample);
-								} else{
+									updateBoundColors(currentID);
+								}	else {
 									if (sample['label'] == 1){
 										selectedJSON.splice(statusObj.posSel()-1, 0, sample);
 									}	else{
 										selectedJSON.splice(total-1, 0, sample);
+									}
+									// if the color is aqua, then update color
+									if( cell.getAttribute('stroke') === "aqua" ) {
+										updateBoundColors(currentID);
 									}
 								}
 
@@ -526,18 +576,18 @@ function nucleiSelect() {
 								if( statusObj.posSel()  > 3 ) {
 									// make sure instructions are updated
 									$('#instruct').text("Selecting "+negClass+" samples");
-								} else {
+								}	else {
 									$('#instruct').text("Selecting "+posClass+" samples");
 								}
 							}	else {
-								window.alert("Selected sample is duplicted !!");
-							}
-						}	else {
-							window.alert("All samples selected, click prime button to submit");
+							window.alert("Selected sample is duplicted !!");
 						}
+					}	else {
+						window.alert("All samples selected, click prime button to submit");
 					}
+				}
 			}
-  		});
+  	});
 	}
 }
 //
