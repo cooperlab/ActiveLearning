@@ -686,11 +686,16 @@ function updateSeg() {
 						segGrp.appendChild(ele);
 					}
 					// if the number of samples fixed is larger than 0,
-					// call updateBoundColors()
 					if( fixes['samples'].length > 0 ) {
-						updateBoundColors();
+						for( cell in fixes['samples'] ) {
+							var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
+
+							if( bound != null ) {
+									bound.setAttribute('stroke', 'yellow');
+							}
+						}
 					}
-        }
+				}
     	});
 	} else {
 
