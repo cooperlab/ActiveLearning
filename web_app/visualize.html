@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!--	
+<!--
 	Copyright (c) 2014-2015, Emory University
 	All rights reserved.
 
@@ -28,16 +28,16 @@
 -->
 
 
-<html lang="en"> 
+<html lang="en">
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		
+
 		<title>VALS - The Visual Active Learning System</title>
-		
+
 		<script src="js/jquery-1.9.0.min.js"></script>
 		<script src="js/bootstrap.min.js"></script>
-		
+
 		<link rel="stylesheet" href="css/style.css"/>
 		<link rel="stylesheet" href="css/bootstrap.min.css"/>
 		<link rel="stylesheet" href="css/visStyle.css"/>
@@ -46,16 +46,17 @@
 
 	<body>
 
-		<!-- Navigation bar -->	
+		<!-- Navigation bar -->
 		<nav class="navbar navbar-default" role="navigation">
 			<div class="navbar-header">
 				<div class="navbar-brand">VALS</div>
 			</div>
-			
+
 			<div>
 				<ul class="nav navbar-nav">
 					<li><a href="index.html">Home</a></li>
 					<li><a href="grid.html">Select</a></li>
+					<li><a href="review.html">Review</a></li>
 					<li><a href="viewer.html">Viewer</a></li>
 					<li><a href="heatmaps.html">Heatmaps</a></li>
 					<li class="active"><a href="visualize.html">Visualize</a></li>
@@ -81,17 +82,17 @@
 					Pos class
 				</div>
 			</div>
-			
-			
+
+
 			<div class="row top-buffer"></div>
-									
+
 			<!--  Row 1 -->
 			<div class="row" id="visRow1">
 				<div class="col-sm-2 col-md-2 col-lg-2">
 				</div>
 				<div class="col-sm-1 col-md-1 col-lg-1" id="row1Neg1">
 					<div class="img-rounded">
-						<img id="row_1_1" class="img-responsive"> 
+						<img id="row_1_1" class="img-responsive">
 						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg"
 							 pointer-events="none" zoomAndPan="disable">
 							<defs></defs>
@@ -100,10 +101,10 @@
 						</svg>
 
 					</div>
-				</div>				
+				</div>
 				<div class="col-sm-1 col-md-1 col-lg-1" id="row1Neg2">
 					<div class="img-rounded">
-						<img id="row_1_2" class="img-responsive" > 
+						<img id="row_1_2" class="img-responsive" >
 						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg"
 							 pointer-events="none" zoomAndPan="disable">
 							<defs></defs>
@@ -184,7 +185,7 @@
 				</div>
 			</div>
 
-			
+
 			<!-- Row 2 -->
 			<div class="row" id="visRow1">
 				<div class="col-sm-2 col-md-2 col-lg-2">
@@ -199,10 +200,10 @@
 							</g>
 						</svg>
 					</div>
-				</div>				
+				</div>
 				<div class="col-sm-1 col-md-1 col-lg-1" id="row2Neg2">
 					<div class="img-rounded">
-						<img id="row_2_2" class="img-responsive" > 
+						<img id="row_2_2" class="img-responsive" >
 						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg"
 							 pointer-events="none" zoomAndPan="disable">
 							<defs></defs>
@@ -297,10 +298,10 @@
 							</g>
 						</svg>
 					</div>
-				</div>				
+				</div>
 				<div class="col-sm-1 col-md-1 col-lg-1" id="row3Neg2">
 					<div class="img-rounded">
-						<img id="row_3_2" class="img-responsive" > 
+						<img id="row_3_2" class="img-responsive" >
 						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg"
 							 pointer-events="none" zoomAndPan="disable">
 							<defs></defs>
@@ -396,10 +397,10 @@
 							</g>
 						</svg>
 					</div>
-				</div>				
+				</div>
 				<div class="col-sm-1 col-md-1 col-lg-1" id="row4Neg2">
 					<div class="img-rounded">
-						<img id="row_4_2" class="img-responsive" > 
+						<img id="row_4_2" class="img-responsive" >
 						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg"
 							 pointer-events="none" zoomAndPan="disable">
 							<defs></defs>
@@ -479,17 +480,17 @@
 				<div class="col-sm-1 col-msd-1 col-lg-1">
 				</div>
 			</div>
-			
+
 			<div class="row top-buffer"></div>   <!-- A little space between -->
 
 			<div class="row">
 				<input type="button" id="toggleBtn" value="Hide segmentation" class="btn btn-info" onClick="toggleSeg()">
 			</div>
-			
-			
+
+
 		</div>
-		
-		
+
+
 		<script src="js/visualize.js"></script>
 
 	</body>
