@@ -59,5 +59,7 @@
 
 #define CMD_STATUS		"sysStatus"
 
+#define CMD_REVIEW		"review"
+
 
 #endif /* SRC_COMMANDS_H_ */
