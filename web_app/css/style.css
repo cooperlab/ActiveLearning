@@ -18,14 +18,13 @@ div#slideZoom{height: 500px}
 }
 
 
-#overflow{ 
+#overflow{
 	border:	1px solid #000000;
 	height: 150px;
 	width:	100%;
 	overflow-x:	scroll;
 	overflow-y: hidden;
 }
-
 
 .slider_div{
 	border:	1px solid #BBB;
@@ -36,6 +35,14 @@ div#slideZoom{height: 500px}
 	text-align: center;
 }
 
+.review_div{
+	border:	1px solid #BBB;
+	float:	left;
+	width:	130px;
+	height:	110px;
+	float:	left;
+	text-align: center;
+}
 
 .posLabel {
 	border-radius: 10px;
@@ -56,7 +63,7 @@ div#slideZoom{height: 500px}
 }
 
 
-.top-buffer { 
+.top-buffer {
 	margin-top:	20px;
 }
 
@@ -122,11 +129,8 @@ div#slideZoom{height: 500px}
 	vertical-align: middle;
 }
 
-
 @media (min-width: 1500px) {
 	.container {
 		width:	1470px !important;
 	}
 }
-
-
