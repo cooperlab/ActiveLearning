@@ -29,7 +29,8 @@ var IIPServer = "";
 
 
 
-var SlideSuffix = ".svs-tile.dzi.tif";
+//var SlideSuffix = ".svs-tile.dzi.tif";
+var SlideSuffix = ".svs.dzi.tif";
 var SlideLocPre = "&RGN=";
 var SlideLocSuffix = "&CVT=jpeg";
 
@@ -204,7 +205,6 @@ $(function() {
 
 function updateSlideList() {
 	var slideSel = $("#slideSel");
-
 	// Get the list of slides for the current dataset
 	$.ajax({
 		type: "POST",
@@ -448,6 +448,11 @@ function deleteSample(box) {
 //
 function displayThumbNail(){
 
+	// get current path from the select slide
+	var currentPath = pyramids[$('#slideSel').prop('selectedIndex')];
+	var SlidePathPre = "";
+	var pyramidPath = "";
+
 	for( i =0; i < selectedJSON.length; i++ ) {
 	 		var box = "#box_" + (i + 1), thumbTag = "#thumb_" + (i + 1),
 					labelTag = "#label_" + (i + 1), loc, label;
@@ -460,7 +465,11 @@ function displayThumbNail(){
 
 		loc = centX+","+centY+","+sizeX+","+sizeY;
 
-		var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]
+		// set pyramids path
+		SlidePathPre = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
+		pyramidPath = SlidePathPre+selectedJSON[i]['slide']+SlideSuffix;
+
+		var thumbNail = IIPServer+"FIF="+pyramidPath
 								+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
 
 		$(thumbTag).attr("src", thumbNail);
@@ -579,7 +588,6 @@ function nucleiSelect() {
 										updateBoundColors(currentID);
 									}
 								}
-
 								// display current samples
 								displayThumbNail();
 
