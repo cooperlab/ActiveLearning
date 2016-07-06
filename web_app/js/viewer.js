@@ -8,7 +8,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -16,7 +16,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -33,14 +33,14 @@ var curClassifier = "none";
 
 var viewer = null;
 var imgHelper = null, osdCanvas = null, viewerHook = null;
-var overlayHidden = false, selectMode = false, segDisplayOn = false;;
+var overlayHidden = false, selectMode = false, segDisplayOn = false;
 var olDiv = null;
 var lastScaleFactor = 0;
 var pyramids, trainingSets;
-var clickCount = 0;					
+var clickCount = 0;
 
 // The following only needed for active sessions
-var uid = null, negClass = "", posClass = "";			
+var uid = null, negClass = "", posClass = "";
 
 var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 var	panned = false;
@@ -54,19 +54,23 @@ var uncertMin = 0.0, uncertMax = 0.0, classMin = 0.0, classMax = 0.0;
 
 var classifierSession = false;
 
-
+// check if the screen is panned or not. Defalut value is false
+var ispannedXY = false;
 
 //
 //	Initialization
-//	
+//
 //		Get a list of available slides from the database
 //		Populate the selection and classifier dropdowns
 //		load the first slide
 //		Register event handlers
 //
 $(function() {
-	
+
 	slideReq = $_GET('slide');
+	// gets x and y positions
+	pannedX = $_GET('x_pos');
+	pannedY = $_GET('y_pos');
 
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
@@ -76,16 +80,16 @@ $(function() {
     viewerHook = viewer.addViewerInputHook({ hooks: [
                     {tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick}
             ]});
-	
-	annoGrpTransformFunc = ko.computed(function() { 
+
+	annoGrpTransformFunc = ko.computed(function() {
 										return 'translate(' + svgOverlayVM.annoGrpTranslateX() +
 										', ' + svgOverlayVM.annoGrpTranslateY() +
 										') scale(' + svgOverlayVM.annoGrpScale() + ')';
-									}, this); 
-	
+									}, this);
+
 	//
 	// Image handlers
-	//	
+	//
 	viewer.addHandler('open', function(event) {
 		osdCanvas = $(viewer.canvas);
 		statusObj.haveImage(true);
@@ -98,13 +102,15 @@ $(function() {
 		statusObj.imgHeight(imgHelper.imgHeight);
 		statusObj.imgAspectRatio(imgHelper.imgAspectRatio);
 		statusObj.scaleFactor(imgHelper.getZoomFactor());
+		// check if the location of x and y is validated or not
+		reviewCheck();
 	});
 
 
 
 	viewer.addHandler('close', function(event) {
 		statusObj.haveImage(false);
-		
+
         osdCanvas.off('mouseenter.osdimaginghelper', onMouseEnter);
         osdCanvas.off('mousemove.osdimaginghelper', onMouseMove);
         osdCanvas.off('mouseleave.osdimaginghelper', onMouseLeave);
@@ -112,31 +118,31 @@ $(function() {
 		osdCanvas = null;
 	});
 
-	
+
 	viewer.addHandler('animation-finish', function(event) {
 
 		if( segDisplayOn ) {
-		
+
 			if( statusObj.scaleFactor() > 0.5 ) {
 
 				// Zoomed in, show boundaries hide heatmap
 				$('#anno').show();
 				$('#heatmapGrp').hide();
 
-				var centerX = statusObj.dataportLeft() + 
+				var centerX = statusObj.dataportLeft() +
 							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
-				var centerY = statusObj.dataportTop() + 
+				var centerY = statusObj.dataportTop() +
 							  ((statusObj.dataportBottom() - statusObj.dataportTop()) / 2);
-				
+
 				if( centerX < boundsLeft || centerX > boundsRight ||
 					centerY < boundsTop || centerY > boundsBottom ) {
 
-					// Only update boundaries if we've panned far enough.							
+					// Only update boundaries if we've panned far enough.
 					updateSeg();
 				}
-				 
+
 			} else {
-					
+
 				updateSeg();
 
 				// Zoomed out, hide boundaries, show heatmap
@@ -157,14 +163,14 @@ $(function() {
 		data: "",
 		dataType: "json",
 		success: function(data) {
-			
+
 			uid = data['uid'];
 			classifier = data['className'];
 			posClass = data['posClass'];
 			negClass = data['negClass'];
 			IIPServer = data['IIPServer'];
 			curDataset = data['dataset'];
-			
+
 			// Don't display the legend until a classifier is selected
 			$('#legend').hide();
 
@@ -173,24 +179,26 @@ $(function() {
 				$('#nav_select').hide();
 				$('#nav_visualize').hide();
 				$('#nav_heatmaps').hide();
+				// the review section also should be hided
+				$('#nav_review').hide();
 			} else {
 				// Active session, dataset selection not allowed
 				document.getElementById('dataset_sel').disabled = true
-				
+
 				// No report generation during active session
 				$('#nav_reports').hide();
 			}
-			
+
 			if( curClassifier === "none" ) {
 				$('#retrainInfo').hide();
 			}
-			
+
 			// Slide list and classifier list will also be updated by this call
 			updateDatasetList();
 		}
 	});
 
-	
+
 	// Set the update handlers for the selectors
 	$("#slide_sel").change(updateSlide);
 	$("#dataset_sel").change(updateDataset);
@@ -199,15 +207,28 @@ $(function() {
 	// Set update handler for the heatmap radio buttons
 	$('input[name=heatmapOption]').change(updateHeatmap);
 
-	// Set filter for numeric input
+  // Set filter for numeric input
 	$("#x_pos").keydown(filter);
 	$("#y_pos").keydown(filter);
 
-
 });
 
+//
+// a check function
+// check if the location is validated or not
+//
 
-
+function reviewCheck(){
+	if( pannedX === null || pannedY === null ) {
+		ispannedXY = false;
+	}
+	else{
+		ispannedXY = true;
+		$("#x_pos").val(pannedX);
+		$("#y_pos").val(pannedY);
+		$("#btn_Go" ).click();
+	}
+}
 
 
 function cleanupClassifierSession() {
@@ -215,7 +236,7 @@ function cleanupClassifierSession() {
 	$.ajax({
 		url: "php/endClassifier.php",
 		data: ""
-	});  
+	});
 }
 
 
@@ -225,7 +246,7 @@ function cleanupClassifierSession() {
 // Filter keystrokes for numeric input
 function filter(event) {
 
-	// Allow backspace, delete, tab, escape, enter and .	
+	// Allow backspace, delete, tab, escape, enter and .
 	if( $.inArray(event.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
 		// Allow Ctrl-A
 	   (event.keyCode == 65 && event.ctrlKey === true) ||
@@ -238,7 +259,7 @@ function filter(event) {
 
 			return;
 	}
-	
+
 	// Don't allow if not a number
 	if( (event.shiftKey || event.keyCode < 48 || event.keyCode > 57) &&
 		(event.keyCode < 96 || event.keyCode > 105) ) {
@@ -248,7 +269,7 @@ function filter(event) {
 }
 
 
- 
+
 //
 //	Get the url for the slide pyramid and set the viewer to display it
 //
@@ -277,7 +298,7 @@ function updateDatasetList() {
 		data: "",
 		dataType: "json",
 		success: function(data) {
-			
+
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][0]));
 			}
@@ -287,10 +308,10 @@ function updateDatasetList() {
 			} else {
 				datasetSel.val(curDataset);
 			}
-									
+
 			// Need to update the slide list since we set the default slide
 			updateSlideList();
-			
+
 			// Classifier list needs the current dataset
 			updateClassifierList();
 		}
@@ -324,7 +345,7 @@ function updateSlideList() {
 			} else {
 				curSlide = slideReq;
 			}
- 
+
 			slideCnt = Object.keys(data['slides']).length;;
 			slideCntTxt.text(slideCnt);
 
@@ -332,7 +353,7 @@ function updateSlideList() {
 			// Add the slides we have segmentation boundaries for to the dropdown
 			// selector
 			for( var item in data['slides'] ) {
-				
+
 				if( slideReq != null && slideReq == data['slides'][item] ) {
 					index = item;
 				}
@@ -343,7 +364,7 @@ function updateSlideList() {
 				$('#slide_sel').prop('selectedIndex', index);
 			}
 
-			// Get the slide pyrimaid and display	
+			// Get the slide pyrimaid and display
 			updatePyramid();
 		}
 	});
@@ -360,10 +381,10 @@ function updateClassifierList() {
 	var classSel = $("#classifier_sel");
 
 	classSel.empty();
-	
+
 	// First selection should be none
 	classSel.append(new Option('----------------', 'none'));
-	
+
 	if( uid === null ) {
 		$.ajax({
 			type: "POST",
@@ -371,16 +392,16 @@ function updateClassifierList() {
 			data: { dataset: curDataset },
 			dataType: "json",
 			success: function(data) {
-			
+
 				trainingSets = data;
-				for( var item in data['trainingSets'] ) {			
+				for( var item in data['trainingSets'] ) {
 					classSel.append(new Option(data['trainingSets'][item], data['trainingSets'][item]));
 				}
 			}
 		});
-		
+
 	} else {
-		classSel.append(new Option('Current', 'current'));		
+		classSel.append(new Option('Current', 'current'));
 	}
 }
 
@@ -388,13 +409,13 @@ function updateClassifierList() {
 
 
 //
-//	A new slide has been selected from the drop-down menu, update the 
+//	A new slide has been selected from the drop-down menu, update the
 // 	slide zoomer.
 //
 //
 function updateSlide() {
 	curSlide = $('#slide_sel').val();
-	
+
 	fixes['samples'] = [];
 	$('#retrainBtn').attr('disabled', 'disabled');
 	updatePyramid();
@@ -442,25 +463,25 @@ function updateClassifier() {
 	curClassifier = class_sel.options[class_sel.selectedIndex].value;
 
  	if( class_sel.selectedIndex != 0 ) {
-									
+
 		if( uid === null || classifierSession ) {
 			// No active session, start a classification session
 			//
 			if( classifierSession == false ) {
-				window.onbeforeunload = cleanupClassifierSession; 	
+				window.onbeforeunload = cleanupClassifierSession;
 				classifierSession = true;
 				$.ajax({
 						url: "php/getSession.php",
 						data: "",
 						dataType: "json",
 						success: function(data) {
-			
+
 							uid = data['uid'];
 						}
 				});
 			}
 			console.log("Load dataset "+curDataset+" and classifier "+curClassifier);
-			
+
 			$.ajax({
 				type: "POST",
 				url: "php/initClassifier.php",
@@ -474,7 +495,7 @@ function updateClassifier() {
 					document.getElementById('negLegend').innerHTML = box + " " + classNames[0];
 					box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lime;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
 					document.getElementById('posLegend').innerHTML = box + " " + classNames[1];
-		
+
 					$('#retrainInfo').hide();
 					$('#legend').show();
 					$('#heatmap').hide();
@@ -485,11 +506,11 @@ function updateClassifier() {
 						data: "",
 						dataType: "json",
 						success: function(data) {
-			
+
 							uid = data['uid'];
 						}
 					});
-			
+
 				}
 			});
 		} else {
@@ -497,17 +518,17 @@ function updateClassifier() {
 			document.getElementById('negLegend').innerHTML = box + " " + negClass;
 			box = " <svg width='20' height='20'> <rect width='15' height = '15' style='fill:lime;stroke-width:3;stroke:rgb(0,0,0)'/></svg>";
 			document.getElementById('posLegend').innerHTML = box + " " + posClass;
-		
+
 			$('#retrainInfo').show();
 			$('#legend').show();
 		}
 
 
 	} else {
-	
+
 		$('#legend').hide();
 	}
-	
+
 	if( overlayHidden === false ) {
 		updateSeg();
 	}
@@ -521,7 +542,7 @@ function updateClassifier() {
 //	a radio button is selected
 //
 function updateHeatmap() {
-	
+
 	var ele = document.getElementById('heatmapImg');
 
 	if( $('#heatmapUncertain').is(':checked') ) {
@@ -529,7 +550,7 @@ function updateHeatmap() {
 		document.getElementById('heatMin').innerHTML = uncertMin.toFixed(2);
 		document.getElementById('heatMax').innerHTML = uncertMax.toFixed(2);
 	} else {
-		
+
 		ele.setAttribute("xlink:href", "heatmaps/" + uid + "/" + curSlide + "_class.jpg");
 		document.getElementById('heatMin').innerHTML = classMin.toFixed(2);
 		document.getElementById('heatMax').innerHTML = classMax.toFixed(2);
@@ -540,7 +561,7 @@ function updateHeatmap() {
 
 
 //
-//	Update annotation and viewport information when the view changes 
+//	Update annotation and viewport information when the view changes
 //  due to panning or zooming.
 //
 //
@@ -548,7 +569,7 @@ function onImageViewChanged(event) {
 	var boundsRect = viewer.viewport.getBounds(true);
 
 	// Update viewport information. dataportXXX is the view port coordinates
-	// using pixel locations. ie. if dataPortLeft is  0 the left edge of the 
+	// using pixel locations. ie. if dataPortLeft is  0 the left edge of the
 	// image is aligned with the left edge of the viewport.
 	//
 	statusObj.viewportX(boundsRect.x);
@@ -562,13 +583,13 @@ function onImageViewChanged(event) {
 	statusObj.scaleFactor(imgHelper.getZoomFactor());
 
 	var p = imgHelper.logicalToPhysicalPoint(new OpenSeadragon.Point(0, 0));
-	
+
 	svgOverlayVM.annoGrpTranslateX(p.x);
 	svgOverlayVM.annoGrpTranslateY(p.y);
-	svgOverlayVM.annoGrpScale(statusObj.scaleFactor());	
-	
+	svgOverlayVM.annoGrpScale(statusObj.scaleFactor());
+
 	var annoGrp = document.getElementById('annoGrp');
-	annoGrp.setAttribute("transform", annoGrpTransformFunc());	
+	annoGrp.setAttribute("transform", annoGrpTransformFunc());
 }
 
 
@@ -577,7 +598,7 @@ function onImageViewChanged(event) {
 
 
 //
-//	Retreive the boundaries for nuclei within the viewport bounds and an 
+//	Retreive the boundaries for nuclei within the viewport bounds and an
 //	area surrounding the viewport. The are surrounding the viewport is a
 //	border the width and height of the viewport. This allows the user to pan a full
 //	viewport width or height before having to fetch new boundaries.
@@ -588,19 +609,19 @@ function updateSeg() {
 	var ele, segGrp, annoGrp;
 
 	if( statusObj.scaleFactor() > 0.5 ) {
-	
+
 		var left, right, top, bottom, width, height;
 
 		// Grab nuclei a viewport width surrounding the current viewport
 		//
 		width = statusObj.dataportRight() - statusObj.dataportLeft();
 		height = statusObj.dataportBottom() - statusObj.dataportTop();
-		
+
 		left = (statusObj.dataportLeft() - width > 0) ?	statusObj.dataportLeft() - width : 0;
 		right = statusObj.dataportRight() + width;
 		top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
 		bottom = statusObj.dataportBottom() + height;
-		 		
+
 		var class_sel = document.getElementById('classifier_sel');
 
 	    $.ajax({
@@ -616,12 +637,12 @@ function updateSeg() {
 					dataset: curDataset,
 					trainset: curClassifier
 			},
-		
+
 			success: function(data) {
-					
+
 					segGrp = document.getElementById('segGrp');
 					annoGrp = document.getElementById('anno');
-					
+
 					// Save current viewport location
 					boundsLeft = statusObj.dataportLeft();
 					boundsRight = statusObj.dataportRight();
@@ -641,18 +662,18 @@ function updateSeg() {
 
 					for( cell in data ) {
 						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-						
+
 						ele.setAttribute('points', data[cell][0]);
 						ele.setAttribute('id', 'N' + data[cell][1]);
 						ele.setAttribute('stroke', data[cell][2]);
 						ele.setAttribute('fill', 'none');
-						
+
 						segGrp.appendChild(ele);
 					}
 
 					if( panned ) {
 						ele = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-			
+
 						ele.setAttribute('x', pannedX - 50);
 						ele.setAttribute('y', pannedY - 50);
 						ele.setAttribute('width', 100);
@@ -661,14 +682,20 @@ function updateSeg() {
 						ele.setAttribute('fill', 'none');
 						ele.setAttribute('stroke-width', 4);
 						ele.setAttribute('id', 'boundBox');
-			
+
 						segGrp.appendChild(ele);
 					}
-					
+					// if the number of samples fixed is larger than 0,
 					if( fixes['samples'].length > 0 ) {
-						updateBoundColors();
+						for( cell in fixes['samples'] ) {
+							var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
+
+							if( bound != null ) {
+									bound.setAttribute('stroke', 'yellow');
+							}
+						}
 					}
-        		}
+				}
     	});
 	} else {
 
@@ -732,25 +759,47 @@ function updateSeg() {
 	}
 }
 
-
-
-
-
-
-function updateBoundColors() {
+//
+// Update colors when a sample is selected
+// Parameters
+// selectedJSON id
+//
+function updateBoundColors(obj) {
 
 	for( cell in fixes['samples'] ) {
 		var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
-		
+
 		if( bound != null ) {
-			bound.setAttribute('stroke', 'yellow');
+			if (fixes['samples'][cell]['id'] == obj['id']){
+				bound.setAttribute('stroke', 'yellow');
+			}
 		}
 	}
 }
 
+//
+// Undo colors when a sample is deleted
+// Parameters
+// selectedJSON id
+//
+function undoBoundColors(obj) {
 
+	for( cell in fixes['samples'] ) {
+		var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
 
-
+		if( bound != null ) {
+			// check id
+			if (fixes['samples'][cell]['id'] == obj['id']){
+				// check label
+				if( fixes['samples'][cell]['label'] == -1 ) {
+					bound.setAttribute('stroke', 'lime');
+				} else if( fixes['samples'][cell]['label'] == 1 ) {
+					bound.setAttribute('stroke', 'lightgrey');
+				}
+			}
+		}
+	}
+}
 
 
 function nucleiSelect() {
@@ -770,13 +819,16 @@ function nucleiSelect() {
 						if( curClassifier === "none" ) {
 							// No classifier applied, just log results
 			                console.log(curSlide+","+data[2]+","+data[3]+", id: "+data[1]);
-			            } else {
-			            	// We're adding an object, make sure the retrain button is enabled.
-			            	$('#retrainBtn').removeAttr('disabled');
+            }
+						else {
+	          	// We're adding an object, make sure the retrain button is enabled.
+	          	$('#retrainBtn').removeAttr('disabled');
 
 							var	obj = {slide: curSlide, centX: data[2], centY: data[3], label: 0, id: data[1]};
-			            	var cell = document.getElementById("N"+obj['id']);
-			            	
+	          	var cell = document.getElementById("N"+obj['id']);
+							// initializes a flag to check the status of undo
+							var undo = false;
+
 							// Flip the label here. lime indicates the positive class, so we
 							// want to change the label to -1. Change to 1 for lightgrey. If
 							// the color is niether, the sample has been picked already so
@@ -786,17 +838,38 @@ function nucleiSelect() {
 								obj['label'] = -1;
 							} else if( cell.getAttribute('stroke') === "lightgrey" ) {
 								obj['label'] = 1;
+							// if the color of the selected cell is yellow
+							}	else if( cell.getAttribute('stroke') === "yellow" ) {
+							    // find a cell with the same id
+									for( cell in fixes['samples'] ) {
+										if (fixes['samples'][cell]['id'] == obj['id']){
+											obj['label'] = fixes['samples'][cell]['label'];
+										}
+									}
+									undo = true;
 							}
 
-							if( obj['label'] != 0 ) {
-				                fixes['samples'].push(obj);
-				                
-				                updateBoundColors();
-				                statusObj.samplesToFix(statusObj.samplesToFix() + 1);
-				            }
-			            }
-		            }
-		        }
+							// if the cell is already selected
+							if (undo){
+								// call undoBoundColrs to undo the color
+								undoBoundColors(obj);
+								var index = fixes['samples'].indexOf(obj);
+								if (index > -1) {
+								    fixes['samples'].splice(index, 1);
+								}
+								statusObj.samplesToFix(statusObj.samplesToFix()-1);
+								undo = false;
+							}
+							// else if the cell is labeled to -1 or 1
+							else if( (obj['label'] == -1) || (obj['label'] == 1) ) {
+                fixes['samples'].push(obj);
+								// call updateBoundColors to update to color
+								updateBoundColors(obj);
+                statusObj.samplesToFix(statusObj.samplesToFix()+1);
+          		}
+          	}
+          }
+        }
 		});
 	}
 }
@@ -809,7 +882,7 @@ function retrain() {
 
 	// Set iteration to -1 to indicate these are hand-picked
 	fixes['iteration'] = -1;
-		
+
 	$.ajax({
 		type: "POST",
 		url: "php/submitSamples.php",
@@ -818,11 +891,11 @@ function retrain() {
 		success: function(result) {
 
 			console.log(result);
-			
-			// Clear submitted samples 
+
+			// Clear submitted samples
 			fixes['samples'] = [];
 			statusObj.samplesToFix(0);
-			
+
 			// Update classification results.
 			updateSeg();
 		}
@@ -854,7 +927,7 @@ function onMouseMove(event) {
 	var offset = osdCanvas.offset();
 
 	statusObj.mouseRelX(event.pageX - offset.left);
-	statusObj.mouseRelY(event.pageY - offset.top);		
+	statusObj.mouseRelY(event.pageY - offset.top);
 	statusObj.mouseImgX(imgHelper.physicalToDataX(statusObj.mouseRelX()));
 	statusObj.mouseImgY(imgHelper.physicalToDataY(statusObj.mouseRelY()));
 }
@@ -915,7 +988,7 @@ function viewSegmentation() {
 		segBtn.val("Hide Segmentation");
 		$('.overlaySvg').css('visibility', 'visible');
 		segDisplayOn = true;
-		
+
 		updateSeg();
 	}
 }
@@ -926,7 +999,7 @@ function viewSegmentation() {
 function go() {
 
 	var	segBtn = $('#btn_1');
-	
+
 	pannedX = $("#x_pos").val();
 	pannedY = $("#y_pos").val();
 
@@ -934,7 +1007,7 @@ function go() {
 	if( pannedX === "" || pannedY === "" ) {
 		window.alert("Invalid position");
 	} else {
-		
+
 		// Turn on overlay and reset bounds to force update
 		segBtn.val("Hide Segmentation");
 		$('.overlaySvg').css('visibility', 'visible');
@@ -944,11 +1017,11 @@ function go() {
 		// Zoom in all the way
 		viewer.viewport.zoomTo(viewer.viewport.getMaxZoom());
 
-		// Move to nucei		
-		imgHelper.centerAboutLogicalPoint(new OpenSeadragon.Point(imgHelper.dataToLogicalX(pannedX), 
+		// Move to nucei
+		imgHelper.centerAboutLogicalPoint(new OpenSeadragon.Point(imgHelper.dataToLogicalX(pannedX),
 															  imgHelper.dataToLogicalY(pannedY)));
 		panned = true;
-	}	
+	}
 }
 
 
@@ -963,7 +1036,7 @@ function go() {
 //
 function $_GET(name) {
 	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
-	return match && decodeURIComponent(match[1].replace(/\+/g,' ')); 
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
 }
 
 
@@ -1016,5 +1089,3 @@ var vm = {
 // and mouse positions
 //
 ko.applyBindings(vm);
-
-
