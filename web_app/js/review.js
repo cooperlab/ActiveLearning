@@ -212,10 +212,8 @@ function genReview() {
 				statusObj.curSlide("");
 			};
 
-      var sampleArray = sampleDataJson['review'];
-
 			// sort by slide name
-			sampleArray.sort(function(a, b) {
+			sampleDataJson['review'].sort(function(a, b) {
 			  var nameA = a.slide.toUpperCase();
 			  var nameB = b.slide.toUpperCase();
 			  if (nameA < nameB) {
@@ -229,9 +227,9 @@ function genReview() {
 			});
 
 			// 1'st line information
-			slidesInfo(sampleArray);
+			slidesInfo(sampleDataJson['review']);
 			// 2'nd line information
-			displaySlidesamples(sampleArray);
+			displaySlidesamples(sampleDataJson['review']);
 			// default view
 			thumbSingleClick(0);
     },
@@ -356,6 +354,10 @@ function displaySlidesamples(sampleArray){
 	}
 }
 
+// Runs when selecting a slide and displays the selected cells in the slide
+// Parameter: None
+// Return: None
+//
 function doreviewSel(){
 	var slideName = document.getElementById("reviewSel").value;
 	clearPosNeg();
@@ -375,10 +377,15 @@ function doreviewSel(){
 	}
 }
 
+// Clears current positive and negative divs
+// Parameter: None
+// Return: None
+//
 function clearPosNeg(){
 	document.getElementById('pos').innerHTML = "";
 	document.getElementById('neg').innerHTML = "";
 }
+
 // Displays samples for one slide
 // Parameter: array-like, int
 // one slide and the selected samples for the slide
@@ -618,9 +625,12 @@ function addPos(index, slideNum, isNewline, sample, rowNo, pos) {
 				clickCount = 0;
 				thumbSingleClick(index);
 			}, 200);
+		}	else if( clickCount === 2 ) {
+			clearTimeout(singleClickTimer);
+			clickCount = 0;
+			thumbDoubleClick(index);
 		}
-		}, false);
-
+	}, false);
 }
 
 // Displays a negative sample
@@ -701,9 +711,12 @@ function addNeg(index, slideNum, isNewline, sample, rowNo, neg) {
 				clickCount = 0;
 				thumbSingleClick(index);
 			}, 200);
+		} else if( clickCount === 2 ) {
+			clearTimeout(singleClickTimer);
+			clickCount = 0;
+			thumbDoubleClick(index);
 		}
-		}, false);
-
+	}, false);
 }
 
 // ThumbNamil one click function
@@ -736,6 +749,28 @@ function thumbSingleClick(index) {
 	curBox = index;
 	boundaryOn = true;
 };
+
+//
+//	A double click in the thumbnail box toggles the current classification
+//	of the object.
+//
+//
+function thumbDoubleClick(index) {
+
+	var label = sampleDataJson['review'][index]['label'];
+
+	// Toggle through the 3 states, pos, neg and ignore
+	//
+	if( label === 1 ) {
+		sampleDataJson['review'][index]['label'] = -1;
+	} else if( label === -1 ) {
+		sampleDataJson['review'][index]['label'] = 1;
+	} else {
+		sampleDataJson['review'][index]['label'] = 0;
+	}
+	doreviewSel();
+};
+
 
 // Update slide view when mouse button is clicked on thumbNail
 //
