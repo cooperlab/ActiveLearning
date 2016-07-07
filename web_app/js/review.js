@@ -46,12 +46,12 @@ var curBox = -1;
 var curX = 0, curY = 0;
 
 var boundaryOn = true;
-
 var segDisplayOn = true;
 
 var igrArray = new Array();
 
-var cellNum = 0;
+var slideLists = [];
+var cellIndex = [];
 
 //
 //	Review
@@ -212,7 +212,7 @@ function genReview() {
 				statusObj.curSlide("");
 			};
 
-      var sampleArray = data['review'];
+      var sampleArray = sampleDataJson['review'];
 
 			// sort by slide name
 			sampleArray.sort(function(a, b) {
@@ -227,6 +227,7 @@ function genReview() {
 			  // names must be equal
 			  return 0;
 			});
+
 			// 1'st line information
 			slidesInfo(sampleArray);
 			// 2'nd line information
@@ -265,6 +266,10 @@ function slidesInfo(sampleArray) {
 	}
 
 	totalNumofSlides = counts(array_slide);
+
+	for( var i=0; i<totalNumofSlides; i++) {
+		cellIndex.push([]);
+	}
 
 	var	container, row, linebreak;
 	container = document.getElementById('posHeader1');
@@ -306,10 +311,11 @@ function counts(array){
 //
 function displaySlidesamples(sampleArray){
 
-	var slideLists = [];
 	var slideObject = [];
 	var slideName = "";
+	var slideNum = 0;
 	var isFirst = true;
+	slideLists = [];
 
 	// splits slides
 	for( sample in sampleArray ) {
@@ -325,32 +331,61 @@ function displaySlidesamples(sampleArray){
 				slideObject = [];
 				slideName = sampleArray[sample]['slide'];
 				slideObject.push(sampleArray[sample]);
+				slideNum = slideNum + 1;
+				cursampleIndex = 0;
 			}
 			else{
 				slideObject.push(sampleArray[sample]);
 			}
 		}
+		cellIndex[slideNum].push(sample);
 	}
 
 	if(slideObject.length > 0){
 		slideLists.push(slideObject);
 	}
 
+	var	reviewSel = $("#reviewSel");
+	reviewSel.append(new Option("All", "All"));
+	for( var i=0; i < slideLists.length; i++ ) {
+		reviewSel.append(new Option(slideLists[i][0]['slide'], slideLists[i][0]['slide']));
+	}
 	// display cells for each slide
 	for( var i=0; i < slideLists.length; i++ ) {
-		displayOneslide(slideLists[i], i);
+		displayOneslide(slideLists[i], i, cellIndex[i]);
 	}
-
 }
 
+function doreviewSel(){
+	var slideName = document.getElementById("reviewSel").value;
+	clearPosNeg();
+	if (slideName == "All"){
+		// display all
+		for( var i=0; i < slideLists.length; i++ ) {
+			displayOneslide(slideLists[i], i, cellIndex[i]);
+		}
+	}
+	else{
+		// display the select slide
+		for( var i=0; i < slideLists.length; i++ ) {
+			if (slideName == slideLists[i][0]['slide']){
+				displayOneslide(slideLists[i], i, cellIndex[i]);
+			}
+		}
+	}
+}
+
+function clearPosNeg(){
+	document.getElementById('pos').innerHTML = "";
+	document.getElementById('neg').innerHTML = "";
+}
 // Displays samples for one slide
 // Parameter: array-like, int
 // one slide and the selected samples for the slide
 // Return
 // display the selected samples for the slide
 //
-function displayOneslide(sampleArray, slideNum){
-
+function displayOneslide(sampleArray, slideNum, sampleIndex){
 	// gets a slide information
 	slideInfo(sampleArray[0], sampleArray.length);
 
@@ -366,7 +401,6 @@ function displayOneslide(sampleArray, slideNum){
 	var lastsample = 0;
 
 	for( sample in sampleArray ) {
-
 		if( sampleArray[sample]['label'] === 1 ) {
 			isPos = 1;
 			posNewline = false;
@@ -376,7 +410,7 @@ function displayOneslide(sampleArray, slideNum){
 				posRow = posRow + 1;
 			}
 			// displays postive samples
-			addPos(cellNum, slideNum, posNewline, sample, posRow, sampleArray[sample]);
+			addPos(sampleIndex[sample], slideNum, posNewline, sample, posRow, sampleArray[sample]);
 
 			var labelTag = "#label_"+isPos+'_'+sample+'_'+slideNum;
 			var label = $('#box_'+isPos+'_'+sample+'_'+slideNum).children(".classLabel");
@@ -395,7 +429,7 @@ function displayOneslide(sampleArray, slideNum){
 				negRow = negRow + 1;
 			}
 			// displays negative samples
-			addNeg(cellNum, slideNum, negNewline, sample, negRow, sampleArray[sample]);
+			addNeg(sampleIndex[sample], slideNum, negNewline, sample, negRow, sampleArray[sample]);
 
 			var labelTag = "#label_"+isPos+'_'+sample+'_'+slideNum;
 			var label = $('#box_'+isPos+'_'+sample+'_'+slideNum).children(".classLabel");
@@ -407,7 +441,6 @@ function displayOneslide(sampleArray, slideNum){
 		} else {
 			//igrArray.push(sampleArray);
 		}
-		cellNum = cellNum + 1;
 		lastsample = lastsample + 1;
 	}
 	// check if there's no pos or neg box
