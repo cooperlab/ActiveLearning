@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!--	
+<!--
 	Copyright (c) 2014-2015, Emory University
 	All rights reserved.
 
@@ -28,17 +28,17 @@
 -->
 
 
-<html> 
+<html>
 	<head>
 		<title>Slide viewer</title>
-		
+
 		<script src="js/jquery-1.9.0.min.js"></script>
 	 	<script src="js/openseadragon.min.js"></script>
 		<script src="js/openseadragon-imaginghelper.min.js"></script>
 		<script src="js/openseadragon-viewerinputhook.min.js"></script>
 		<script src="js/knockout-3.1.0.js"></script>
 		<script src="js/bootstrap.min.js"></script>
-		
+
 
 		<link rel="stylesheet" media="screen" href="css/bootstrap.min.css"/>
 		<link rel="stylesheet" media="screen" href="css/style.css"/>
@@ -51,11 +51,12 @@
 			<div class="navbar-header">
 				<div class="navbar-brand">VALS</div>
 			</div>
-			
+
 			<div>
 				<ul class="nav navbar-nav">
 					<li><a href="index.html">Home</a></li>
 					<li><a href="grid.html" id="nav_select">Select</a></li>
+					<li><a href="review.html" id="nav_review">Review</a></li>
 					<li class="active"><a href="viewer.html">Viewer</a></li>
 					<li><a href="heatmaps.html" id="nav_heatmaps">Heatmaps</a></li>
 					<li><a href="visualize.html" id="nav_visualize">Visualize</a></li>
@@ -73,10 +74,10 @@
 						<h5>Select Dataset: </h5>
 						<select id="dataset_sel"></select>
 					</div>
-					
+
 					<h5>Select Slide: </h5>
 					<select id="slide_sel"></select>
-					
+
 					<p>
 						<br/>
 						Available Slides: <span id="count_patient"></span>
@@ -102,12 +103,12 @@
 					<div>
 						<h5>Pan to location: </h5>
 						<p>X:
-						<span><input type="text" id="x_pos" 
+						<span><input type="text" id="x_pos"
 							name="x_position" placeholder="0.0">
 						</p>
 
 						<p>Y:
-						<input type="text" id="y_pos" 
+						<input type="text" id="y_pos"
 							name="y_position" placeholder="0.0">
 						<input type="button" id="btn_Go" value="Go" class="btn btn-default btn-sm" onClick="go()">
 						</p>
@@ -147,12 +148,12 @@
 						</div>
 					</div>
 				</div>
-									
+
 			</div>  <!-- First row -->
 
 
 
-<!--			<div class="row top-buffer"></div>   <!-- A little space between --> 
+<!--			<div class="row top-buffer"></div>   <!-- A little space between -->
 
 
 			<div class="row">	<!-- Buttons -->
@@ -162,22 +163,22 @@
 				</div>
 				<div class="col-sm-4 col-md-4 col-lg-4" id="retrainInfo" data-bind="with: statusObj">
 					<!-- Buttons along top of zoomer -->
-					<input type="button" id="retrainBtn" value="Retrain" class="btn btn-default btn-sm" onClick="retrain()" disabled>				
-					Samples:					
+					<input type="button" id="retrainBtn" value="Retrain" class="btn btn-default btn-sm" onClick="retrain()" disabled>
+					Samples:
 					<span data-bind="text:samplesToFix()"></span>
 				</div>
-				
+
 			</div>	<!-- Second row (buttons) -->
 
-			<div class="row top-buffer"></div>   <!-- A little space between -->			
-			
+			<div class="row top-buffer"></div>   <!-- A little space between -->
+
 			<div class="row-fluid"> <!-- Slide viewer -->
 				<div id="imageViewerContainer" class="relative-fill-container">
 					<div id="image_zoomer" class="openseadragon-view"></div>
-					<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg" data-bind="withL svgOverlayVM" 
+					<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg" data-bind="withL svgOverlayVM"
 						 visibility="hidden" pointer-events="none" zoomAndPan="disable">
 						<defs></defs>
-						<!-- TODO - Can't get the binding to work with the transform function. 
+						<!-- TODO - Can't get the binding to work with the transform function.
 							 Currently applying the transform manually in onImageViewChanged
 						-->
 						<g id="annoGrp" class="svgAnnoGrp" data-bind="attr: {transform: annoGrpTransformFunc}">
@@ -187,7 +188,7 @@
 				</div>
 			</div>		<!-- Third row (Slide viewer) -->
 
-		</div>	<!-- Container -->		
+		</div>	<!-- Container -->
 
 		<script src="js/viewer.js"></script>
 	</body>
