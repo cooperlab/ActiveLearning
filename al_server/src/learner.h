@@ -65,6 +65,7 @@ public:
 			~Learner(void);
 
 	virtual bool	ParseCommand(const int sock, const char *data, int size);
+	virtual bool	AutoSave(void);
 
 
 protected:

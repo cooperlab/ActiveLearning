@@ -66,3 +66,10 @@ bool SessionClient::IsUIDValid(const char *uid)
 
 
 
+
+
+bool SessionClient::AutoSave(void)
+{
+	return false;
+}
+

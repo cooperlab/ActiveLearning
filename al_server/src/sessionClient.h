@@ -36,6 +36,7 @@ class SessionClient {
 public:
 
 	virtual bool	ParseCommand(const int sock, const char *data, int size) = 0;
+	virtual bool	AutoSave(void);
 
 protected:
 

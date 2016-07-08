@@ -104,6 +104,35 @@ Learner::~Learner(void)
 
 
 
+//
+// Save the training set in its current state. This is meant to be
+// initiated by the session manager.
+//
+bool Learner::AutoSave(void)
+{
+	bool	result = true;
+	string 	fileName = m_classifierName + ".h5", fqfn;
+
+	fqfn = m_outPath + fileName;
+	struct stat buffer;
+	if( stat(fqfn.c_str(), &buffer) == 0 ) {
+		string 	tag = &m_UID[UID_LENGTH - 3];
+
+		fileName = m_classifierName + "_" + tag + ".h5";
+	} else {
+
+	}
+
+	if( result ) {
+		result = SaveTrainingSet(fileName);
+	}
+
+	return result;
+}
+
+
+
+
 
 void Learner::Cleanup(void)
 {

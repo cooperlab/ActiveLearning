@@ -131,6 +131,8 @@ void SessionMgr::ParseCommand(const int sock, string data)
 		elapsedTime =  difftime(now, m_sessions[i]->touchTime);
 		if( elapsedTime > (double)m_sessionTimeout ) {
 
+			m_sessions[i]->client->AutoSave();
+
 			delete m_sessions[i]->client;
 			delete m_sessions[i];
 			m_sessions.erase(m_sessions.begin() + i);
