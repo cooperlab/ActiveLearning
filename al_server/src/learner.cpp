@@ -231,7 +231,11 @@ bool Learner::ParseCommand(const int sock, const char *data, int size)
 			} else if( strncmp(command, CMD_CLASSEND, strlen(CMD_CLASSEND)) == 0 ) {
 				// Do nothing
 				result = true;
-			}else {
+			} else if( strncmp(command, CMD_REVIEWSAVE, strlen(CMD_REVIEWSAVE)) == 0 ) {
+				result = SaveReview(sock, root);
+			} else if( strncmp(command, CMD_REVIEW, strlen(CMD_REVIEW)) == 0 ) {
+				result = Review(sock, root);
+			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
 			}
@@ -271,7 +275,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 			result = false;
 		}
 	}
-	
+
 	if( result ) {
 		jsonObj = json_object_get(obj, "uid");
 		uid = json_string_value(jsonObj);
@@ -327,7 +331,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		double	start = gLogger->WallTime();
 		result = m_dataset->Load(fqFileName);
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
-		
+
 	}
 
 	// Create classifier and sampling objects
@@ -341,7 +345,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 			result = false;
 		}
 	}
-		
+
 	if( result ) {
 		m_sampler = new UncertainSample(m_classifier, m_dataset);
 		if( m_sampler == NULL ) {
@@ -374,6 +378,134 @@ bool Learner::StartSession(const int sock, json_t *obj)
 }
 
 
+//
+// Review samples selected by user
+//
+//
+bool Learner::Review(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t 	*root = NULL, *value = NULL, *sample = NULL, *sampleArray = NULL;
+	int		reqIteration, idx;
+	float	score;
+
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
+
+	if( result ) {
+		root = json_object();
+
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(select) Error creating JSON object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		sampleArray = json_array();
+		if( sampleArray == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "(select) Unable to create sample JSON Array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		// Iteration count starts form 0.
+		//json_object_set(root, "iterations", json_integer(m_iteration));
+		//json_object_set(root, "filename", json_string(fileName.c_str()));
+
+		// We just return an array of the nuclei database id's, label and iteration when added
+		//
+		for(int i = 0; i < m_samples.size(); i++) {
+
+			sample = json_object();
+			if( sample == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON object");
+				result = false;
+				break;
+			}
+
+			int idx = m_samples[i];
+			json_object_set(sample, "id", json_integer(m_ids[i]));
+			json_object_set(sample, "label", json_integer(m_labels[i]));
+			json_object_set(sample, "iteration", json_integer(m_sampleIter[i]));
+			json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
+			json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
+			json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
+			json_object_set(sample, "boundary", json_string(""));
+			json_object_set(sample, "maxX", json_integer(0));
+			json_object_set(sample, "maxY", json_integer(0));
+
+			// m_dataset->GetMeans(), m_dataset->GetStdDevs(),	m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,	m_dataset->GetNumSlides(), m_classNames
+
+			json_array_append(sampleArray, sample);
+			json_decref(sample);
+		}
+
+	}
+
+	if( result ) {
+		json_object_set(root, "review", sampleArray);
+		json_decref(sampleArray);
+
+		char *jsonStr = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonStr, strlen(jsonStr));
+
+		if( bytesWritten != strlen(jsonStr) )
+			result = false;
+		free(jsonStr);
+	}
+	json_decref(root);
+
+	return result;
+}
+
+
+//
+// save labels from review
+//
+//
+bool Learner::SaveReview(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t 	*jsonObj = NULL, *value = NULL, *sampleArray = NULL;
+
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
+
+	if( result ) {
+		sampleArray = json_object_get(obj, "samples");
+		if( !json_is_array(sampleArray) ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		size_t	index;
+		int id, label;
+
+		for(int i = 0; i < m_samples.size(); i++) {
+
+			json_array_foreach(sampleArray, index, jsonObj) {
+
+					value = json_object_get(jsonObj, "id");
+					id = json_integer_value(value);
+
+					value = json_object_get(jsonObj, "label");
+					label = json_integer_value(value);
+
+					if (id == m_ids[i]){
+							m_labels[i] = label;
+					}
+				}
+			}
+	}
+
+	return result;
+}
 
 
 //
@@ -389,8 +521,8 @@ bool Learner::Select(const int sock, json_t *obj)
 
 	value = json_object_get(obj, "uid");
 	const char *uid = json_string_value(value);
-	result = IsUIDValid(uid); 
-			
+	result = IsUIDValid(uid);
+
 	if( result ) {
 		value = json_object_get(obj, "iteration");
 		if( value == NULL ) {
@@ -400,7 +532,7 @@ bool Learner::Select(const int sock, json_t *obj)
 			reqIteration = json_integer_value(value);
 		}
 	}
-	
+
 	if( result ) {
 		root = json_object();
 
@@ -409,7 +541,7 @@ bool Learner::Select(const int sock, json_t *obj)
 			result = false;
 		}
 	}
-	
+
 	if( result ) {
 		sampleArray = json_array();
 		if( sampleArray == NULL ) {
@@ -510,7 +642,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 	//
 	value = json_object_get(obj, "uid");
 	const char *uid = json_string_value(value);
-	result = IsUIDValid(uid); 
+	result = IsUIDValid(uid);
 
 	// Sanity check the itereation
 	//
@@ -533,7 +665,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 			}
 		}
 	}
-	
+
 	if( result ) {
 		sampleArray = json_object_get(obj, "samples");
 		if( !json_is_array(sampleArray) ) {
@@ -548,7 +680,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 		float	centX, centY;
 		const char *slide;
 		double	start = gLogger->WallTime();
-		
+
 		json_array_foreach(sampleArray, index, jsonObj) {
 
 			value = json_object_get(jsonObj, "id");
@@ -623,11 +755,11 @@ bool Learner::Submit(const int sock, json_t *obj)
 		}
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Submit took %f", gLogger->WallTime() - start);
 
-		// 
+		//
 		// Indicate training set has been updated and heatmaps need to be rebuilt
 		m_heatmapReload = true;
 	}
-	
+
 	// Send result back to client
 	//
 	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
@@ -645,16 +777,16 @@ bool Learner::Submit(const int sock, json_t *obj)
 			int	*ptr = &m_samples[0];
 			result  = m_sampler->Init(m_samples.size(), ptr);
 		}
-		
+
 		double	start = gLogger->WallTime();
-		
+
 		// Only increment if submitted from the normal active learning process.
 		if( iter >= 0 ) {
 			m_iteration++;
 		}
 		result = m_classifier->Train(m_trainSet[0], m_labels, m_samples.size(), m_dataset->GetDims());
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Classifier training took %f", gLogger->WallTime() - start);
-		
+
 		if( result ) {
 			m_curAccuracy = 0.0; //CalcAccuracy();
 
@@ -668,7 +800,7 @@ bool Learner::Submit(const int sock, json_t *obj)
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
 			}
 			gLogger->LogMsg(EvtLogger::Evt_INFO, "Dataset classification took %f", gLogger->WallTime() - start);
-		}		
+		}
 
 		// Need to select new samples.
 		m_curSet.clear();
@@ -692,7 +824,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 
 	jsonObj = json_object_get(obj, "uid");
 	const char *uid = json_string_value(jsonObj);
-	result = IsUIDValid(uid); 
+	result = IsUIDValid(uid);
 
 	if( result ) {
 		fqfn = m_outPath + fileName;
@@ -719,7 +851,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 
 	if( result ) {
 		double	start = gLogger->WallTime();
-		
+
 		// Iteration count starts form 0.
 		json_object_set(root, "iterations", json_integer(m_iteration));
 		json_object_set(root, "filename", json_string(fileName.c_str()));
@@ -743,7 +875,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
 		}
-		
+
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Finalize took %f", gLogger->WallTime() - start);
 	}
 
@@ -765,7 +897,7 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	if( result ) {
 		result = SaveTrainingSet(fileName);
 	}
-	
+
 	// This session is done, clear the UID and cleanup associated
 	// data
 	//
@@ -794,21 +926,21 @@ bool Learner::Visualize(const int sock, json_t *obj)
 		if( value == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid strata");
 			result = false;
-		} else {		
+		} else {
 			strata = json_integer_value(value);
 		}
 	}
-	
+
 	if( result ) {
 		value = json_object_get(obj, "groups");
 		if( value == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(visualize) Invalid groups");
-			result = false;	
+			result = false;
 		} else {
 			groups = json_integer_value(value);
 		}
-	}	
-	
+	}
+
 	if( root == NULL ) {
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to crate JSON array for visualization");
 		result = false;
@@ -818,8 +950,8 @@ bool Learner::Visualize(const int sock, json_t *obj)
 		int	*sampleIdx = NULL, totalSamp;
 		float *sampleScores = NULL;
 		double	start = gLogger->WallTime();
-		
-		
+
+
 		totalSamp = strata * groups * 2;
 		result = m_sampler->GetVisSamples(strata, groups, sampleIdx, sampleScores);
 
@@ -1013,11 +1145,11 @@ bool Learner::SaveTrainingSet(string fileName)
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Saving training set to: %s", fileName.c_str());
 		result = trainingSet->SaveAs(fileName);
 	}
-	
+
 	if( trainingSet != NULL )
 		delete trainingSet;
 
-	
+
 	return result;
 }
 
@@ -1059,7 +1191,7 @@ bool Learner::ApplyClassifier(const int sock, json_t *obj)
 		gLogger->LogMsg(EvtLogger::Evt_ERROR, "(ApplyClassifier) Unable to decode min/max values");
 		result = false;
 	}
-	
+
 	double timing = gLogger->WallTime();
 	if( result ) {
 		// Session in progress, use current training set.
@@ -1305,7 +1437,7 @@ bool Learner::InitViewerClassify(const int sock, json_t *obj)
 			sprintf(tag, "class_%d", i);
 			json_array_append_new(classNames, json_string(m_classNames[i].c_str()));
 		}
-		
+
 	}
 
 	json_object_set(root, "class_names", classNames);
@@ -1395,7 +1527,7 @@ bool Learner::LoadTrainingSet(string trainingSetName)
 		if( result ) {
 			int 	numClasses = m_classTrain->GetNumClasses();
 			char	**names = m_classTrain->GetClassNames();
-			
+
 			gLogger->LogMsg(EvtLogger::Evt_INFO, "Num classes: %d, names: 0x%x", numClasses, names);
 
 			for(int i = 0; i < numClasses; i++) {
@@ -1486,7 +1618,7 @@ bool Learner::CreateSet(vector<int> folds, int fold, float *&trainX, int *&train
 
 #if 0
 
-bool Learner::IsUIDValid(const char *uid) 
+bool Learner::IsUIDValid(const char *uid)
 {
 	bool	result = true;
 	// m_UID's length is 1 greater than UID_LENGTH, So we can
@@ -1503,7 +1635,7 @@ bool Learner::IsUIDValid(const char *uid)
 			result = false;
 		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid UID");
-			result = false;		
+			result = false;
 		}
 	}
 	return result;
@@ -1528,23 +1660,23 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 	string	slide, uncertFileName, classFileName;
 
 	result = IsUIDValid(uid);
-	
+
 	if( result ) {
 		value = json_object_get(obj, "width");
 		if( value == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to decode width");
 			result = false;
-		} else { 
+		} else {
 			width = json_integer_value(value);
 		}
 	}
-	
+
 	if( result ) {
 		value = json_object_get(obj, "height");
 		if( value == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to decode height");
 			result = false;
-		} else { 
+		} else {
 			height = json_integer_value(value);
 		}
 	}
@@ -1554,7 +1686,7 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 		if( value == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to decode slide name");
 			result = false;
-		} else { 
+		} else {
 			slide = json_string_value(value);
 		}
 	}
@@ -1573,7 +1705,7 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 		if( scores == NULL ) {
 			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatImage) Unable to allocate score buffer");
 			result = false;
-		} 
+		}
 
 		if( result ) {
 
@@ -1595,9 +1727,9 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 			int		statResp = stat(fqfn.c_str(), &buffer);
 
 			// Check if heatmap needs to be generated
-			if( m_heatmapReload || statResp != 0 ) { 
+			if( m_heatmapReload || statResp != 0 ) {
 
-				HeatmapWorker(scores, centX, centY, numObjs, slide, width, height, 
+				HeatmapWorker(scores, centX, centY, numObjs, slide, width, height,
 							  &uncertMin, &uncertMax, &classMin, &classMax, &uncertMedian);
 			} else {
 
@@ -1615,11 +1747,11 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 						break;
 					}
 				}
-			} 
+			}
 		}
 	}
 
-	
+
 	if( result ) {
 		root = json_object();
 		if( root == NULL ) {
@@ -1641,7 +1773,7 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 		json_object_set(root, "classMin", json_real(classMin));
 		json_object_set(root, "classMax", json_real(classMax));
 
-		char *jsonObj = json_dumps(root, 0);		
+		char *jsonObj = json_dumps(root, 0);
 		size_t  bytesWritten = :: write(sock, jsonObj, strlen(jsonObj));
 
 		if( bytesWritten != strlen(jsonObj) )
@@ -1698,7 +1830,7 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 			if( !json_is_array(slides) ) {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode slide name array");
 				result = false;
-			}	
+			}
 		}
 
 		if( result ) {
@@ -1707,7 +1839,7 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 			if( !json_is_array(x_size) ) {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode x_size array");
 				result = false;
-			}	
+			}
 		}
 
 		if( result ) {
@@ -1716,9 +1848,9 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 			if( !json_is_array(y_size) ) {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode y_size array");
 				result = false;
-			}	
+			}
 		}
-	
+
 
 		if( result ) {
 			size_t index, numSlides = json_array_size(slides);
@@ -1742,13 +1874,13 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 					result = false;
 					break;
 				}
-			
+
 				value = json_array_get(x_size, index);
 				if( value == NULL ) {
 					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode width");
 					result = false;
 					break;
-				}				
+				}
 				width = json_integer_value(value);
 
 				value = json_array_get(y_size, index);
@@ -1756,14 +1888,14 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode height");
 					result = false;
 					break;
-				}				
+				}
 				height = json_integer_value(value);
 
 				int slideObjs, offset = m_dataset->GetSlideOffset(slideName, slideObjs);
 				float	*xList = m_dataset->GetXCentroidList(), *yList = m_dataset->GetYCentroidList();
 				float	*xCent = &xList[offset], *yCent = &yList[offset], *slideScores = &m_scores[offset], uncertMedian;
 				SlideStat   *stats = new SlideStat;
-				
+
 				stats->slide = slideName;
 				stats->alphaIndex = index;
 				stats->width = width;
@@ -1771,19 +1903,19 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 				m_statList.push_back(stats);
 
 				workers.push_back(std::thread(&Learner::HeatmapWorker, this, slideScores,
-										xCent, yCent, slideObjs, slideName, width, height, 
-										&m_statList[index]->uncertMin, &m_statList[index]->uncertMax, 
+										xCent, yCent, slideObjs, slideName, width, height,
+										&m_statList[index]->uncertMin, &m_statList[index]->uncertMax,
 										&m_statList[index]->classMin, &m_statList[index]->classMax,
 										&m_statList[index]->uncertMedian));
 			}
 
 			for( auto &t : workers )
 				t.join();
-		} 
+		}
 
 		sort(m_statList.begin(), m_statList.end(), SortFunc);
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "GenAllHeatmaps took %f", gLogger->WallTime() - timing);
-	
+
 		// Indicate heatmaps have been updated
 		//
 		m_heatmapReload = false;
@@ -1807,7 +1939,7 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 
 	vector<SlideStat*>::iterator	it;
 
-	if( result ) {		
+	if( result ) {
 
 		for(it = m_statList.begin(); it != m_statList.end(); it++) {
 			item = json_object();
@@ -1816,7 +1948,7 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 				result = false;
 				break;
 			}
-			
+
 			json_object_set(item, "slide", json_string((*it)->slide.c_str()));
 			json_object_set(item, "width", json_integer((*it)->width));
 			json_object_set(item, "height", json_integer((*it)->height));
@@ -1826,12 +1958,12 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 			json_object_set(item, "classMin", json_real((*it)->classMin));
 			json_object_set(item, "classMax", json_real((*it)->classMax));
 			json_object_set(item, "index", json_integer((*it)->alphaIndex));
-			
+
 			json_array_append(slideList, item);
 			json_decref(item);
 		}
 
-		
+
 		char *jsonObj = json_dumps(slideList, 0);
 		size_t  bytesWritten = :: write(sock, jsonObj, strlen(jsonObj));
 
@@ -1851,7 +1983,7 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 
 
 
-void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int numObjs, 
+void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int numObjs,
 							string slide, int width, int height, double *uncertMin, double *uncertMax,
 							double *classMin, double *classMax, float *uncertMedian)
 {
@@ -1859,7 +1991,7 @@ void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int 
 	int		fX = (ceil((float)width / (float)GRID_SIZE)) + 1, fY = (ceil((float)height / (float)GRID_SIZE)) + 1,
 			curX, curY;
 	Mat		uncertainMap = Mat::zeros(fY, fX, CV_32F), classMap = Mat::zeros(fY, fX, CV_32F),
-			densityMap = Mat::zeros(fY, fX, CV_32F), grayUncertain(fY, fX, CV_8UC1), 
+			densityMap = Mat::zeros(fY, fX, CV_32F), grayUncertain(fY, fX, CV_8UC1),
 			grayClass(fY, fX, CV_8UC1);
 	vector<float> scoreVec;
 
@@ -1908,7 +2040,7 @@ void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int 
 
 	for(int row = 0; row < fY; row++) {
 		for(int col = 0; col < fX; col++) {
-			
+
 			index = (int)min(uncertainMap.at<float>(row, col) / range * (float)HIST_BINS, (float)(HIST_BINS - 1));
 			uncertHist[index]++;
 		}
@@ -1921,7 +2053,7 @@ void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int 
 			break;
 	}
 	uncertNorm = (float)index / (float)HIST_BINS;
-	
+
 	for(int row = 0; row < fY; row++) {
 		for(int col = 0; col < fX; col++) {
 
@@ -1947,10 +2079,3 @@ void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int 
 	// Return the median raw score, min and max should be blurred
 	*uncertMedian = scoreVec[scoreVec.size() / 2];
 }
-
-
-
-
-
-
-

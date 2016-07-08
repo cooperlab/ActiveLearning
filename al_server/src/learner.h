@@ -103,7 +103,7 @@ protected:
 	float		*m_scores;				// Used for heatmap generation
 
 	float		m_curAccuracy;
-	
+
 	Classifier 	*m_classifier;
 	Sampler		*m_sampler;
 
@@ -145,10 +145,12 @@ protected:
 	bool	LoadDataset(string dataSetFileName);
 	bool	LoadTrainingSet(string trainingSetName);
 
-	void	HeatmapWorker(float *slideScores, float *centX, float *centY, int numObjs, 
+	void	HeatmapWorker(float *slideScores, float *centX, float *centY, int numObjs,
 						  string slide, int width, int height, double *uncertMin, double *uncertMax,
 						  double *classMin, double *classMax, float *uncertMedian);
 
+	bool	Review(const int sock, json_t *obj);
+	bool	SaveReview(const int sock, json_t *obj);
 };
 
 
