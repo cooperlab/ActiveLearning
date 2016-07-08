@@ -231,9 +231,11 @@ bool Learner::ParseCommand(const int sock, const char *data, int size)
 			} else if( strncmp(command, CMD_CLASSEND, strlen(CMD_CLASSEND)) == 0 ) {
 				// Do nothing
 				result = true;
+			} else if( strncmp(command, CMD_REVIEWSAVE, strlen(CMD_REVIEWSAVE)) == 0 ) {
+				result = SaveReview(sock, root);
 			} else if( strncmp(command, CMD_REVIEW, strlen(CMD_REVIEW)) == 0 ) {
 				result = Review(sock, root);
-			}else {
+			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
 			}
@@ -458,6 +460,53 @@ bool Learner::Review(const int sock, json_t *obj)
 
 	return result;
 }
+
+
+//
+// save labels from review
+//
+//
+bool Learner::SaveReview(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t 	*jsonObj = NULL, *value = NULL, *sampleArray = NULL;
+
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
+
+	if( result ) {
+		sampleArray = json_object_get(obj, "samples");
+		if( !json_is_array(sampleArray) ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		size_t	index;
+		int id, label;
+
+		for(int i = 0; i < m_samples.size(); i++) {
+
+			json_array_foreach(sampleArray, index, jsonObj) {
+
+					value = json_object_get(jsonObj, "id");
+					id = json_integer_value(value);
+
+					value = json_object_get(jsonObj, "label");
+					label = json_integer_value(value);
+
+					if (id == m_ids[i]){
+							m_labels[i] = label;
+					}
+				}
+			}
+	}
+
+	return result;
+}
+
 
 //
 // Select new samples for the user to label.
