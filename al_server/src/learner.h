@@ -150,6 +150,7 @@ protected:
 						  double *classMin, double *classMax, float *uncertMedian);
 
 	bool	Review(const int sock, json_t *obj);
+	bool	SaveReview(const int sock, json_t *obj);
 };
 
 
