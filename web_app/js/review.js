@@ -769,8 +769,31 @@ function thumbDoubleClick(index) {
 		sampleDataJson['review'][index]['label'] = 0;
 	}
 	doreviewSel();
+	updateLabels();
 };
 
+
+//	Updates labels in al server
+//
+function updateLabels() {
+
+	// No need to send boundaries to the server
+	for( i = 0; i < sampleDataJson['review'].length; i++ ) {
+		sampleDataJson['review'][i]['boundary'] = "";
+	}
+
+	$.ajax({
+		type: "POST",
+		url: "php/saveReview.php",
+		dataType: "json",
+		data: sampleDataJson,
+		success: function() {
+
+			// Get a new set of samples
+			//updateSamples();
+		}
+	});
+}
 
 // Update slide view when mouse button is clicked on thumbNail
 //
