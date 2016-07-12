@@ -97,6 +97,9 @@ protected:
 	bool	SaveTrainingSet(string filename);
 
 	bool	LoadDataset(string dataSetFileName);
+
+	bool PickerReview(const int sock, json_t *obj);
+	bool	PickerReviewSave(const int sock, json_t *obj);
 };
 
 
