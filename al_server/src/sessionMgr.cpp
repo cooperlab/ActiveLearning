@@ -99,6 +99,7 @@ void SessionMgr::ParseCommand(const int sock, string data)
 				const char	*command = json_string_value(cmdObj);
 				if( strncmp(command, CMD_INIT, strlen(CMD_INIT)) == 0 ||
 					strncmp(command, CMD_PICKINIT, strlen(CMD_PICKINIT)) == 0 ||
+					strncmp(command, CMD_RELOAD, strlen(CMD_RELOAD)) == 0 ||
 					strncmp(command, CMD_CLASSINIT, strlen(CMD_CLASSINIT)) == 0 ) {
 
 					result = CreateSession(uid, data, command, sock);

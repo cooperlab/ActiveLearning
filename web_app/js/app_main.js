@@ -69,7 +69,10 @@ $(function() {
 				$('#datasetSel').attr('disabled', 'true');
 				$('#posClass').attr('disabled', 'true');
 				$('#negClass').attr('disabled', 'true');
-
+				$('#reloadSession').attr('disabled', 'true');
+				$('#reloadDatasetSel').attr('disabled', 'true');
+				$('#reloadTrainSetSel').attr('disabled', 'true');
+				
 				// No reports while session active
 				$('#nav_reports').hide();
 
@@ -89,18 +92,89 @@ $(function() {
 		dataType: "json",
 		success: function(data) {
 
+			var	reloadDatasetSel = $("#reloadDatasetSel");
 			curDataset = data[0];		// Use first dataset initially
 
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][0]));
+				reloadDatasetSel.append(new Option(data[item][0], data[item][0]));
 			}
+
+			updateTrainingSets(curDataset[0]);
 		}
 	});
 
-	// TODO - Populate training set dropdown
-	//
-
+	$('#reloadTrainSetSel').change(updateTrainingSet);
+	$('#reloadDatasetSel').change(updateDataset)
 });
+
+
+
+
+
+function updateDataset() {
+	
+	var dataset = reloadDatasetSel.options[reloadDatasetSel.selectedIndex].label;
+	updateTrainingSets(dataset);
+}
+
+
+
+
+
+function updateTrainingSets(dataSet) {
+
+	$.ajax({
+		type: "POST",
+		url: "db/getTrainsetForDataset.php",
+		data: { dataset: dataSet },
+		dataType: "json",
+		success: function(data) {
+
+			var	reloadTrainSel = $("#reloadTrainSetSel");
+
+			for( var item in data.trainingSets ) {
+				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
+			}
+			updateTrainingsetInfo(data.trainingSets[0]);
+		}
+	});
+}
+
+
+
+
+
+
+function updateTrainingSet() {
+
+	var trainSet = reloadTrainSetSel.options[reloadTrainSetSel.selectedIndex].label;
+
+	updateTrainingsetInfo(trainSet);
+}
+
+
+
+
+
+function updateTrainingsetInfo(trainSet) {
+	
+	$.ajax({
+		type: "POST",
+		url: "db/getTrainsetInfo.php",
+		data: { trainset: trainSet },
+		dataType: "json",
+		success: function(data) {
+
+			document.getElementById('reloadNeg').innerHTML = data.labels[0];
+			document.getElementById('reloadPos').innerHTML = data.labels[1];
+			document.getElementById('reloadIter').innerHTML = data.iterations;
+			document.getElementById('reloadNegCount').innerHTML = data.counts[0];
+			document.getElementById('reloadPosCount').innerHTML = data.counts[1];
+		}
+	});
+} 
+
 
 
 

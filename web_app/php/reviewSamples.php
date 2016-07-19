@@ -33,8 +33,7 @@
 	session_start();
 
 	$sel_data =  array( "command" => "review",
-	  			 	    "uid" => $_SESSION['uid'],
-	  			 	    "iteration" => $_SESSION['iteration']);
+	  			 	    "uid" => $_SESSION['uid']);
 
 	$sel_data = json_encode($sel_data);
 
@@ -92,8 +91,6 @@
 			mysqli_free_result($result);
 		}
 	}
-	$_SESSION['iteration'] = $response['iteration'];
-
 	mysqli_close($dbConn);
 	$response = json_encode($response);
 

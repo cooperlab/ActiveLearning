@@ -110,7 +110,7 @@ protected:
 
 	bool		m_classifierMode;
 	bool		m_debugStarted;
-
+	bool		m_reloaded;
 
 	bool	StartSession(const int sock, json_t *obj);
 	bool	Select(const int sock, json_t *obj);
@@ -121,7 +121,7 @@ protected:
 	bool	Visualize(const int sock, json_t *obj);
 	bool	GenHeatmap(const int sock, json_t *obj);
 	bool	GenAllHeatmaps(const int sock, json_t *obj);
-
+	bool	ReloadSession(const int sock, json_t *obj);
 
 	bool	ApplyGeneralClassifier(const int sock, int xMin, int xMax,
 								   int yMin, int yMax, string slide);
@@ -152,6 +152,8 @@ protected:
 
 	bool	Review(const int sock, json_t *obj);
 	bool	SaveReview(const int sock, json_t *obj);
+
+	bool	RestoreSessionData(MData &trainingSet);
 };
 
 

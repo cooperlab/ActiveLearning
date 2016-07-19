@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -45,7 +45,7 @@ var curBox = -1;
 var curX = 0, curY = 0;
 
 var boundaryOn = true;
-
+var reloaded = false;
 
 
 //
@@ -77,7 +77,8 @@ $(function() {
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
-			
+			reloaded = data['reloaded'];
+
 			if( uid == null ) {			
 				window.alert("No session active");
 				window.history.back();
@@ -473,14 +474,26 @@ function saveSession() {
 
 	$('#saveDiag').modal('show');
 
-	$.ajax({
-		url: "php/finishSession.php",
-		data: "",
-		success: function(data) {
-		
-			window.location = "index.html";
-		},
-	});
+	if( reloaded ) {
+		$.ajax({
+			url: "php/finishReloadedSession.php",
+			data: "",
+			success: function(data) {
+			
+				window.location = "index.html";
+			},
+		});
+
+	} else {
+		$.ajax({
+			url: "php/finishSession.php",
+			data: "",
+			success: function(data) {
+			
+				window.location = "index.html";
+			},
+		});
+	}
 }
 
 

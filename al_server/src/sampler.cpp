@@ -71,7 +71,7 @@ Sampler::~Sampler(void)
 //
 bool Sampler::Init(int count, int *list)
 {
-	bool	result = false;
+	bool	result = true;
 	int		pick;
 
 	for(int i = 0; i < count; i++) {
@@ -102,7 +102,7 @@ m_Classify(classify)
 
 	m_checkSet = (float**)calloc(numObjs, sizeof(float*));
 
-	if( m_checkSet ) {
+ 	if( m_checkSet ) {
 		
 		// The checkset is just the unlabled portion of the dataset. It starts out
 		// as the entire dataset and as objects are labled, they are removed from the

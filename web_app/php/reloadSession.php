@@ -10,7 +10,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -18,7 +18,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -28,65 +28,47 @@
 //
 
 	require '../db/logging.php';
-		
-	// Make sure initSession.php was referenced from the main
-	// page by checking if 'submit' is empty
-	//
-	if( empty($_POST['submit']) ) {
-		echo "Form was not submitted <br>";
-		exit;
-	}
-	
-	// TODO - Add an alert to indicate what was missing. Should
-	// be on the main page
-	
-	
-	// Each of the text fields must also be filled in
-	//
-	if( empty($_POST["classifiername"]) ) {
-			// Redirect back to the form
-			header("Location:".$_SERVER['HTTP_REFERER']);
-			exit;
-	}
-	
-	if( empty($_POST["posName"]) ) {
-			// Redirect back to the form
-			header("Location:".$_SERVER['HTTP_REFERER']);
-			exit;
-	}
 
-	if( empty($_POST["negName"]) ) {
-			// Redirect back to the form
-			header("Location:".$_SERVER['HTTP_REFERER']);
-			exit;
-	}
-	
 	// Generate a unique id to track this session in the server
 	//
 	$UID = uniqid("", true);
-	
-	// Get the dataset file from the database
+
+	// Get the trainingset file from the database
 	//
 	$dbConn = guestConnect();
-	$sql = 'SELECT features_file FROM datasets WHERE name="'.$_POST["dataset"].'"';
+	$sql = 'SELECT filename FROM training_sets WHERE name="'.$_POST["trainingset"].'"';
 
+	if( $result = mysqli_query($dbConn, $sql) ) {
+
+		$filename = mysqli_fetch_row($result);			
+		mysqli_free_result($result);
+	} else {
+		log_error("Unable to get training set from the database");
+	}
+
+	$sql = 'SELECT features_file FROM datasets WHERE name="'.$_POST["reloadDataset"].'"';
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
 		$featureFile = mysqli_fetch_row($result);			
 		mysqli_free_result($result);
+	} else {
+		log_error("Unable to get training set from the database");
 	}
+
+	write_log("INFO", "Feature file '".$featureFile[0]."', trainset: ".$filename[0]);
+
 	mysqli_close($dbConn);
 
-	
+
 	// Send init command to AL server
 	//	
-	$init_data =  array( "command" => "init", 
-				   "name" => $_POST["classifiername"],
-			 	   "dataset" => $_POST["dataset"],
-			 	   "features" => $featureFile[0],
-				   "posClass" => $_POST["posName"],
-				   "negClass" => $_POST["negName"],
-			 	   "uid" => $UID);
+	$init_data =  array( "command" => "reload",
+						 "dataset" => $_POST["reloadDataset"], 
+				 	     "features" => $featureFile[0],
+						 "trainingset" => $_POST["trainingset"],
+					     "trainingfile" => $filename[0],
+			 	   		 "uid" => $UID);
+
 
 	$init_data = json_encode($init_data);
 
@@ -99,32 +81,35 @@
 	
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
 	if( $socket === false ) {
-		echo "socket_create failed:  ". socket_strerror(socket_last_error()) . "<br>";
+		log_error("socket_create failed:  ". socket_strerror(socket_last_error()));
 	}
 	
 	$result = socket_connect($socket, $addr, $port);
 	if( !$result ) {
-		echo "socket_connect failed: ".socket_strerror(socket_last_error()) . "<br>";
+		log_error("socket_connect failed: ".socket_strerror(socket_last_error()));
 	}
 	
 	socket_write($socket, $init_data, strlen($init_data));	
-	$response = socket_read($socket, 10);
+	$response = socket_read($socket, 1024);
 	socket_close($socket);
 	
-	if( strcmp($response, "PASS") == 0 ) { 
-		write_log("INFO", "Session '".$_POST["classifiername"]."' started");
+	$response = json_decode($response, true);
+
+	if( strcmp($response['result'], "PASS") == 0 ) {
+
+		write_log("INFO", "Session '".$_POST["trainingset"]."' reloaded");
 		
-		session_start();
+		session_start();	
 		$_SESSION['uid'] = $UID;
-		$_SESSION['posClass'] = $_POST["posName"];
-		$_SESSION['negClass'] = $_POST["negName"];
-		$_SESSION['classifier'] = $_POST["classifiername"];
-		$_SESSION['iteration'] = 0;
-		$_SESSION['dataset'] = $_POST["dataset"];
-		$_SESSION['reloaded'] = false;
-		header("Location: ../prime.html");
+		$_SESSION['classifier'] = $_POST["trainingset"];
+		$_SESSION['dataset'] = $_POST["reloadDataset"];
+		$_SESSION['posClass'] = $response['posName'];
+		$_SESSION['negClass'] = $response['negName'];
+		$_SESSION['iteration'] = (int)$response['iteration'];
+		$_SESSION['reloaded'] = true;
+		header("Location: ../grid.html");
 	} else {
-	
 		echo "Unable to init session<br>";
 	}
+
 ?>

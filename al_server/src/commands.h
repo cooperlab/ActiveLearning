@@ -46,6 +46,7 @@
 #define CMD_SUBMIT		"submit"
 #define CMD_APPLY		"apply"
 #define CMD_VISUAL		"visualize"
+#define CMD_RELOAD		"reload"
 
 #define CMD_PICKINIT	"pickerInit"
 #define CMD_PICKADD		"pickerAdd"

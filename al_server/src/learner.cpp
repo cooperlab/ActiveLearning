@@ -79,7 +79,8 @@ m_debugStarted(false),
 m_scores(NULL),
 m_classifierMode(false),
 m_xClick(NULL),
-m_yClick(NULL)
+m_yClick(NULL),
+m_reloaded(false)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -237,9 +238,11 @@ bool Learner::ParseCommand(const int sock, const char *data, int size)
 			//
 			if( strncmp(command, CMD_INIT, strlen(CMD_INIT)) == 0 ) {
 				result = StartSession(sock, root);
+			} else if( strncmp(command, CMD_RELOAD, strlen(CMD_RELOAD)) == 0 ) {
+				result = ReloadSession(sock, root);
 			} else if( strncmp(command, CMD_PRIME, strlen(CMD_PRIME)) == 0 ) {
 				result = Submit(sock, root);
-			} else if( strncmp(command, CMD_SELECT, strlen(CMD_SELECT)) == 0 ) {
+			}else if( strncmp(command, CMD_SELECT, strlen(CMD_SELECT)) == 0 ) {
 				result = Select(sock, root);
 			} else if( strncmp(command, CMD_END, strlen(CMD_END)) == 0 ) {
 				result = CancelSession(sock, root);
@@ -407,6 +410,276 @@ bool Learner::StartSession(const int sock, json_t *obj)
 }
 
 
+
+
+
+
+bool Learner::ReloadSession(const int sock, json_t *obj)
+{
+	bool	result = true, uidUpdated = false;
+	json_t	*jsonObj;
+	const char *featureFileName, *uid, *classifierName, *trainingFileName;
+
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+
+	if( strlen(m_UID) > 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
+ 		result = false;
+	}
+
+	if( result ) {
+		m_iteration = 0;
+		jsonObj = json_object_get(obj, "features");
+		featureFileName = json_string_value(jsonObj);
+		if( featureFileName == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		m_iteration = 0;
+		jsonObj = json_object_get(obj, "trainingfile");
+		trainingFileName = json_string_value(jsonObj);
+		if( trainingFileName == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "uid");
+		uid = json_string_value(jsonObj);
+		if( uid == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "trainingset");
+		classifierName = json_string_value(jsonObj);
+		if( classifierName != NULL ) {
+			m_classifierName = classifierName;
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		strncpy(m_UID, uid, UID_LENGTH);
+		uidUpdated = true;
+		m_dataset = new MData();
+		if( m_dataset == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
+			result = false;
+		}
+	}
+
+	MData  trainingData;
+
+	if( result ) {
+		string fqn = m_outPath + trainingFileName;
+
+		if( trainingData.Load(fqn) == false ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to load trining set");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		string fqFileName = m_dataPath + string(featureFileName);
+
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading %s", fqFileName.c_str());
+		double	start = gLogger->WallTime();
+		result = m_dataset->Load(fqFileName);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
+	}
+
+	if( result ) {
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loaded dataset... %d objects of %d dimensions",
+							m_dataset->GetNumObjs(), m_dataset->GetDims());
+		result = RestoreSessionData(trainingData);
+	}
+
+	// Create classifier and sampling objects
+	//
+	if( result ) {
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "ReLoaded trainingset %s, %d objects",
+							trainingFileName, trainingData.GetNumObjs());
+
+ 		m_classifier = new OCVBinaryRF();
+		if( m_classifier == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		m_sampler = new UncertainSample(m_classifier, m_dataset);
+		if( m_sampler == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		// Allocate buffer for object scores to calculate heatmaps
+		m_scores = (float*)malloc(m_dataset->GetNumObjs() * sizeof(float));
+		if( m_scores == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to allocate buffer for object scores");
+			result = false;
+		}
+	}
+
+	if( result ) {
+
+		int	*ptr = &m_samples[0];
+		result  = m_sampler->Init(m_samples.size(), ptr);
+
+		if( result ) {
+			result = m_classifier->Train(m_trainSet[0], m_labels, m_samples.size(), m_dataset->GetDims());
+		}
+
+		if( result ) {
+			m_curAccuracy = 0.0; //CalcAccuracy();
+
+			// Classify all objects for heatmap generation
+			//
+			float 	**ptr = m_dataset->GetData();
+			int		dims = m_dataset->GetDims();
+			double start = gLogger->WallTime();
+			result = m_classifier->ScoreBatch(ptr, m_dataset->GetNumObjs(), dims, m_scores);
+			if( result == false ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
+			}
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "Dataset classification took %f", gLogger->WallTime() - start);
+		}
+
+		// Make sure current set is clear.
+		m_curSet.clear();
+	}
+
+	// Send result back to client
+	//
+	json_t 	*root = json_object(), *value = NULL;
+	size_t 	bytesWritten;
+
+	if( root != NULL ) {
+		json_object_set(root, "negName", json_string(m_classNames[0].c_str()));
+		json_object_set(root, "posName", json_string(m_classNames[1].c_str()));
+		json_object_set(root, "iteration", json_integer(m_iteration));
+		json_object_set(root, "result", json_string("PASS"));
+
+		char *jsonObj = json_dumps(root, 0);
+		bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+
+		// Everything updated, continue on with next iteration.
+		m_iteration++;
+		m_heatmapReload = true;
+
+	} else {
+		result = false;
+		bytesWritten = ::write(sock, failResp, sizeof(failResp) - 1);
+
+		if( bytesWritten != sizeof(failResp) - 1 )
+			result = false;
+	}
+
+	return result;
+}
+
+
+
+
+
+bool Learner::RestoreSessionData(MData &trainingSet)
+{
+	bool result = true;
+
+	int numObjs = trainingSet.GetNumObjs(),
+		numDims = trainingSet.GetDims();
+
+	result = UpdateBuffers(numObjs, true);
+	if( result ) {
+		float	*floatData = NULL;
+		int		*intData = NULL;
+
+		intData = trainingSet.GetIterationList();
+		memcpy(m_sampleIter, intData, numObjs * sizeof(int));
+
+		intData = trainingSet.GetLabels();
+		memcpy(m_labels, intData, numObjs * sizeof(int));
+
+		intData = trainingSet.GetIdList();
+		memcpy(m_ids, intData, numObjs * sizeof(int));
+
+		floatData = trainingSet.GetXCentroidList();
+		memcpy(m_xCentroid, floatData, numObjs * sizeof(float));
+
+		floatData = trainingSet.GetXClickList();
+		// Training sets created with earlier versions of VALS don't have clicks
+		if( floatData == NULL ) {
+			// Use centroids for click location if not present.
+			floatData = trainingSet.GetXCentroidList();
+		}
+		memcpy(m_xClick, floatData, numObjs * sizeof(float));
+
+		floatData = trainingSet.GetYCentroidList();
+		memcpy(m_yCentroid, floatData, numObjs * sizeof(float));
+
+		floatData = trainingSet.GetYClickList();
+		if( floatData == NULL ) {
+			floatData = trainingSet.GetYCentroidList();
+		}
+		memcpy(m_yClick, floatData, numObjs * sizeof(float));
+
+		floatData = trainingSet.GetData()[0];
+		memcpy(m_trainSet[0], floatData, numObjs * numDims * sizeof(float));
+
+		char **classNames = trainingSet.GetClassNames();
+		for(int i = 0; i < trainingSet.GetNumClasses(); i++) {
+			m_classNames.push_back(string(classNames[i]));
+		}
+
+		// Get slide indices from the dataset, NOT from the training set.
+		intData = trainingSet.GetSlideIndices();
+		char **slideNames = trainingSet.GetSlideNames();
+		int idx;
+
+		m_iteration = m_sampleIter[0];
+
+		for(int i = 0; i < numObjs; i++) {
+
+			m_slideIdx[i] = m_dataset->GetSlideIdx(slideNames[intData[i]]);
+
+			// Keep track fo selected items
+			idx = m_dataset->FindItem(m_xCentroid[i], m_yCentroid[i], slideNames[intData[i]]);
+			if( idx == -1 ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to find item in dataset");
+				result = false;
+				break;
+			} else {
+				m_samples.push_back(idx);
+			}
+
+			// Find last iteration
+			if( m_sampleIter[i] > m_iteration )
+				m_iteration = m_sampleIter[i];
+		}
+	}
+
+	return true;
+}
+
+
+
+
+
 //
 // Review samples selected by user
 //
@@ -440,10 +713,6 @@ bool Learner::Review(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		// Iteration count starts form 0.
-		//json_object_set(root, "iterations", json_integer(m_iteration));
-		//json_object_set(root, "filename", json_string(fileName.c_str()));
-
 		// We just return an array of the nuclei database id's, label and iteration when added
 		//
 		for(int i = 0; i < m_samples.size(); i++) {
@@ -629,7 +898,6 @@ bool Learner::Select(const int sock, json_t *obj)
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
 		}
-
 		if( selIdx )
 			free(selIdx);
 		if( selScores )
@@ -782,7 +1050,8 @@ bool Learner::Submit(const int sock, json_t *obj)
 			if( !result )
 				break;
 		}
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Submit took %f", gLogger->WallTime() - start);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Submit took %f, for %d samples",
+						gLogger->WallTime() - start, json_array_size(sampleArray));
 
 		//
 		// Indicate training set has been updated and heatmaps need to be rebuilt
@@ -855,7 +1124,8 @@ bool Learner::FinalizeSession(const int sock, json_t *obj)
 	const char *uid = json_string_value(jsonObj);
 	result = IsUIDValid(uid);
 
-	if( result ) {
+	if( result && m_reloaded ) {
+		// Only check if the file exists when creating a new training set.
 		fqfn = m_outPath + fileName;
 		struct stat buffer;
 		if( stat(fqfn.c_str(), &buffer) == 0 ) {

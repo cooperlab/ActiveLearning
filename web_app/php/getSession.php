@@ -1,7 +1,7 @@
 <?php
 
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -39,6 +39,7 @@
 		$sessionInfo['posClass'] = $_SESSION['posClass'];
 		$sessionInfo['negClass'] = $_SESSION['negClass'];
 		$sessionInfo['dataset'] = $_SESSION['dataset'];	
+		$sessionInfo['reloaded'] = $_SESSION['reloaded'];
 	} else {
 		$sessionInfo['uid'] = null;
 		$sessionInfo['dataset'] = null;
