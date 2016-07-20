@@ -170,6 +170,10 @@ bool Picker::ParseCommand(const int sock, const char *data, int size)
 				result = AddObjects(sock, root);
 			} else if( strncmp(command, CMD_PICKCNT, strlen(CMD_PICKCNT)) == 0) {
 				result = PickerStatus(sock, root);
+			} else if( strncmp(command, CMD_PICKREVIEWSAVE, strlen(CMD_PICKREVIEWSAVE)) == 0) {
+				result = PickerReviewSave(sock, root);
+			} else if( strncmp(command, CMD_PICKREVIEW, strlen(CMD_PICKREVIEW)) == 0) {
+				result = PickerReview(sock, root);
 			} else if( strncmp(command, CMD_END, strlen(CMD_END)) == 0 ) {
 				result = CancelSession(sock, root);
 			} else if( strncmp(command, CMD_PICKEND, strlen(CMD_PICKEND)) == 0) {
@@ -695,7 +699,7 @@ bool Picker::AddObjects(const int sock, json_t *obj)
 				char name[255];
 				int num = json_integer_value(value);
 				snprintf(name, 255, "%d", num);
-				slide = name;
+				slide =name;
 			}
 
 			// Get the dataset index for this object
@@ -800,8 +804,127 @@ bool Picker::PickerStatus(const int sock, json_t *obj)
 }
 
 
+// PickerReview: Added to review picker samples
+//
+bool Picker::PickerReview(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t 	*root = NULL, *value = NULL, *sample = NULL, *sampleArray = NULL;
+
+	// Check for valid UID
+	//
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
+
+	if( result ) {
+		root = json_object();
+
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR,  "(select) Error creating JSON object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		sampleArray = json_array();
+		if( sampleArray == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "(select) Unable to create sample JSON Array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		for(int i = 0; i < m_samples.size(); i++) {
+
+			sample = json_object();
+			if( sample == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON object");
+				result = false;
+				break;
+			}
+
+			int idx = m_samples[i];
+			json_object_set(sample, "id", json_integer(m_ids[i]));
+			json_object_set(sample, "label", json_integer(m_labels[i]));
+			json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
+			json_object_set(sample, "centX", json_real(m_xCentroid[i]));
+			json_object_set(sample, "centY", json_real(m_yCentroid[i]));
+			json_object_set(sample, "clickX", json_real(m_xClick[i]));
+			json_object_set(sample, "clickY", json_real(m_yClick[i]));
+			json_object_set(sample, "boundary", json_string(""));
+			json_object_set(sample, "maxX", json_integer(0));
+			json_object_set(sample, "maxY", json_integer(0));
+			//gLogger->LogMsg(EvtLogger::Evt_INFO, "%s", m_dataset->GetSlide(idx));
+
+			json_array_append(sampleArray, sample);
+			json_decref(sample);
+		}
+
+	}
+
+	if( result ) {
+
+		json_object_set(root, "picker_review", sampleArray);
+		json_decref(sampleArray);
+
+		char *jsonStr = json_dumps(root, 0);
+		size_t bytesWritten = ::write(sock, jsonStr, strlen(jsonStr));
+
+		if( bytesWritten != strlen(jsonStr) )
+			result = false;
+		free(jsonStr);
+	}
+	json_decref(root);
+
+	return result;
+}
 
 
+//
+// save labels from picker review
+//
+//
+bool Picker::PickerReviewSave(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t 	*jsonObj = NULL, *value = NULL, *sampleArray = NULL;
+
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
+
+	if( result ) {
+		sampleArray = json_object_get(obj, "samples");
+		if( !json_is_array(sampleArray) ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid samples array");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		size_t	index;
+		int id, label;
+
+		for(int i = 0; i < m_samples.size(); i++) {
+
+			json_array_foreach(sampleArray, index, jsonObj) {
+
+					value = json_object_get(jsonObj, "id");
+					id = json_integer_value(value);
+
+					value = json_object_get(jsonObj, "label");
+					label = json_integer_value(value);
+
+					if (id == m_ids[i]){
+							m_labels[i] = label;
+					}
+				}
+			}
+	}
+
+	return result;
+}
 
 
 
@@ -873,5 +996,3 @@ bool Picker::PickerFinalize(const int sock, json_t *obj)
 
 	return result;
 }
-
-

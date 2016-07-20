@@ -1,5 +1,7 @@
+<?php
+
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2015, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -24,45 +26,35 @@
 //	DAMAGE.
 //
 //
-#if !defined(SRC_COMMANDS_H_)
-#define SRC_COMMANDS_H_
 
+	require 'hostspecs.php';
+	session_start();
 
-// JSON object tags
-//
-#define UID_TAG		"uid"
-#define CMD_TAG		"command"
+	$submit_data =  array( "command" => "pickerReviewSave",
+	  			 	       "uid" => $_SESSION['uid'],
+	  			 	       "samples" => $_POST['picker_review'] );
 
+	$submit_data = json_encode($submit_data, JSON_NUMERIC_CHECK);
 
-// Server commands
-//
-#define CMD_INIT		"init"
-#define CMD_END			"end"
-#define CMD_FINAL		"finalize"
-#define CMD_CLASSINIT	"viewerLoad"
-#define CMD_CLASSEND	"viewerEnd"
-#define CMD_PRIME		"prime"
-#define CMD_SELECT		"select"
-#define CMD_SUBMIT		"submit"
-#define CMD_APPLY		"apply"
-#define CMD_VISUAL		"visualize"
-#define CMD_RELOAD		"reload"
+	$addr = gethostbyname($host);
+	set_time_limit(0);
 
-#define CMD_PICKINIT	"pickerInit"
-#define CMD_PICKADD		"pickerAdd"
-#define CMD_PICKCNT		"pickerCnt"
-#define CMD_PICKEND		"pickerSave"
-#define CMD_PICKREVIEW		"pickerReview"
-#define CMD_PICKREVIEWSAVE		"pickerReviewSave"
+	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
+	// Set a large send buffer...
+	socket_set_option($socket, SOL_SOCKET, SO_SNDBUF, 8192);
 
-#define CMD_VIEWLOAD	"viewerLoad"
+	if( $socket === false ) {
+		echo "socket_create failed:  ". socket_strerror(socket_last_error()) . "<br>";
+	}
 
-#define CMD_HEATMAP		"heatMap"
-#define CMD_ALLHEATMAPS	"allHeatMaps"
+	$result = socket_connect($socket, $addr, $port);
+	if( !$result ) {
+		echo "socket_connect failed: ".socket_strerror(socket_last_error()) . "<br>";
+	}
 
-#define CMD_STATUS		"sysStatus"
+	socket_write($socket, $submit_data, strlen($submit_data));
+	$response = socket_read($socket, 10);
+	socket_close($socket);
 
-#define CMD_REVIEW		"review"
-#define CMD_REVIEWSAVE		"reviewSave"
-
-#endif /* SRC_COMMANDS_H_ */
+	echo json_encode($response);
+?>
