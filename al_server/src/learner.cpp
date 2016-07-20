@@ -479,6 +479,7 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 	MData  trainingData;
 
 	if( result ) {
+
 		string fqn = m_outPath + trainingFileName;
 
 		if( trainingData.Load(fqn) == false ) {
@@ -499,6 +500,7 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 	if( result ) {
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loaded dataset... %d objects of %d dimensions",
 							m_dataset->GetNumObjs(), m_dataset->GetDims());
+
 		result = RestoreSessionData(trainingData);
 	}
 
@@ -557,6 +559,7 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 		// Make sure current set is clear.
 		m_curSet.clear();
 	}
+
 
 	// Send result back to client
 	//
@@ -642,8 +645,15 @@ bool Learner::RestoreSessionData(MData &trainingSet)
 		memcpy(m_trainSet[0], floatData, numObjs * numDims * sizeof(float));
 
 		char **classNames = trainingSet.GetClassNames();
-		for(int i = 0; i < trainingSet.GetNumClasses(); i++) {
-			m_classNames.push_back(string(classNames[i]));
+		// Older versions of al_server did not save class names, set
+		// defaults if they can't be loaded.
+		if( classNames ) {
+			for(int i = 0; i < trainingSet.GetNumClasses(); i++) {
+				m_classNames.push_back(string(classNames[i]));
+			}
+		} else {
+			m_classNames.push_back(string("Negative"));
+			m_classNames.push_back(string("Positive"));
 		}
 
 		// Get slide indices from the dataset, NOT from the training set.
