@@ -132,7 +132,12 @@ function updateTrainingSets(dataSet) {
 		success: function(data) {
 
 			var	reloadTrainSel = $("#reloadTrainSetSel");
+			$("#reloadTrainSetSel").empty();
+			if( reloadTrainSetSel.length == 0 ) {0
 
+				reloadTrainSetSel.classList.toggle("show");
+			}
+				
 			for( var item in data.trainingSets ) {
 				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
 			}
