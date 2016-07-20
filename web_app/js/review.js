@@ -52,6 +52,7 @@ var igrArray = new Array();
 
 var slideLists = [];
 var cellIndex = [];
+var boundaries = [];
 
 //
 //	Review
@@ -166,7 +167,7 @@ viewer.addHandler('close', function(event) {
 
 
 			ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-			ele.setAttribute('points', sampleDataJson['review'][curBox]['boundary']);
+			ele.setAttribute('points', boundaries[curBox]);
 			ele.setAttribute('id', 'boundary');
 			ele.setAttribute('stroke', 'yellow');
 			ele.setAttribute('fill', 'none');
@@ -226,6 +227,11 @@ function genReview() {
 			  return 0;
 			});
 
+			// set boundaries
+			for( i = 0; i < sampleDataJson['review'].length; i++ ) {
+				boundaries[i] = sampleDataJson['review'][i]['boundary'];
+			}
+
 			// 1'st line information
 			slidesInfo(sampleDataJson['review']);
 			// 2'nd line information
@@ -268,6 +274,9 @@ function slidesInfo(sampleArray) {
 	for( var i=0; i<totalNumofSlides; i++) {
 		cellIndex.push([]);
 	}
+
+	// contents exist, remove them
+	$("#posHeader1").empty();
 
 	var	container, row, linebreak;
 	container = document.getElementById('posHeader1');
@@ -768,8 +777,9 @@ function thumbDoubleClick(index) {
 	} else {
 		sampleDataJson['review'][index]['label'] = 0;
 	}
-	doreviewSel();
 	updateLabels();
+	doreviewSel();
+	slidesInfo(sampleDataJson['review']);
 };
 
 
