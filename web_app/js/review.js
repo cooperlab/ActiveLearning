@@ -269,6 +269,9 @@ function slidesInfo(sampleArray) {
 		cellIndex.push([]);
 	}
 
+	// contents exist, remove them
+	$("#posHeader1").empty();
+
 	var	container, row, linebreak;
 	container = document.getElementById('posHeader1');
 	row = document.createElement("div");
@@ -768,8 +771,9 @@ function thumbDoubleClick(index) {
 	} else {
 		sampleDataJson['review'][index]['label'] = 0;
 	}
-	doreviewSel();
 	updateLabels();
+	doreviewSel();
+	slidesInfo(sampleDataJson['review']);
 };
 
 
