@@ -129,7 +129,7 @@
 			}
 
 			if( $objId == NULL ) {
-				$sql = 'INSERT INTO training_objs (training_set_id, cell_id, iteration, class_id)';
+				$sql = 'INSERT INTO training_objs (training_set_id, cell_id, iteration, class_id)'
 				      .'VALUES('.$trainingSetId.','.$response['samples'][$i]['id'].', '
 					  .$response['samples'][$i]['iteration'].','.$classId.')';
 				mysqli_query($dbConn, $sql);
