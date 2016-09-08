@@ -67,8 +67,6 @@
 			$additional = socket_read($socket, 8192);
 		}
 		socket_close($socket);
-		$classification = json_decode($classification, true);
-		socket_close($socket);
 
 		$response = json_decode($response, true);
 

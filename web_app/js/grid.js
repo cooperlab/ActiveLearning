@@ -78,6 +78,9 @@ $(function() {
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
 			reloaded = data['reloaded'];
+			if( reloaded == true ) {
+				statusObj.iteration(data['iteration'])
+			}
 
 			if( uid == null ) {			
 				window.alert("No session active");
