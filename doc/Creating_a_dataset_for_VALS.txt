@@ -1,6 +1,6 @@
 -- Creating and loading a new dataset
 
-A dataset consists of the images, object boundaries and extracted features. For the GBM dataset, this consistes of the whole slide image, cell boundaries and histological features. Scripts specific to the dataset need to be created since the extracted features and boundaries may not be provided in the same format. 
+A dataset consists of the images, object boundaries and extracted features. For the GBM dataset, this consists of the whole slide image, cell boundaries and histological features. Scripts specific to the dataset need to be created since the extracted features and boundaries may not be provided in the same format. 
 
 
 -- Whole slide images:
@@ -76,7 +76,7 @@ Importing the boundaries will update the boundaries table. The slides table will
 
 Create a .csv file for import int the database, formatted
 
-	<slide name>,<width in pixels>,<height in pixels>,<path the pyramid on IIPServer>,<scale>
+	<slide name>,<width in pixels>,<height in pixels>,<path to the pyramid on IIPServer>,<scale>
 	
 where scale = 1 for 20x and 2 for 40x.
 
