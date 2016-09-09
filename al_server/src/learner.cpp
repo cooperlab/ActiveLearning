@@ -549,6 +549,7 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 			float 	**ptr = m_dataset->GetData();
 			int		dims = m_dataset->GetDims();
 			double start = gLogger->WallTime();
+
 			result = m_classifier->ScoreBatch(ptr, m_dataset->GetNumObjs(), dims, m_scores);
 			if( result == false ) {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
@@ -1068,13 +1069,6 @@ bool Learner::Submit(const int sock, json_t *obj)
 		m_heatmapReload = true;
 	}
 
-	// Send result back to client
-	//
-	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
-								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
-	if( bytesWritten != (sizeof(failResp) - 1) )
-		result = false;
-
 	// If all's well, train the classifier with the updated training set
 	//
 	if( result ) {
@@ -1095,24 +1089,17 @@ bool Learner::Submit(const int sock, json_t *obj)
 		result = m_classifier->Train(m_trainSet[0], m_labels, m_samples.size(), m_dataset->GetDims());
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Classifier training took %f", gLogger->WallTime() - start);
 
-		if( result ) {
-			m_curAccuracy = 0.0; //CalcAccuracy();
-
-			// Classify all objects for heatmap generation
-			//
-			float 	**ptr = m_dataset->GetData();
-			int		dims = m_dataset->GetDims();
-			start = gLogger->WallTime();
-			result = m_classifier->ScoreBatch(ptr, m_dataset->GetNumObjs(), dims, m_scores);
-			if( result == false ) {
-				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
-			}
-			gLogger->LogMsg(EvtLogger::Evt_INFO, "Dataset classification took %f", gLogger->WallTime() - start);
-		}
-
 		// Need to select new samples.
 		m_curSet.clear();
 	}
+
+	// Send result back to client
+	//
+	size_t bytesWritten = ::write(sock, (result) ? passResp : failResp ,
+								((result) ? sizeof(passResp) : sizeof(failResp)) - 1);
+	if( bytesWritten != (sizeof(failResp) - 1) )
+		result = false;
+
 	return result;
 }
 
@@ -1920,37 +1907,6 @@ bool Learner::CreateSet(vector<int> folds, int fold, float *&trainX, int *&train
 
 	return result;
 }
-
-
-
-
-
-#if 0
-
-bool Learner::IsUIDValid(const char *uid)
-{
-	bool	result = true;
-	// m_UID's length is 1 greater than UID_LENGTH, So we can
-	// always write a 0 there to make strlen safe.
-	//
-	m_UID[UID_LENGTH] = 0;
-
-	if( strlen(m_UID) == 0 ) {
-		gLogger->LogMsg(EvtLogger::Evt_ERROR, "No active session");
-		result = false;
-	} else {
-		if( uid == NULL ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to decode UID");
-			result = false;
-		} else if( strncmp(uid, m_UID, UID_LENGTH) != 0 ) {
-			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid UID");
-			result = false;
-		}
-	}
-	return result;
-}
-#endif
-
 
 
 

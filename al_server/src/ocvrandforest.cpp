@@ -29,11 +29,12 @@
 #include <ctime>
 
 #include "ocvrandforest.h"
+#include "logger.h"
 
 
 using namespace std;
 
-
+extern EvtLogger	*gLogger;
 
 OCVBinaryRF::OCVBinaryRF(void)
 {
@@ -57,6 +58,11 @@ OCVBinaryRF::OCVBinaryRF(void)
 	int		maxTrees = 100;
 
 	m_params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER, maxTrees, forestAccuracy);
+
+	m_mutexStatus = pthread_mutex_init(&m_mtx, NULL);
+	if( m_mutexStatus != 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to initialize OCVBinaryRF mutex");
+	}
 }
 
 
@@ -68,7 +74,9 @@ OCVBinaryRF::OCVBinaryRF(void)
 
 OCVBinaryRF::~OCVBinaryRF(void)
 {
-
+	if( m_mutexStatus == 0 ) {
+		pthread_mutex_destroy(&m_mtx);
+	}
 }
 
 
@@ -95,7 +103,10 @@ bool OCVBinaryRF::Train(float *trainSet, int *labelVec,
 	m_priors[0] /= (float)numObjs;
 
 	m_params.nactive_vars = floor(sqrtf(numDims));
+
+	pthread_mutex_lock(&m_mtx);
 	m_trained = m_RF.train(features, CV_ROW_SAMPLE, labels, Mat(), Mat(), Mat(), Mat(), m_params);
+	pthread_mutex_unlock(&m_mtx);
 
 	return m_trained;
 }
@@ -113,7 +124,9 @@ int OCVBinaryRF::Classify(float *obj, int numDims)
 	if( m_trained ) {
 		Mat 	sample(1, numDims, CV_32F, obj);
 
+		pthread_mutex_lock(&m_mtx);
 		result = (int)m_RF.predict(sample);
+		pthread_mutex_unlock(&m_mtx);
 	}
 	return result;
 }
@@ -137,6 +150,8 @@ bool OCVBinaryRF::ClassifyBatch(float **dataset, int numObjs,
 		remain = numObjs % numThreads;
 		objsPer = numObjs / numThreads;
 
+		pthread_mutex_lock(&m_mtx);
+
 		// numThreads - 1 because main thread (current) will process also
 		//
 		for(int i = 0; i < numThreads - 1; i++) {
@@ -158,6 +173,7 @@ bool OCVBinaryRF::ClassifyBatch(float **dataset, int numObjs,
 		for( auto &t : workers ) {
 			t.join();
 		}
+		pthread_mutex_unlock(&m_mtx);
 		result = true;
 	}
 	return result;
@@ -190,7 +206,10 @@ float OCVBinaryRF::Score(float *obj, int numDims)
 	if( m_trained ) {
 		Mat 	sample(1, numDims, CV_32F, obj);
 
+		pthread_mutex_lock(&m_mtx);
 		score = m_RF.predict_prob(sample);
+		pthread_mutex_unlock(&m_mtx);
+
 		// Returned a probability, center 50% at 0 and set range to -1 to 1
 		score = (score * 2.0f) - 1.0f;
 	}
@@ -214,6 +233,7 @@ bool OCVBinaryRF::ScoreBatch(float **dataset, int numObjs,
 		remain = numObjs % numThreads;
 		objsPer = numObjs / numThreads;
 
+		pthread_mutex_lock(&m_mtx);
 		// numThreads - 1 because main thread (current) will process also
 		//
 		for(int i = 0; i < numThreads - 1; i++) {
@@ -235,6 +255,7 @@ bool OCVBinaryRF::ScoreBatch(float **dataset, int numObjs,
 		for( auto &t : workers ) {
 			t.join();
 		}
+		pthread_mutex_unlock(&m_mtx);
 		result = true;
 	}
 	return result;

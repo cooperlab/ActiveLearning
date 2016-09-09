@@ -27,6 +27,8 @@
 #if !defined(_OCVRANDFOREST_H_)
 #define _OCVRANDFOREST_H_
 
+#include <pthread.h>
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/ml/ml.hpp>
 
@@ -64,6 +66,8 @@ protected:
 	CvRTParams		m_params;
 	CvRTrees		m_RF;
 
+	pthread_mutex_t	m_mtx;
+	int				m_mutexStatus;
 
 	void	ScoreWorker(float **data, int offset, int numObjs, int numDims, float *results);
 	void	ClassifyWorker(float **data, int offset, int numObjs, int numDims, int *results);
