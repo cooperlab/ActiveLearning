@@ -787,16 +787,20 @@ function thumbDoubleClick(index) {
 //
 function updateLabels() {
 
+	console.log("Updating "+sampleDataJson['review'].length+" samples");
+
 	// No need to send boundaries to the server
 	for( i = 0; i < sampleDataJson['review'].length; i++ ) {
 		sampleDataJson['review'][i]['boundary'] = "";
 	}
 
+	var samples = JSON.stringify(sampleDataJson['review']);
+
 	$.ajax({
 		type: "POST",
 		url: "php/saveReview.php",
 		dataType: "json",
-		data: sampleDataJson,
+		data: { samples: samples },
 		success: function() {
 
 			// Get a new set of samples

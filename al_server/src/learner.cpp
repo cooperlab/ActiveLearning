@@ -746,8 +746,6 @@ bool Learner::Review(const int sock, json_t *obj)
 			json_object_set(sample, "maxX", json_integer(0));
 			json_object_set(sample, "maxY", json_integer(0));
 
-			// m_dataset->GetMeans(), m_dataset->GetStdDevs(),	m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,	m_dataset->GetNumSlides(), m_classNames
-
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
 		}
@@ -794,25 +792,24 @@ bool Learner::SaveReview(const int sock, json_t *obj)
 
 	if( result ) {
 		size_t	index;
-		int id, label;
+		int id, label, count = 0;
 
-		for(int i = 0; i < m_samples.size(); i++) {
+		json_array_foreach(sampleArray, index, jsonObj) {
 
-			json_array_foreach(sampleArray, index, jsonObj) {
+			value = json_object_get(jsonObj, "id");
+			id = json_integer_value(value);
 
-					value = json_object_get(jsonObj, "id");
-					id = json_integer_value(value);
+			value = json_object_get(jsonObj, "label");
+			label = json_integer_value(value);
 
-					value = json_object_get(jsonObj, "label");
-					label = json_integer_value(value);
+			for(int i = 0; i < m_samples.size(); i++) {
 
-					if (id == m_ids[i]){
-							m_labels[i] = label;
-					}
+				if( id == m_ids[i] ) {
+					m_labels[i] = label;
 				}
 			}
+		}
 	}
-
 	return result;
 }
 

@@ -28,11 +28,15 @@
 //
 
 	require 'hostspecs.php';
+	require '../db/logging.php';
 	session_start();
+
+	$samples = json_decode($_POST['samples']);
+	write_log("INFO", "Review saving ".count($samples)." samples");
 
 	$submit_data =  array( "command" => "reviewSave",
 	  			 	       "uid" => $_SESSION['uid'],
-	  			 	       "samples" => $_POST['review'] );
+	  			 	       "samples" =>  $samples);
 
 	$submit_data = json_encode($submit_data, JSON_NUMERIC_CHECK);
 
