@@ -42,7 +42,7 @@ var lastScaleFactor = 0;
 var	sampleDataJson = "";
 
 var curDataset;
-var curBox = -1;
+var cur_box;
 var curX = 0, curY = 0;
 
 var boundaryOn = true;
@@ -50,10 +50,13 @@ var segDisplayOn = true;
 
 var igrArray = new Array();
 
-var slideLists = [];
-var cellIndex = [];
+var slide_list = [];
+var cell_index = [];
 var boundaries = [];
 
+var cur_slide_num = -1;
+var sortable_group = "";
+var sortable_group_list = [];
 //
 //	Review
 //
@@ -167,7 +170,7 @@ viewer.addHandler('close', function(event) {
 
 
 			ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-			ele.setAttribute('points', boundaries[curBox]);
+			ele.setAttribute('points', boundaries[cur_box]);
 			ele.setAttribute('id', 'boundary');
 			ele.setAttribute('stroke', 'yellow');
 			ele.setAttribute('fill', 'none');
@@ -208,7 +211,6 @@ function genReview() {
 			// Clear the slide viewer if there's something showing
 			//
 			if( statusObj.curSlide() != "" ) {
-
 				viewer.close();
 				statusObj.curSlide("");
 			};
@@ -231,11 +233,12 @@ function genReview() {
 			for( i = 0; i < sampleDataJson['review'].length; i++ ) {
 				boundaries[i] = sampleDataJson['review'][i]['boundary'];
 			}
-
-			// 1'st line information
-			slidesInfo(sampleDataJson['review']);
-			// 2'nd line information
-			displaySlidesamples(sampleDataJson['review']);
+			// 1'st row information
+			slidesInfo();
+			// 2'nd row information
+			displaySlidesamples();
+			// gen sortable group
+			create_sortable_group();
 			// default view
 			thumbSingleClick(0);
     },
@@ -245,34 +248,142 @@ function genReview() {
   });
 }
 
+// Creates mouse event
+// Parameter: sample data
+// Return
+//
+//
+function create_mouse_event(sample, slide_num, sample_index){
+
+		var	box = document.getElementById('box_'+slide_num+'_'+sample);
+		var	clickCount = 0;
+		var	clickCount1 = 0;
+		var box_loc = sample_index[sample];
+		box.addEventListener('click', function() {
+			clickCount++;
+			if( clickCount === 1 ) {
+				singleClickTimer = setTimeout(function() {
+					clickCount = 0;
+					thumbSingleClick(box_loc);
+					//destroy_sortable_group();
+					reload_js('js/Sortable.js');
+					doreviewSel();
+				}, 200);
+			}
+		}, false);
+
+		box.addEventListener("dragend", function( event ) {
+
+			var label = sampleDataJson['review'][box_loc]['label'];
+			// find parent id of the moved cell
+			var p_id = event.target.parentNode.id;
+			// set the current label value
+			if (p_id == 'pos_tile'){
+				sampleDataJson['review'][box_loc]['label'] = 1;
+			}
+			else if(p_id == 'neg_tile'){
+				sampleDataJson['review'][box_loc]['label'] = -1;
+			}
+			else{
+				sampleDataJson['review'][box_loc]['label'] = 0;
+			}
+			updateLabels();
+			doreviewSel();
+			slidesInfo();
+
+		}, false);
+
+}
+
+function reload_js(src) {
+	$('script[src="' + src + '"]').remove();
+	$('<script>').attr('src', src).appendTo('head');
+}
+
+
+// Creates sortable sample images
+// Parameter: none
+// Return
+// enables sample images to move
+//
+//
+function create_sortable_group(){
+		// if current slide selection is not "all"
+		if (cur_slide_num != -1){
+				var byId = document.getElementById('s'+'_'+cur_slide_num);
+
+				[].forEach.call(byId.getElementsByClassName('tile_list'), function (el){
+						sortable_group =
+								Sortable.create(el, {
+								animation: 150,
+								group: 'sampleimage'+'_'+cur_slide_num
+							})
+
+				});
+		}
+		else{
+				for( var i=0; i < slide_list.length; i++ ) {
+
+						var byId = document.getElementById('s'+'_'+i);
+
+						[].forEach.call(byId.getElementsByClassName('tile_list'), function (el){
+								sortable_group_list.push(
+									Sortable.create(el, {
+										animation: 150,
+										group: 'sampleimage'+'_'+i
+									})
+								)
+						});
+				}
+			}
+}
+
+// Destroy sortable sample images
+// Parameter: none
+// Return
+//
+//
+function destroy_sortable_group(){
+		// if current slide selection is not "all"
+		if (cur_slide_num != -1) {
+				sortable_group.destroy()
+		}
+		else {
+			for( var i=0; i < slide_list.length; i++ ) {
+					sortable_group_list[i].destroy();
+			}
+		}
+}
+
 // Gets slides information
-// Parameter: array-like
+// Parameter: none
 // the selected sample information in array
 // Return
 // displays the information of the selected cells
 //
-function slidesInfo(sampleArray) {
+//
+function slidesInfo() {
 
 	var totalNumofSlides = 0;
-	var totalNumofCells = sampleArray.length;
+	var totalNumofCells = sampleDataJson['review'].length;
 	var totalNumofPositive = 0;
 	var totalNumfofNegative = 0;
 	var array_slide = [];
 
-	for( sample in sampleArray ) {
-		if (sampleArray[sample]['label'] === 1){
+	for( sample in sampleDataJson['review'] ) {
+		if (sampleDataJson['review'][sample]['label'] === 1){
 			totalNumofPositive = totalNumofPositive + 1;
 		}
-		else if (sampleArray[sample]['label'] === -1){
+		else if (sampleDataJson['review'][sample]['label'] === -1){
 			totalNumfofNegative = totalNumfofNegative + 1;
 		}
-		array_slide.push(sampleArray[sample]['slide']);
+		array_slide.push(sampleDataJson['review'][sample]['slide']);
 	}
 
 	totalNumofSlides = counts(array_slide);
 
 	for( var i=0; i<totalNumofSlides; i++) {
-		cellIndex.push([]);
+		cell_index.push([]);
 	}
 
 	// contents exist, remove them
@@ -296,6 +407,7 @@ function slidesInfo(sampleArray) {
 // Return: int
 // number of objects
 //
+//
 function counts(array){
 	var counts = {};
 	var totalNum = 0;
@@ -311,55 +423,59 @@ function counts(array){
 
 
 // Displays samples for each slide
-// Parameter: array-like
+// Parameter: none
 // the selected sample information in array
 // Return
 // display the selected samples for each slide
 //
-function displaySlidesamples(sampleArray){
+//
+function displaySlidesamples(){
 
 	var slideObject = [];
 	var slideName = "";
-	var slideNum = 0;
+	var slide_num = 0;
 	var isFirst = true;
-	slideLists = [];
+	slide_list = [];
 
 	// splits slides
-	for( sample in sampleArray ) {
+	for( sample in sampleDataJson['review'] ) {
 		if (isFirst){
 			slideObject = [];
-			slideName = sampleArray[sample]['slide'];
-			slideObject.push(sampleArray[sample]);
+			slideName = sampleDataJson['review'][sample]['slide'];
+			slideObject.push(sampleDataJson['review'][sample]);
 			isFirst = false;
 		}
 		else{
-			if( slideName != sampleArray[sample]['slide']){
-				slideLists.push(slideObject);
+			if( slideName != sampleDataJson['review'][sample]['slide']){
+				slide_list.push(slideObject);
 				slideObject = [];
-				slideName = sampleArray[sample]['slide'];
-				slideObject.push(sampleArray[sample]);
-				slideNum = slideNum + 1;
+				slideName = sampleDataJson['review'][sample]['slide'];
+				slideObject.push(sampleDataJson['review'][sample]);
+				slide_num = slide_num + 1;
 				cursampleIndex = 0;
 			}
 			else{
-				slideObject.push(sampleArray[sample]);
+				slideObject.push(sampleDataJson['review'][sample]);
 			}
 		}
-		cellIndex[slideNum].push(sample);
+		cell_index[slide_num].push(sample);
 	}
 
 	if(slideObject.length > 0){
-		slideLists.push(slideObject);
+		slide_list.push(slideObject);
 	}
 
 	var	reviewSel = $("#reviewSel");
 	reviewSel.append(new Option("All", "All"));
-	for( var i=0; i < slideLists.length; i++ ) {
-		reviewSel.append(new Option(slideLists[i][0]['slide'], slideLists[i][0]['slide']));
+	for( var i=0; i < slide_list.length; i++ ) {
+		reviewSel.append(new Option(slide_list[i][0]['slide'], slide_list[i][0]['slide']));
 	}
 	// display cells for each slide
-	for( var i=0; i < slideLists.length; i++ ) {
-		displayOneslide(slideLists[i], i, cellIndex[i]);
+	for( var i=0; i < slide_list.length; i++ ) {
+		displayOneslide(slide_list[i], i);
+		for( sample in slide_list[i]) {
+				create_mouse_event(sample, i, cell_index[i]);
+		}
 	}
 }
 
@@ -367,32 +483,44 @@ function displaySlidesamples(sampleArray){
 // Parameter: None
 // Return: None
 //
+//
 function doreviewSel(){
-	var slideName = document.getElementById("reviewSel").value;
-	clearPosNeg();
-	if (slideName == "All"){
-		// display all
-		for( var i=0; i < slideLists.length; i++ ) {
-			displayOneslide(slideLists[i], i, cellIndex[i]);
-		}
-	}
-	else{
-		// display the select slide
-		for( var i=0; i < slideLists.length; i++ ) {
-			if (slideName == slideLists[i][0]['slide']){
-				displayOneslide(slideLists[i], i, cellIndex[i]);
+	var slide_name = document.getElementById("reviewSel").value;
+	clearslides();
+	if (slide_name == "All"){
+		// display all slides
+		for( var i=0; i < slide_list.length; i++ ) {
+			displayOneslide(slide_list[i], i);
+			for( sample in slide_list[i]) {
+					create_mouse_event(sample, i, cell_index[i]);
 			}
 		}
+		cur_slide_num = -1;
 	}
+	else{
+		// display a slide which is selected
+		for( var i=0; i < slide_list.length; i++ ) {
+      if (slide_name == slide_list[i][0]['slide']){
+				cur_slide_num = i;
+			}
+		}
+		displayOneslide(slide_list[cur_slide_num], cur_slide_num);
+		for( sample in slide_list[cur_slide_num]) {
+				create_mouse_event(sample, cur_slide_num, cell_index[cur_slide_num]);
+		}
+	}
+
+	create_sortable_group();
+
 }
 
-// Clears current positive and negative divs
+// Clears current positive, negative, ignore divs
 // Parameter: None
 // Return: None
 //
-function clearPosNeg(){
-	document.getElementById('pos').innerHTML = "";
-	document.getElementById('neg').innerHTML = "";
+//
+function clearslides(){
+	document.getElementById('slides').innerHTML = "";
 }
 
 // Displays samples for one slide
@@ -401,334 +529,97 @@ function clearPosNeg(){
 // Return
 // display the selected samples for the slide
 //
-function displayOneslide(sampleArray, slideNum, sampleIndex){
-	// gets a slide information
-	slideInfo(sampleArray[0], sampleArray.length);
+//
+function displayOneslide(sampleArray, slide_num){
 
-	var isPos = 1;
-	var posNewline = false;
-	var negNewline = false;
-	var poscolNum = 0;
-	var negcolNum = 0;
-	var posRow = 0;
-	var negRow = 0;
-	var isFirstLine = true;
-	var isNewLine = false;
-	var lastsample = 0;
+	var container, row;
+	var postile, negtile, igrtile;
+	var postile__name, negtile__name, igrtile__name;
+	var postile__list, negtile__list, igrtile__list;
+	var scale, slide, centX, centY, sizeX, sizeY, loc, thumbNail;
+
+	container = document.getElementById('slides');
+	row = document.createElement("div");
+	row.setAttribute('id', 's'+'_'+slide_num);
+	row.innerHTML = "<br/><br/> <b> Slide name : </b> " +  sampleArray[0]['slide']+ " <br>";
+
+	postile = document.createElement("div");
+	postile.setAttribute('class', 'layer tile');
+	postile_name = document.createElement("div");
+	postile_name.setAttribute('class', 'tile_name');
+	postile_list = document.createElement("div");
+	postile_list.setAttribute('class', 'tile_list');
+	postile_list.setAttribute('id', 'pos_tile');
+
+	negtile = document.createElement("div");
+	negtile.setAttribute('class', 'layer tile');
+	negtile_name = document.createElement("div");
+	negtile_name.setAttribute('class', 'tile_name');
+	negtile_list = document.createElement("div");
+	negtile_list.setAttribute('class', 'tile_list');
+	negtile_list.setAttribute('id', 'neg_tile');
+
+	igrtile = document.createElement("div");
+	igrtile.setAttribute('class', 'layer tile');
+	igrtile_name = document.createElement("div");
+	igrtile_name.setAttribute('class', 'tile_name');
+	igrtile_list = document.createElement("div");
+	igrtile_list.setAttribute('class', 'tile_list');
+	igrtile_list.setAttribute('id', 'igr_tile');
+
 
 	for( sample in sampleArray ) {
+
+		//var div_im = document.createElement('div');
+		//div_im.setAttribute('id','box_'+slide_num+'_'+sample);
+		var im = document.createElement('img');
+		scale = sampleArray[sample]['scale'];
+		slide = sampleArray[sample]['slide'];
+
+		centX = (sampleArray[sample]['centX'] - (25.0 * scale)) / sampleArray[sample]['maxX'];
+		centY = (sampleArray[sample]['centY'] - (25.0 * scale)) / sampleArray[sample]['maxY'];
+
+		sizeX = (50.0 * scale) / sampleArray[sample]['maxX'];
+		sizeY = (50.0 * scale) / sampleArray[sample]['maxY'];
+		loc = centX+","+centY+","+sizeX+","+sizeY;
+
+		thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
+
+		im.setAttribute('src',thumbNail);
+		im.setAttribute('id','box_'+slide_num+'_'+sample);
+
+		//div_im.appendChild(im);
+
 		if( sampleArray[sample]['label'] === 1 ) {
-			isPos = 1;
-			posNewline = false;
-			var remainder = (poscolNum % 4);
-			if(remainder === 0) {
-				posNewline = true;
-				posRow = posRow + 1;
-			}
-			// displays postive samples
-			addPos(sampleIndex[sample], slideNum, posNewline, sample, posRow, sampleArray[sample]);
-
-			var labelTag = "#label_"+isPos+'_'+sample+'_'+slideNum;
-			var label = $('#box_'+isPos+'_'+sample+'_'+slideNum).children(".classLabel");
-
-			$(labelTag).text(posClass);
-			label.addClass("posLabel");
-
-			poscolNum = poscolNum + 1
-
+			postile_list.appendChild(im);
 		} else if( sampleArray[sample]['label'] === -1 ) {
-			isPos = 0;
-			negNewline = false;
-			var remainder = (negcolNum % 4);
-			if(remainder === 0) {
-				negNewline = true;
-				negRow = negRow + 1;
-			}
-			// displays negative samples
-			addNeg(sampleIndex[sample], slideNum, negNewline, sample, negRow, sampleArray[sample]);
-
-			var labelTag = "#label_"+isPos+'_'+sample+'_'+slideNum;
-			var label = $('#box_'+isPos+'_'+sample+'_'+slideNum).children(".classLabel");
-
-			$(labelTag).text(negClass);
-			label.addClass("negLabel");
-
-			negcolNum = negcolNum + 1
-		} else {
-			//igrArray.push(sampleArray);
+			negtile_list.appendChild(im);
+		}	else{
+			igrtile_list.appendChild(im);
 		}
-		lastsample = lastsample + 1;
-	}
-	// check if there's no pos or neg box
-	var diff = poscolNum - negcolNum;
-	if (diff > 0){
-		box = 'neg';
-		isPos = 0;
-		for (var k=0; k<diff; k++){
-				negNewline = false;
-				var remainder = (negcolNum % 4);
-				if(remainder === 0) {
-					negNewline = true;
-					negRow = negRow + 1;
-				}
-				emptybox(box, slideNum, negNewline, negRow, lastsample, isPos);
-				negcolNum = negcolNum + 1;
-				lastsample = lastsample + 1;
-		}
-	}
-	else if (diff < 0){
-		box = 'pos';
-		isPos = 1;
-		for (var k=0; k<Math.abs(diff); k++){
-				posNewline = false;
-				var remainder = (poscolNum % 4);
-				if(remainder === 0) {
-					posNewline = true;
-					posRow = posRow + 1;
-				}
-				emptybox(box, slideNum, posNewline, posRow, lastsample, isPos);
-				poscolNum = poscolNum + 1;
-				lastsample = lastsample + 1;
-		}
-	}
-	else{
-		// requried for the ignored samples if needed.
+
 	}
 
-}
+	postile_name.innerHTML = posClass;
+	postile.appendChild(postile_name);
+	postile.appendChild(postile_list);
+	negtile_name.innerHTML = negClass;
+	negtile.appendChild(negtile_name);
+	negtile.appendChild(negtile_list);
+	igrtile_name.innerHTML = "Ignore";
+	igrtile.appendChild(igrtile_name);
+	igrtile.appendChild(igrtile_list);
 
-// Gets a slide information
-// Parameter: array-like, int
-// number of samples and the selected sample information in array
-// Return
-// displays the information of the selected cells
-//
-function slideInfo(sampleSlide, cellnum) {
+	row.appendChild(postile);
+	row.appendChild(negtile);
+	row.appendChild(igrtile);
 
-	var	container, row, linebreak;
-	container = document.getElementById('pos');
-	row = document.createElement("div");
-	row.setAttribute('class','row');
-	row.innerHTML = "<hr> <b> Slide name : </b> " + sampleSlide['slide'] + " <br/>";
 	container.appendChild(row);
 
-	container = document.getElementById('neg');
-	row = document.createElement("div");
-	row.setAttribute('class','row');
-	row.innerHTML = "<hr> <b> Numer of the selected cells :</b> " + cellnum + " <br/>";
-	container.appendChild(row);
-
-}
-
-// Displays an empty box for each sample
-// Parameter: string, int, bool, int, int, bool
-// postive or negative, slide number, new line checker, sample number, pos checker
-// Return
-// displays an empty boxe
-//
-function emptybox(box, slideNum, isNewline, rownum, sample, isPos) {
-
-	var	container, row, col, im, img;
-
-	container = document.getElementById(box);
-
-	if (isNewline){
-		row = document.createElement("div");
-		row.setAttribute('class', 'row');
-		row.setAttribute('id', box+'Row'+'_'+rownum+'_'+ slideNum);
-	}
-	else{
-			row = document.getElementById(box+'Row'+'_'+rownum+'_'+ slideNum);
-	}
-
-	col = document.createElement("div");
-	col.setAttribute('class', 'review_div');
-	col.setAttribute('id', 'box_'+isPos+'_'+sample+'_'+slideNum);
-
-	// Make sure overlay is hidden
-	$('.overlaySvg').css('visibility', 'hidden');
-
-	row.appendChild(col);
-	container.appendChild(row);
-
-	// clean border color
-	var bcolor = document.getElementById('box_'+isPos+'_'+sample+'_'+slideNum);
-	$(bcolor).css('border-color', 'white');
-
-}
-
-// Displays a positive sample
-// Parameter: int, int, bool, int, int, object
-// index for all samples, slide number, new line checker, sample number, row number, sample object
-// Return
-// displays a positive sample
-//
-function addPos(index, slideNum, isNewline, sample, rowNo, pos) {
-
-	var	container, row, over, col, im, img, label, docFrag;
-	var slide, scale, centX, centY, sizeX, sizeY, loc;
-	var isPos = 1;
-
-	container = document.getElementById('pos');
-
-	if (isNewline){
-			row = document.createElement("div");
-			row.setAttribute('id', 'posRow'+'_'+rowNo+'_'+slideNum);
-			row.setAttribute('class', 'row');
-	}
-	else{
-			row = document.getElementById('posRow'+'_'+rowNo+'_'+slideNum);
-	}
-
-	col = document.createElement("div");
-	col.setAttribute('class', 'review_div');
-	col.setAttribute('id', 'box_'+isPos+'_'+sample+'_'+slideNum);
-
-	docFrag = document.createDocumentFragment();
-
-	label = document.createElement("div");
-	label.setAttribute('class', 'classLabel');
-	label.setAttribute('id', 'label_'+isPos+'_'+sample+'_'+slideNum);
-
-	img = document.createElement('div');
-	//img.setAttribute('class','col-sm-2 col-md-2 col-lg-2');
-	im = document.createElement('img');
-	im.setAttribute('id','thumb_'+isPos+'_'+sample+'_'+slideNum);
-	im.setAttribute('width',90);
-	im.setAttribute('height',90);
-
-	scale = pos['scale'];
-	slide = pos['slide'];
-
-	centX = (pos['centX'] - (25.0 * scale)) / pos['maxX'];
-	centY = (pos['centY'] - (25.0 * scale)) / pos['maxY'];
-
-	sizeX = (50.0 * scale) / pos['maxX'];
-	sizeY = (50.0 * scale) / pos['maxY'];
-	loc = centX+","+centY+","+sizeX+","+sizeY;
-
-	thumbNail = IIPServer+"FIF="+pos['path']+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
-
-	im.setAttribute('src',thumbNail);
-
-	img.appendChild(im);
-
-	docFrag.appendChild(label);
-	docFrag.appendChild(img);
-
-	// Make sure overlay is hidden
-	$('.overlaySvg').css('visibility', 'hidden');
-
-	col.appendChild(docFrag);
-	row.appendChild(col);
-	container.appendChild(row);
-
-	// add click
-	var	box = document.getElementById('box_'+isPos+'_'+sample+'_'+slideNum);
-	var	clickCount = 0;
-
-	box.addEventListener('click', function() {
-		clickCount++;
-		if( clickCount === 1 ) {
-			singleClickTimer = setTimeout(function() {
-				clickCount = 0;
-				thumbSingleClick(index);
-			}, 200);
-		}	else if( clickCount === 2 ) {
-			clearTimeout(singleClickTimer);
-			clickCount = 0;
-			thumbDoubleClick(index);
-		}
-	}, false);
-}
-
-// Displays a negative sample
-// Parameter: int, int, bool, int, int, object
-// index for all samples, slide number, new line checker, sample number, row number, sample object
-// Return
-// displays a negitive sample
-//
-function addNeg(index, slideNum, isNewline, sample, rowNo, neg) {
-
-	var	container, row, col, im, img, label, docFrag;
-	var slide, scale, centX, centY, sizeX, sizeY, loc;
-	var isPos = 0;
-
-	container = document.getElementById('neg');
-
-	if (isNewline){
-			row = document.createElement("div");
-			row.setAttribute('id', 'negRow'+'_'+rowNo+'_'+slideNum);
-			row.setAttribute('class', 'row');
-	}
-	else{
-			row = document.getElementById('negRow'+'_'+rowNo+'_'+slideNum);
-	}
-
-
-	col = document.createElement("div");
-	col.setAttribute('class', 'review_div');
-	col.setAttribute('id', 'box_'+isPos+'_'+sample+'_'+slideNum);
-
-	docFrag = document.createDocumentFragment();
-
-	label = document.createElement("div");
-	label.setAttribute('class', 'classLabel');
-	label.setAttribute('id', 'label_'+isPos+'_'+sample+'_'+slideNum);
-
-	img = document.createElement('div');
-	//img.setAttribute('class','col-sm-2 col-md-2 col-lg-2');
-	im = document.createElement('img');
-	im.setAttribute('id','thumb_'+isPos+'_'+sample+'_'+slideNum);
-	im.setAttribute('width',90);
-	im.setAttribute('height',90);
-
-	scale = neg['scale'];
-	slide = neg['slide'];
-
-	centX = (neg['centX'] - (25.0 * scale)) / neg['maxX'];
-	centY = (neg['centY'] - (25.0 * scale)) / neg['maxY'];
-
-	sizeX = (50.0 * scale) / neg['maxX'];
-	sizeY = (50.0 * scale) / neg['maxY'];
-	loc = centX+","+centY+","+sizeX+","+sizeY;
-
-	thumbNail = IIPServer+"FIF="+neg['path']+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
-
-	im.setAttribute('src',thumbNail);
-
-	img.appendChild(im);
-
-	docFrag.appendChild(label);
-	docFrag.appendChild(img);
-
-	// Make sure overlay is hidden
-	$('.overlaySvg').css('visibility', 'hidden');
-
-	col.appendChild(docFrag);
-	row.appendChild(col);
-	container.appendChild(row);
-
-	// add click
-	var	box = document.getElementById('box_'+isPos+'_'+sample+'_'+slideNum);
-	var	clickCount = 0;
-
-	box.addEventListener('click', function() {
-		clickCount++;
-		if( clickCount === 1 ) {
-			singleClickTimer = setTimeout(function() {
-				clickCount = 0;
-				thumbSingleClick(index);
-			}, 200);
-		} else if( clickCount === 2 ) {
-			clearTimeout(singleClickTimer);
-			clickCount = 0;
-			thumbDoubleClick(index);
-		}
-	}, false);
 }
 
 // ThumbNamil one click function
+//
 //
 function thumbSingleClick(index) {
 	// Load the appropriate slide in the viewer
@@ -755,33 +646,10 @@ function thumbSingleClick(index) {
 		statusObj.currentY(curY);
 		homeToNuclei();
 	}
-	curBox = index;
+	cur_box = index;
 	boundaryOn = true;
+
 };
-
-//
-//	A double click in the thumbnail box toggles the current classification
-//	of the object.
-//
-//
-function thumbDoubleClick(index) {
-
-	var label = sampleDataJson['review'][index]['label'];
-
-	// Toggle through the 3 states, pos, neg and ignore
-	//
-	if( label === 1 ) {
-		sampleDataJson['review'][index]['label'] = -1;
-	} else if( label === -1 ) {
-		sampleDataJson['review'][index]['label'] = 1;
-	} else {
-		sampleDataJson['review'][index]['label'] = 0;
-	}
-	updateLabels();
-	doreviewSel();
-	slidesInfo(sampleDataJson['review']);
-};
-
 
 //	Updates labels in al server
 //
@@ -811,8 +679,8 @@ function updateLabels() {
 
 // Update slide view when mouse button is clicked on thumbNail
 //
+//
 function updateSlideView() {
-
 
 	$.ajax({
 		type: "POST",
