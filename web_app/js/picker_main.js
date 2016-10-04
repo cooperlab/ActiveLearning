@@ -77,8 +77,21 @@ $(function() {
 			updateTestSets(curDataset[0]);
 		}
 	});
-
+	$('#reloadDatasetSel').change(updateDataSet);
 });
+
+
+
+
+
+
+function updateDataSet() {
+	
+	var sel = document.getElementById('reloadDatasetSel'),
+			  dataset = sel.options[sel.selectedIndex].label;
+
+	updateTestSets(dataset);
+}
 
 
 
