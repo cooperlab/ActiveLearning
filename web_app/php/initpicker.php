@@ -118,8 +118,10 @@
 		$_SESSION['uid'] = $UID;
 		$_SESSION['posClass'] = $_POST["posClass"];
 		$_SESSION['negClass'] = $_POST["negClass"];
-		$_SESSION['className'] = $_POST["testsetname"];	// Reusing className for test set name
+		$_SESSION['classifier'] = $_POST["testsetname"];	// Reusing className for test set name
 		$_SESSION['dataset'] = $_POST["dataset"];
+		$_SESSION['reloaded'] = false;
+		$_SESSION['iteration'] = 0;
 		header("Location: ../picker.html");
 	} else {
 	

@@ -1,3 +1,4 @@
+<?php
 //
 //	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
@@ -24,45 +25,58 @@
 //	DAMAGE.
 //
 //
-#if !defined(SRC_COMMANDS_H_)
-#define SRC_COMMANDS_H_
 
 
-// JSON object tags
-//
-#define UID_TAG		"uid"
-#define CMD_TAG		"command"
+
+function connect_server($host, $port) 
+{
+
+	$prog = true;
+
+	$addr = gethostbyname($host);
+	set_time_limit(0);
+	
+	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
+	if( $socket === false ) {
+		log_error("socket_create failed: ". socket_strerror(socket_last_error()));
+		$prog = false;
+	}
+	
+	if( $prog ) {
+		$result = socket_connect($socket, $addr, $port);
+		if( !$result ) {
+			log_error("socket_connect failed: ".socket_strerror(socket_last_error()));
+			$prog = false;
+		}
+	}
+
+	if( $prog === false) {
+		if( $socket != false ) {
+			socket_close($socket);
+		}
+		$socket = false;
+	}
+	return $socket;
+}
 
 
-// Server commands
-//
-#define CMD_INIT		"init"
-#define CMD_END			"end"
-#define CMD_FINAL		"finalize"
-#define CMD_CLASSINIT	"viewerLoad"
-#define CMD_CLASSEND	"viewerEnd"
-#define CMD_PRIME		"prime"
-#define CMD_SELECT		"select"
-#define CMD_SUBMIT		"submit"
-#define CMD_APPLY		"apply"
-#define CMD_VISUAL		"visualize"
-#define CMD_RELOAD		"reload"
 
-#define CMD_PICKINIT	"pickerInit"
-#define CMD_PICKADD		"pickerAdd"
-#define CMD_PICKCNT		"pickerCnt"
-#define CMD_PICKEND		"pickerSave"
-#define CMD_PICKREVIEW		"pickerReview"
-#define CMD_PICKREVIEWSAVE		"pickerReviewSave"
-#define CMD_PICKRELOAD	"pickerReload"
-#define CMD_VIEWLOAD	"viewerLoad"
 
-#define CMD_HEATMAP		"heatMap"
-#define CMD_ALLHEATMAPS	"allHeatMaps"
 
-#define CMD_STATUS		"sysStatus"
+function command_server($cmd, $socket)
+{
+	
+	socket_write($socket, $cmd, strlen($cmd));
+	$response = socket_read($socket, 8192);
+	$additional = socket_read($socket, 8192);
 
-#define CMD_REVIEW		"review"
-#define CMD_REVIEWSAVE		"reviewSave"
+	while( $additional != false ) {
+		$response = $response.$additional;
+		$additional = socket_read($socket, 8192);
+	}
+	socket_close($socket);
 
-#endif /* SRC_COMMANDS_H_ */
+	return $response;
+}
+
+?>

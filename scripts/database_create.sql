@@ -95,14 +95,27 @@ CREATE TABLE `training_objs` (
 
 
 
-CREATE TABLE boundaries ( 
-	id int(11) NOT NULL AUTO_INCREMENT, 
-	slide varchar(80) NOT NULL, 
-	centroid_x decimal(10,1) NOT NULL, 
-	centroid_y decimal(10,1) NOT NULL, 
-	boundary varchar(4096) NOT NULL, 
+CREATE TABLE boundaries (
+	id int(11) NOT NULL AUTO_INCREMENT,
+	slide varchar(80) NOT NULL,
+	centroid_x decimal(10,1) NOT NULL,
+	centroid_y decimal(10,1) NOT NULL,
+	boundary varchar(4096) NOT NULL,
 	PRIMARY KEY(slide, centroid_x, centroid_y),
 	UNIQUE KEY (id)
 ) ENGINE=InnoDB;
 
 
+
+
+CREATE TABLE `test_sets` (
+  `id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) NOT NULL,
+  `dataset_id` int(10) NOT NULL,
+  `filename` varchar(255) NOT NULL,
+  `pos_name` varchar(80) NOT NULL,
+  `neg_name` varchar(80) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK_datasets_id` (`dataset_id`),
+  CONSTRAINT `test_set_ibfk_1` FOREIGN KEY (`dataset_id`) REFERENCES `datasets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB

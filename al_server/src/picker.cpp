@@ -60,7 +60,8 @@ m_slideIdx(NULL),
 m_xCentroid(NULL),
 m_yCentroid(NULL),
 m_xClick(NULL),
-m_yClick(NULL)
+m_yClick(NULL),
+m_reloaded(false)
 {
 	memset(m_UID, 0, UID_LENGTH + 1);
 	m_samples.clear();
@@ -180,6 +181,8 @@ bool Picker::ParseCommand(const int sock, const char *data, int size)
 				result = PickerFinalize(sock, root);
 			} else if( strncmp(command, CMD_APPLY, strlen(CMD_APPLY)) == 0 ) {
 				result = GetSelected(sock, root);
+			} else if ( strncmp(command, CMD_PICKRELOAD, strlen(CMD_PICKRELOAD)) == 0 ) {
+				result = ReloadPicker(sock, root);
 			} else {
 				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Invalid command");
 				result = false;
@@ -592,6 +595,7 @@ bool Picker::InitPicker(const int sock, json_t *obj)
 
 
 	if( result ) {
+
 		string fqFileName = m_dataPath + string(fileName);
 
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading %s", fqFileName.c_str());
@@ -618,6 +622,233 @@ bool Picker::InitPicker(const int sock, json_t *obj)
 	return result;
 }
 
+
+
+
+
+bool Picker::ReloadPicker(const int sock, json_t *obj)
+{
+	bool result = true, uidUpdated = false;
+	json_t	*jsonObj;
+	const char *featureFileName, *uid, *testSetFileName, *name;
+
+
+	// m_UID's length is 1 greater than UID_LENGTH, So we can
+	// always write a 0 there to make strlen safe.
+	//
+	m_UID[UID_LENGTH] = 0;
+
+	if( strlen(m_UID) > 0 ) {
+		gLogger->LogMsg(EvtLogger::Evt_ERROR, "Session already in progress: %s", m_UID);
+ 		result = false;
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "features");
+		featureFileName = json_string_value(jsonObj);
+		if( featureFileName == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "testfile");
+		testSetFileName = json_string_value(jsonObj);
+		if( testSetFileName == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "dataset");
+		name = json_string_value(jsonObj);
+		if( name != NULL ) {
+			m_curDatasetName = name;
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "name");
+		name = json_string_value(jsonObj);
+		if( name != NULL ) {
+			m_testsetName = name;
+		} else {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "uid");
+		uid = json_string_value(jsonObj);
+		if( uid == NULL ) {
+			result = false;
+		}
+	}
+
+	if( result ) {
+		strncpy(m_UID, uid, UID_LENGTH);
+		uidUpdated = true;
+		m_dataset = new MData();
+		if( m_dataset == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create dataset object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		jsonObj = json_object_get(obj, "name");
+		name = json_string_value(jsonObj);
+		if( name != NULL ) {
+			m_testsetName = name;
+		} else {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to extract test set name");
+			result = false;
+		}
+	}
+
+	MData testData;
+	if( result ) {
+		string fqn = testSetFileName;
+
+		if( testData.Load(fqn) == false ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to load test set %s", fqn.c_str());
+			result = false;
+		}
+	}
+
+	if( result ) {
+
+		string fqFileName = m_dataPath + featureFileName;
+
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading %s", fqFileName.c_str());
+		double	start = gLogger->WallTime();
+		result = m_dataset->Load(fqFileName);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading took %f", gLogger->WallTime() - start);
+	}
+
+
+	if( result ) {
+		result = RestoreSessionData(testData);
+		if( !result ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to restore session");
+		} else {
+			m_reloaded = true;
+		}
+	}
+
+
+	// Send result back to client
+	//
+	json_t 	*root = json_object(), *value = NULL;
+	size_t 	bytesWritten;
+
+	if( root != NULL ) {
+		if( result ) {
+			json_object_set(root, "negName", json_string(m_classNames[0].c_str()));
+			json_object_set(root, "posName", json_string(m_classNames[1].c_str()));
+			json_object_set(root, "result", json_string("PASS"));
+		} else {
+			json_object_set(root, "result", json_string("FAIL"));
+		}
+
+		char *jsonObj = json_dumps(root, 0);
+		bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+	}
+
+	if( !result && uidUpdated ){
+		// Initialization failed, clear current UID
+		memset(m_UID, 0, UID_LENGTH + 1);
+	}
+	return result;
+}
+
+
+
+
+
+bool Picker::RestoreSessionData(MData& testSet)
+{
+	bool	result = true;
+	int 	numObjs = testSet.GetNumObjs(),
+			numDims = testSet.GetDims();
+
+	result = UpdateBuffers(numObjs, true);
+	if( result ) {
+		float	*floatData = NULL;
+		int		*intData = NULL;
+
+		intData = testSet.GetLabels();
+		memcpy(m_labels, intData, numObjs * sizeof(int));
+
+		intData = testSet.GetIdList();
+		memcpy(m_ids, intData, numObjs * sizeof(int));
+
+		floatData = testSet.GetXCentroidList();
+		memcpy(m_xCentroid, floatData, numObjs * sizeof(float));
+
+		floatData = testSet.GetXClickList();
+		// Test sets created with earlier versions of VALS don't have clicks
+		if( floatData == NULL ) {
+			// Use centroids for click location if not present.
+			floatData = testSet.GetXCentroidList();
+		}
+		memcpy(m_xClick, floatData, numObjs * sizeof(float));
+
+		floatData = testSet.GetYCentroidList();
+		memcpy(m_yCentroid, floatData, numObjs * sizeof(float));
+
+		floatData = testSet.GetYClickList();
+		if( floatData == NULL ) {
+			floatData = testSet.GetYCentroidList();
+		}
+		memcpy(m_yClick, floatData, numObjs * sizeof(float));
+
+		floatData = testSet.GetData()[0];
+		memcpy(m_trainSet[0], floatData, numObjs * numDims * sizeof(float));
+
+		char **classNames = testSet.GetClassNames();
+		// Older versions of al_server did not save class names, set
+		// defaults if they can't be loaded.
+		if( classNames ) {
+			for(int i = 0; i < testSet.GetNumClasses(); i++) {
+				m_classNames.push_back(string(classNames[i]));
+			}
+		} else {
+			m_classNames.push_back(string("Negative"));
+			m_classNames.push_back(string("Positive"));
+		}
+
+		// Get slide indices from the dataset, NOT from the training set.
+		intData = testSet.GetSlideIndices();
+		char **slideNames = testSet.GetSlideNames();
+		int idx;
+
+
+		for(int i = 0; i < numObjs; i++) {
+
+			m_slideIdx[i] = m_dataset->GetSlideIdx(slideNames[intData[i]]);
+
+			// Keep track fo selected items
+			idx = m_dataset->FindItem(m_xCentroid[i], m_yCentroid[i], slideNames[intData[i]]);
+			if( idx == -1 ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to find item in dataset");
+				result = false;
+				break;
+			} else {
+				m_samples.push_back(idx);
+			}
+		}
+	}
+	return result;
+}
 
 
 
@@ -932,17 +1163,23 @@ bool Picker::PickerFinalize(const int sock, json_t *obj)
 {
 	bool	result = false;
 	MData 	*testSet = new MData();
-	string 	fileName = m_testsetName + ".h5", fqfn;
+	string 	fileName = m_testsetName + ".h5", fqfn,
+			posClass = m_classNames[1], negClass = m_classNames[0];
 
 	if( testSet != NULL ) {
 
 		fqfn = m_outPath + fileName;
-		struct stat buffer;
-		if( stat(fqfn.c_str(), &buffer) == 0 ) {
-			string 	tag = &m_UID[UID_LENGTH - 3];
 
-			fileName = m_testsetName + "_" + tag + ".h5";
-			fqfn = m_outPath + fileName;
+		// Don't check for file if updating a previous test set.
+		//
+		if( !m_reloaded ) {
+			struct stat buffer;
+			if( stat(fqfn.c_str(), &buffer) == 0 ) {
+				string 	tag = &m_UID[UID_LENGTH - 3];
+
+				fileName = m_testsetName + "_" + tag + ".h5";
+				fqfn = m_outPath + fileName;
+			}
 		}
 
 		result = testSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
@@ -980,6 +1217,8 @@ bool Picker::PickerFinalize(const int sock, json_t *obj)
 	if( result ) {
 
 		json_object_set(root, "filename", json_string(fqfn.c_str()));
+		json_object_set(root, "negClass", json_string(m_classNames[0].c_str()));
+		json_object_set(root, "posClass", json_string(m_classNames[1].c_str()));
 		json_object_set(root, "status", json_string((result) ? "PASS" : "FAIL"));
 
 		// Send result back to client

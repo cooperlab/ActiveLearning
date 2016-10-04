@@ -100,6 +100,7 @@ void SessionMgr::ParseCommand(const int sock, string data)
 				if( strncmp(command, CMD_INIT, strlen(CMD_INIT)) == 0 ||
 					strncmp(command, CMD_PICKINIT, strlen(CMD_PICKINIT)) == 0 ||
 					strncmp(command, CMD_RELOAD, strlen(CMD_RELOAD)) == 0 ||
+					strncmp(command, CMD_PICKRELOAD, strlen(CMD_PICKRELOAD)) == 0 ||
 					strncmp(command, CMD_CLASSINIT, strlen(CMD_CLASSINIT)) == 0 ) {
 
 					result = CreateSession(uid, data, command, sock);
@@ -160,8 +161,9 @@ bool SessionMgr::CreateSession(string uid, string data, const char *cmd, int soc
 
 		session->sessionType = cmd;
 
-		if( strncmp(cmd, CMD_PICKINIT, strlen(CMD_PICKINIT)) == 0 ) {
-			session->client = new Picker(m_dataPath, m_outPath, m_heatmapPath + uid);
+		if( strncmp(cmd, CMD_PICKINIT, strlen(CMD_PICKINIT)) == 0 ||
+			strncmp(cmd, CMD_PICKRELOAD, strlen(CMD_PICKRELOAD)) == 0 ) {
+			session->client = new Picker(m_dataPath, m_outPath, m_heatmapPath+uid);
 		} else {
 			session->client = new Learner(m_dataPath, m_outPath, m_heatmapPath+uid);
 		}

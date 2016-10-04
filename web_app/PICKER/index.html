@@ -60,15 +60,29 @@
 			<br />
 			
 			<div class="row">
-				<div class="col-sm-6 col-md-6 col-lg-6">
-					<h2>Test Set Info</h2>
+				<div class="col-sm-1 col-md-1 col-lg-1">
 				</div>
+
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<h2>Start a new test set</h2>
+				</div>
+
+				<div class="col-sm-2 col-md-2 col-lg-2">
+				</div>
+
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<h2>Continue an existing test set</h2>
+				</div>
+
 			</div>
 			
 			<br />
 			
 			<div class="row">
 			
+				<div class="col-sm-1 col-md-1 col-lg-1">
+				</div>
+
 				<div class="col-sm-4 col-md-4 col-lg-4">
 					<form role="form" id="picker_form" method="POST" action="../php/initpicker.php" onsubmit=displayProg()>
 						<div class="form-group">
@@ -81,22 +95,7 @@
 							<select class="form-control" id="datasetSel" name="dataset"> 
 							</select>
 						</div>
-<!--- 
-		Only handling binary classifiers now, add this back in when we do multiclass
 
-						
-						<label for="name">Classifier type</label>
-						<div class="form-group">
-							<label class="checkbox-inline">
-								<input type="radio" name="classType" id="classSelect"
-										value="binary" checked>Binary 
-							</label>
-							<label class="checkbox-inline">
-								<input type="radio" name="classType" id="classSelect"
-										value="multiClass" disabled>Multi-class
-							</label>			
-						</div>
--->										
 						<div class="form-group">
 							<label for="posClass">Positive class</label>
 							<input type="text" class="form-control" id="posClass" 
@@ -115,9 +114,26 @@
 				
 				<div class="col-sm-2 col-md-2 col-lg-2">
 				</div>
+
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<form role="form" id="reload_form" method="POST" action="../php/reloadPicker.php" onsubmit=displayProg()>
+
+						<div class="form-group">
+							<label for="reloadDatasetSel">Dataset</label>
+							<select class="form-control" id="reloadDatasetSel" name="reloadDataset">
+							</select>
+						</div>
+
+						<div class="form-group">
+							<label for="reloadTestSetSel">Test Set</label>
+							<select class="form-control" id="reloadTestSetSel" name="testSet">
+							</select>
+						</div>
+
+						<button id="reloadPicker" type="submit" name="continue" class="btn btn-default" value="submitted" >Continue</button>
+					</form>
+				</div>
 				
-				<div class="col-sm-6 col-md-6 col-lg-6">
-				</div>					
 			</div>
 		</div>
 		

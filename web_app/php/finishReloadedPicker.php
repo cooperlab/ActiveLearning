@@ -1,5 +1,4 @@
 <?php
-
 //
 //	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
@@ -49,40 +48,13 @@
 			$response = json_decode($response, true);
 		}
 	}
+	
+	if( $prog == false ) {
+ 		$respone['status'] = "FAIL";
+	} 
 
-	if( $prog ) {
-		$dbconn = guestConnect();
-		$sql = 'SELECT id FROM datasets WHERE name="'.$_SESSION['dataset'].'"';
-
-		if( $result = mysqli_query($dbconn, $sql) ) {
-			$array = mysqli_fetch_row($result);
-			$datasetId = $array[0];
-			mysqli_free_result($result);
-		} else {
-			log_error("Unable to get dataset id from database");
-			$prog = false;
-		}
-	}
-
-	if( $prog ) {
-		$sql = 'INSERT INTO test_sets (name, dataset_id, filename, pos_name, neg_name) ';
-		$sql = $sql.'VALUES("'.$_SESSION['classifier'].'", '.$datasetId.', ';
-		$sql = $sql.'"'.$response['filename'].'", "'.$response['posClass'].'", "'.$response['negClass'].'")';
-
-		$status = mysqli_query($dbconn, $sql);
-		if( $status === FALSE ) {
-			log_error("Unable to save test set to database");
-			$prog = false;
-		}
-	}
-
-	if( $prog === FALSE ) {
-		$response['status'] = "FAIL";
-	}
-
-	write_log("INFO", "Picker session ".$_SESSION['classifier']." Finished with status: ".$response['status']);
 	echo json_encode($response);
-
+	
 	// Cleanup session variables
 	//
 	session_unset();

@@ -1,3 +1,5 @@
+<?php
+
 //
 //	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
@@ -8,7 +10,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -16,7 +18,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -24,45 +26,35 @@
 //	DAMAGE.
 //
 //
-#if !defined(SRC_COMMANDS_H_)
-#define SRC_COMMANDS_H_
 
+	require 'logging.php';		// Also includes connect.php
+	require '../php/hostspecs.php';
 
-// JSON object tags
-//
-#define UID_TAG		"uid"
-#define CMD_TAG		"command"
+	$dataset = $_POST['dataset'];
+	
+	$sql = 'SELECT t.name, t.fileName FROM test_sets t '
+			.'JOIN datasets d ON t.dataset_id=d.id WHERE d.name="'.$dataset.'"';
 
+	$dbConn = guestConnect();
+	
+	if( $result = mysqli_query($dbConn, $sql) ) {
 
-// Server commands
-//
-#define CMD_INIT		"init"
-#define CMD_END			"end"
-#define CMD_FINAL		"finalize"
-#define CMD_CLASSINIT	"viewerLoad"
-#define CMD_CLASSEND	"viewerEnd"
-#define CMD_PRIME		"prime"
-#define CMD_SELECT		"select"
-#define CMD_SUBMIT		"submit"
-#define CMD_APPLY		"apply"
-#define CMD_VISUAL		"visualize"
-#define CMD_RELOAD		"reload"
+		$testSetNames = array();
+		$fileNames = array();
+		while( $array = mysqli_fetch_row($result) ) {
+			$testSetNames[] = $array[0];
+			$fileNames[] = $array[1];
+		}
+		
+		$testSetData = array("testSets" => $testSetNames, "fileNames" => $fileNames);
+		mysqli_free_result($result);
 
-#define CMD_PICKINIT	"pickerInit"
-#define CMD_PICKADD		"pickerAdd"
-#define CMD_PICKCNT		"pickerCnt"
-#define CMD_PICKEND		"pickerSave"
-#define CMD_PICKREVIEW		"pickerReview"
-#define CMD_PICKREVIEWSAVE		"pickerReviewSave"
-#define CMD_PICKRELOAD	"pickerReload"
-#define CMD_VIEWLOAD	"viewerLoad"
+	} else {
+		log_error("Unable to retrieve training sets from database");
+		exit();
+	}
+	mysqli_close($dbConn);
 
-#define CMD_HEATMAP		"heatMap"
-#define CMD_ALLHEATMAPS	"allHeatMaps"
+	echo json_encode($testSetData);
+?>
 
-#define CMD_STATUS		"sysStatus"
-
-#define CMD_REVIEW		"review"
-#define CMD_REVIEWSAVE		"reviewSave"
-
-#endif /* SRC_COMMANDS_H_ */

@@ -71,21 +71,26 @@ protected:
 
 	// Training set info
 	//
-	int			*m_labels;
-	int			*m_ids;
-	float		**m_trainSet;
-	int			*m_slideIdx;
-	float		*m_xCentroid;
-	float		*m_yCentroid;
-	float		*m_xClick;
-	float		*m_yClick;
+	int		*m_labels;
+	int		*m_ids;
+	float	**m_trainSet;
+	int		*m_slideIdx;
+	float	*m_xCentroid;
+	float	*m_yCentroid;
+	float	*m_xClick;
+	float	*m_yClick;
+
+	bool	m_reloaded;
 
 	bool	CancelSession(const int sock, json_t *obj);
 	bool	GetSelected(const int sock, json_t *obj);
 	bool	InitPicker(const int sock, json_t *obj);
+	bool	ReloadPicker(const int sock, json_t *obj);
 	bool	AddObjects(const int sock, json_t *obj);
 	bool	PickerStatus(const int sock, json_t *obj);
 	bool	PickerFinalize(const int sock, json_t *obj);
+
+	bool 	RestoreSessionData(MData& testSet);
 
 	bool	SendSelected(int xMin, int xMax, int yMin, int yMax,
 			 	 	 	 string slide, int *results, const int sock);
@@ -98,7 +103,7 @@ protected:
 
 	bool	LoadDataset(string dataSetFileName);
 
-	bool PickerReview(const int sock, json_t *obj);
+	bool 	PickerReview(const int sock, json_t *obj);
 	bool	PickerReviewSave(const int sock, json_t *obj);
 };
 

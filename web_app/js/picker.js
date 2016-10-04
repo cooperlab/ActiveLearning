@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -52,6 +52,7 @@ var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_
 var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 var defaultClass;
 
+var reloaded = false;
 
 
 
@@ -154,6 +155,7 @@ $(function() {
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
+			reloaded = data['reloaded'];
 
 
 			if( uid == null ) {
@@ -818,21 +820,45 @@ function addObjects() {
 
 function saveTrainingSet() {
 
-	$.ajax({
-		type: "POST",
-		url: "php/finishPicker.php",
-		data: "",
-		dataType: "json",
-		success: function(data) {
+	if( reloaded ) {
 
-			if( data['status'] === "PASS" ) {
-				window.alert("Test set saved to: " + data['filename']);
-				window.location = "PICKER/index.html";
-			} else {
-				window.alert("Unable to save test set");
-			}
-		},
-	});
+		$.ajax({
+			type: "POST",
+			url: "php/finishReloadedPicker.php",
+			data: "",
+			dataType: "json",
+			success: function(data) {
+
+				if( data['status'] === "PASS" ) {
+					console.log("Pos: "+data['posClass']+", Neg: "+data['negClass']);
+					window.alert("Test set saved to: " + data['filename']);
+					window.location = "PICKER/index.html";
+				} else {
+					window.alert("Unable to save test set");
+				}
+			},
+		});
+
+	} else {
+
+		$.ajax({
+			type: "POST",
+			url: "php/finishPicker.php",
+			data: "",
+			dataType: "json",
+			success: function(data) {
+
+				if( data['status'] === "PASS" ) {
+					console.log("Pos: "+data['posClass']+", Neg: "+data['negClass']);
+					window.alert("Test set saved to: " + data['filename']);
+					window.location = "PICKER/index.html";
+				} else {
+					window.alert("Unable to save test set");
+				}
+			},
+		});
+
+	}
 }
 
 
