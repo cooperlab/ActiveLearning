@@ -99,8 +99,6 @@ function updateDataSet() {
 
 function updateTestSets(dataset) {
 
-	console.log("dataset: "+dataset);
-
 	$.ajax({
 		type: "POST",
 		url: "../db/getTestsetForDataset.php",

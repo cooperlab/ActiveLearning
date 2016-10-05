@@ -783,12 +783,16 @@ function updateLabels() {
 	for( i = 0; i < sampleDataJson['picker_review'].length; i++ ) {
 		sampleDataJson['picker_review'][i]['boundary'] = "";
 	}
+	
+	// Stringify to get around PHP's limitation of POST variables.
+	//
+	var samples = JSON.stringify(sampleDataJson['picker_review']);
 
 	$.ajax({
 		type: "POST",
 		url: "php/savePickerReview.php",
 		dataType: "json",
-		data: sampleDataJson,
+		data: { samples: samples },
 		success: function() {
 
 			// Get a new set of samples

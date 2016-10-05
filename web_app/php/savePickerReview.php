@@ -1,7 +1,6 @@
 <?php
-
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2016, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -26,35 +25,28 @@
 //	DAMAGE.
 //
 //
+	require 'serverComm.php';
+	require 'hostspecs.php';		// Defines $host and $port
+	require '../db/logging.php';
 
-	require 'hostspecs.php';
 	session_start();
+
+	$samples = json_decode($_POST['samples']);
 
 	$submit_data =  array( "command" => "pickerReviewSave",
 	  			 	       "uid" => $_SESSION['uid'],
-	  			 	       "samples" => $_POST['picker_review'] );
+	  			 	       "samples" => $samples);
 
 	$submit_data = json_encode($submit_data, JSON_NUMERIC_CHECK);
 
-	$addr = gethostbyname($host);
-	set_time_limit(0);
-
-	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
-	// Set a large send buffer...
-	socket_set_option($socket, SOL_SOCKET, SO_SNDBUF, 8192);
-
+	$socket = connect_server($host, $port);
 	if( $socket === false ) {
-		echo "socket_create failed:  ". socket_strerror(socket_last_error()) . "<br>";
+		log_error("Unable to connect to learning server");
+	} else {
+		$response = command_server($submit_data, $socket);
+		if( $response === false ) {
+			log_error("Unable to get response from learning server");
+		}
 	}
-
-	$result = socket_connect($socket, $addr, $port);
-	if( !$result ) {
-		echo "socket_connect failed: ".socket_strerror(socket_last_error()) . "<br>";
-	}
-
-	socket_write($socket, $submit_data, strlen($submit_data));
-	$response = socket_read($socket, 10);
-	socket_close($socket);
-
-	echo json_encode($response);
+	echo $response;
 ?>
