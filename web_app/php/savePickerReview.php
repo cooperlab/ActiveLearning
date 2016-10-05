@@ -41,11 +41,11 @@
 
 	$socket = connect_server($host, $port);
 	if( $socket === false ) {
-		log_error("Unable to connect to learning server");
+		log_error("[savePickerReview] Unable to connect to learning server");
 	} else {
 		$response = command_server($submit_data, $socket);
 		if( $response === false ) {
-			log_error("Unable to get response from learning server");
+			log_error("[savePickerReview] Unable to get response from learning server");
 		}
 	}
 	echo $response;

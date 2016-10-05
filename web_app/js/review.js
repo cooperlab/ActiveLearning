@@ -54,6 +54,8 @@ var slideLists = [];
 var cellIndex = [];
 var boundaries = [];
 
+var updates = new Array();
+
 //
 //	Review
 //
@@ -767,6 +769,7 @@ function thumbSingleClick(index) {
 function thumbDoubleClick(index) {
 
 	var label = sampleDataJson['review'][index]['label'];
+	var updateItem = new Object();
 
 	// Toggle through the 3 states, pos, neg and ignore
 	//
@@ -777,6 +780,11 @@ function thumbDoubleClick(index) {
 	} else {
 		sampleDataJson['review'][index]['label'] = 0;
 	}
+
+	updateItem.id = sampleDataJson['review'][index]['id'];
+	updateItem.label = sampleDataJson['review'][index]['label'];
+	updates.push(updateItem);
+	
 	updateLabels();
 	doreviewSel();
 	slidesInfo(sampleDataJson['review']);
@@ -787,14 +795,12 @@ function thumbDoubleClick(index) {
 //
 function updateLabels() {
 
-	console.log("Updating "+sampleDataJson['review'].length+" samples");
-
 	// No need to send boundaries to the server
 	for( i = 0; i < sampleDataJson['review'].length; i++ ) {
 		sampleDataJson['review'][i]['boundary'] = "";
 	}
 
-	var samples = JSON.stringify(sampleDataJson['review']);
+	var samples = JSON.stringify(updates);
 
 	$.ajax({
 		type: "POST",
@@ -803,8 +809,7 @@ function updateLabels() {
 		data: { samples: samples },
 		success: function() {
 
-			// Get a new set of samples
-			//updateSamples();
+			updates = new Array();
 		}
 	});
 }

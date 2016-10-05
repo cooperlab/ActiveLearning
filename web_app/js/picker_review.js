@@ -53,6 +53,9 @@ var igrArray = new Array();
 var slideLists = [];
 var cellIndex = [];
 
+var updates = new Array();
+
+
 //
 //	Review
 //
@@ -758,7 +761,8 @@ function thumbSingleClick(index) {
 //
 function thumbDoubleClick(index) {
 
-	var label = sampleDataJson['picker_review'][index]['label'];
+	var label = sampleDataJson['picker_review'][index]['label']
+	var updateItem = new Object();
 
 	// Toggle through the 3 states, pos, neg and ignore
 	//
@@ -769,6 +773,11 @@ function thumbDoubleClick(index) {
 	} else {
 		sampleDataJson['picker_review'][index]['label'] = 0;
 	}
+
+	updateItem.id = sampleDataJson['picker_review'][index]['id'];
+	updateItem.label = sampleDataJson['picker_review'][index]['label'];
+	updates.push(updateItem);
+	
 	updateLabels();
 	doreviewSel();
 	slidesInfo(sampleDataJson['picker_review']);
@@ -783,20 +792,21 @@ function updateLabels() {
 	for( i = 0; i < sampleDataJson['picker_review'].length; i++ ) {
 		sampleDataJson['picker_review'][i]['boundary'] = "";
 	}
-	
+
 	// Stringify to get around PHP's limitation of POST variables.
 	//
-	var samples = JSON.stringify(sampleDataJson['picker_review']);
+	var samples = JSON.stringify(updates);
 
 	$.ajax({
 		type: "POST",
 		url: "php/savePickerReview.php",
 		dataType: "json",
 		data: { samples: samples },
-		success: function() {
+		success: function(data) {
 
-			// Get a new set of samples
-			//updateSamples();
+			if( data['status'] === "PASS" ) {
+				updates = new Array();
+			}
 		}
 	});
 }

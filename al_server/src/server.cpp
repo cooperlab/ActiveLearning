@@ -58,7 +58,7 @@ using namespace libconfig;
 
 EvtLogger	*gLogger = NULL;
 
-#define RX_BUFFER_SIZE		(100 * 1024)
+#define RX_BUFFER_SIZE		(1024 * 1024)
 static char *gBuffer = NULL;
 
 
@@ -70,7 +70,6 @@ bool Daemonize(void)
 {
 	bool	result = true;
 	pid_t	pid, sid;
-
 
 	// Fork child process
 	pid = fork();
@@ -142,6 +141,11 @@ bool HandleRequest(const int fd, SessionMgr *mgr)
 	//
 
 	bytesRx = recv(fd, gBuffer, RX_BUFFER_SIZE, 0);
+
+	//
+	//	TODO - Add check for buffer overflow
+	//
+
 	// Make sure we read all the data by looking for the end of the JSON
 	// object
 	//

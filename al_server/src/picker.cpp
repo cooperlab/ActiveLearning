@@ -940,7 +940,6 @@ bool Picker::AddObjects(const int sock, json_t *obj)
 			if( idx != -1 ) {
 				m_labels[pos] = label;
 				m_ids[pos] = id;
-//				m_sampleIter[pos] = m_iteration;
 				m_slideIdx[pos] = m_dataset->GetSlideIdx(slide);
 				m_xCentroid[pos] = m_dataset->GetXCentroid(idx);
 				m_yCentroid[pos] = m_dataset->GetYCentroid(idx);
@@ -969,7 +968,6 @@ bool Picker::AddObjects(const int sock, json_t *obj)
 		}
 	}
 
-	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Encoding response");
 	if( result ) {
 
 		json_object_set(root, "count", json_integer(m_samples.size()));
@@ -986,8 +984,6 @@ bool Picker::AddObjects(const int sock, json_t *obj)
 		json_decref(root);
 		free(jsonObj);
 	}
-
-	gLogger->LogMsg(EvtLogger::Evt_ERROR, "Done, result: %d", result);
 	return result;
 }
 
@@ -1086,7 +1082,6 @@ bool Picker::PickerReview(const int sock, json_t *obj)
 			json_object_set(sample, "boundary", json_string(""));
 			json_object_set(sample, "maxX", json_integer(0));
 			json_object_set(sample, "maxY", json_integer(0));
-			//gLogger->LogMsg(EvtLogger::Evt_INFO, "%s", m_dataset->GetSlide(idx));
 
 			json_array_append(sampleArray, sample);
 			json_decref(sample);
@@ -1120,7 +1115,7 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 {
 	bool	result = true;
 	json_t 	*jsonObj = NULL, *value = NULL, *sampleArray = NULL;
-
+	int		count = 0;
 	value = json_object_get(obj, "uid");
 	const char *uid = json_string_value(value);
 	result = IsUIDValid(uid);
@@ -1135,27 +1130,51 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 
 	if( result ) {
 		size_t	index;
-		int id, label;
+		int 	id, label;
 
-		for(int i = 0; i < m_samples.size(); i++) {
+		json_array_foreach(sampleArray, index, jsonObj) {
 
-			json_array_foreach(sampleArray, index, jsonObj) {
+			value = json_object_get(jsonObj, "id");
+			id = json_integer_value(value);
 
-					value = json_object_get(jsonObj, "id");
-					id = json_integer_value(value);
+			value = json_object_get(jsonObj, "label");
+			label = json_integer_value(value);
 
-					value = json_object_get(jsonObj, "label");
-					label = json_integer_value(value);
-
-					if (id == m_ids[i]){
-							m_labels[i] = label;
-					}
+			for(int i = 0; i < m_samples.size(); i++) {
+				if( id == m_ids[i] ) {
+					count++;
+					m_labels[i] = label;
 				}
 			}
+		}
 	}
 
+	// Send result back to client
+	//
+	json_t 	*root = json_object();
+	size_t 	bytesWritten;
+
+	if( root != NULL ) {
+		if( result ) {
+			json_object_set(root, "status", json_string("PASS"));
+			json_object_set(root, "updated", json_integer(count));
+		} else {
+			json_object_set(root, "status", json_string("FAIL"));
+		}
+		char *jsonObj = json_dumps(root, 0);
+		bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+
+	}
 	return result;
 }
+
+
 
 
 
