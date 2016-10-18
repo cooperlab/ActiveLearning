@@ -55,6 +55,7 @@ var cell_index = [];
 var boundaries = [];
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 var updates = new Array();
 
 =======
@@ -62,6 +63,11 @@ var cur_slide_num = -1;
 var sortable_group = "";
 var sortable_group_list = [];
 >>>>>>> Modified review.js to add drag and drop function
+=======
+var cur_slide_num = -1;
+var sortable_group = "";
+var sortable_group_list = [];
+>>>>>>> 839173e884d27b66a5b396049504e17a3f9e3cc5
 //
 //	Review
 //
@@ -655,6 +661,7 @@ function thumbSingleClick(index) {
 	boundaryOn = true;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 //
 //	A double click in the thumbnail box toggles the current classification
 //	of the object.
@@ -684,6 +691,8 @@ function thumbDoubleClick(index) {
 	slidesInfo(sampleDataJson['review']);
 =======
 >>>>>>> Modified review.js to add drag and drop function
+=======
+>>>>>>> 839173e884d27b66a5b396049504e17a3f9e3cc5
 };
 
 //	Updates labels in al server
