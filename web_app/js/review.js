@@ -54,20 +54,12 @@ var slide_list = [];
 var cell_index = [];
 var boundaries = [];
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 var updates = new Array();
 
-=======
 var cur_slide_num = -1;
 var sortable_group = "";
 var sortable_group_list = [];
->>>>>>> Modified review.js to add drag and drop function
-=======
-var cur_slide_num = -1;
-var sortable_group = "";
-var sortable_group_list = [];
->>>>>>> 839173e884d27b66a5b396049504e17a3f9e3cc5
+
 //
 //	Review
 //
@@ -285,7 +277,8 @@ function create_mouse_event(sample, slide_num, sample_index){
 
 		box.addEventListener("dragend", function( event ) {
 
-			var label = sampleDataJson['review'][box_loc]['label'];
+			//var label = sampleDataJson['review'][box_loc]['label'];
+			var updateItem = new Object();
 			// find parent id of the moved cell
 			var p_id = event.target.parentNode.id;
 			// set the current label value
@@ -298,6 +291,11 @@ function create_mouse_event(sample, slide_num, sample_index){
 			else{
 				sampleDataJson['review'][box_loc]['label'] = 0;
 			}
+
+			updateItem.id = sampleDataJson['review'][box_loc]['id'];
+			updateItem.label = sampleDataJson['review'][box_loc]['label'];
+			updates.push(updateItem);
+
 			updateLabels();
 			doreviewSel();
 			slidesInfo();
@@ -659,9 +657,7 @@ function thumbSingleClick(index) {
 	}
 	cur_box = index;
 	boundaryOn = true;
-
-<<<<<<< HEAD
-<<<<<<< HEAD
+}
 //
 //	A double click in the thumbnail box toggles the current classification
 //	of the object.
@@ -685,15 +681,11 @@ function thumbDoubleClick(index) {
 	updateItem.id = sampleDataJson['review'][index]['id'];
 	updateItem.label = sampleDataJson['review'][index]['label'];
 	updates.push(updateItem);
-	
+
 	updateLabels();
 	doreviewSel();
 	slidesInfo(sampleDataJson['review']);
-=======
->>>>>>> Modified review.js to add drag and drop function
-=======
->>>>>>> 839173e884d27b66a5b396049504e17a3f9e3cc5
-};
+}
 
 //	Updates labels in al server
 //
