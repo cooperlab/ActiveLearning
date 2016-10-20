@@ -1072,13 +1072,12 @@ bool Picker::PickerReview(const int sock, json_t *obj)
 			}
 
 			int idx = m_samples[i];
+
 			json_object_set(sample, "id", json_integer(m_ids[i]));
 			json_object_set(sample, "label", json_integer(m_labels[i]));
 			json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
-			json_object_set(sample, "centX", json_real(m_xCentroid[i]));
-			json_object_set(sample, "centY", json_real(m_yCentroid[i]));
-			json_object_set(sample, "clickX", json_real(m_xClick[i]));
-			json_object_set(sample, "clickY", json_real(m_yClick[i]));
+			json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
+			json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
 			json_object_set(sample, "boundary", json_string(""));
 			json_object_set(sample, "maxX", json_integer(0));
 			json_object_set(sample, "maxY", json_integer(0));
@@ -1087,7 +1086,31 @@ bool Picker::PickerReview(const int sock, json_t *obj)
 			json_decref(sample);
 		}
 
-	}
+		for(int i = 0; i < m_ignoreIdx.size(); i++) {
+			sample = json_object();
+			if( sample == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON object");
+				result = false;
+				break;
+			}
+
+			int idx = m_ignoreIdx[i];
+			int id = m_ignoreId[i];
+
+			json_object_set(sample, "id", json_integer(id));
+			json_object_set(sample, "label", json_integer(0));
+			json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
+			json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
+			json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
+			json_object_set(sample, "boundary", json_string(""));
+			json_object_set(sample, "maxX", json_integer(0));
+			json_object_set(sample, "maxY", json_integer(0));
+
+			json_array_append(sampleArray, sample);
+			json_decref(sample);
+		}
+
+		}
 
 	if( result ) {
 
@@ -1115,7 +1138,7 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 {
 	bool	result = true;
 	json_t 	*jsonObj = NULL, *value = NULL, *sampleArray = NULL;
-	int		count = 0;
+	int count = 0;
 	value = json_object_get(obj, "uid");
 	const char *uid = json_string_value(value);
 	result = IsUIDValid(uid);
@@ -1130,7 +1153,7 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 
 	if( result ) {
 		size_t	index;
-		int 	id, label;
+		int id, label, sample_id;
 
 		json_array_foreach(sampleArray, index, jsonObj) {
 
@@ -1140,12 +1163,112 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 			value = json_object_get(jsonObj, "label");
 			label = json_integer_value(value);
 
+			vector<int> temp_labels;
+			vector<int> temp_ids;
+			vector<int> temp_slideIdx;
+			vector<float> temp_xCentroid;
+			vector<float> temp_yCentroid;
+			vector<float> temp_xClick;
+			vector<float> temp_yClick;
+
 			for(int i = 0; i < m_samples.size(); i++) {
+				// if id is equal to current sample
 				if( id == m_ids[i] ) {
-					count++;
-					m_labels[i] = label;
+						sample_id = i;
+						// if label is ignore, add data index and id
+						if( label == 0 ) {
+								MData *trainingSet = new MData();
+
+								if( trainingSet != NULL ) {
+											result = trainingSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
+																m_labels, m_ids, NULL, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
+																m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
+																m_dataset->GetNumSlides(), m_classNames);
+								}
+
+								int	*intData = NULL;
+								// Get slide indices from the dataset, NOT from the training set.
+								intData = trainingSet->GetSlideIndices();
+								char **slideNames = trainingSet->GetSlideNames();
+								int idx;
+
+								// Keep track fo selected items
+								idx = m_dataset->FindItem(m_xCentroid[i], m_yCentroid[i], slideNames[intData[i]]);
+								// Get the dataset index for this object
+								m_ignoreIdx.push_back(idx);
+								m_ignoreId.push_back(id);
+
+								if( trainingSet != NULL )
+										delete trainingSet;
+
+							}
+							// if label is positive or negative
+							else{
+										count++;
+										m_labels[i] = label;
+							}
 				}
+				temp_labels.push_back(m_labels[i]);
+				temp_ids.push_back(m_ids[i]);
+				temp_slideIdx.push_back(m_slideIdx[i]);
+				temp_xCentroid.push_back(m_xCentroid[i]);
+				temp_yCentroid.push_back(m_yCentroid[i]);
+				temp_xClick.push_back(m_xClick[i]);
+				temp_yClick.push_back(m_yClick[i]);
 			}
+
+			// only if ignore to pos or neg / pos or neg to ignore, then remove values
+			if( label == 0 ) {
+					m_samples.erase(m_samples.begin() + sample_id);
+
+					result = UpdateBuffers(0, true);
+
+					if( result ) {
+						int j;
+
+						j = 0;
+
+						for(int i = 0; i < m_samples.size(); i++) {
+
+							if (sample_id == j)
+									j = j + 1;
+
+							m_labels[i] = temp_labels[j];
+							m_ids[i] = temp_ids[j];
+							m_slideIdx[i] = temp_slideIdx[j];
+							m_xCentroid[i] = temp_xCentroid[j];
+							m_yCentroid[i] = temp_yCentroid[j];
+							m_xClick[i] = temp_xClick[j];
+							m_yClick[i] = temp_yClick[j];
+
+							j = j + 1;
+
+						}
+					}
+				} // end remove value
+				else{
+					// check if there's from ignore
+					for(int i = 0; i < m_ignoreId.size(); i++) {
+						if (m_ignoreId[i] == id) {
+							// add +1 to m_samples
+							result = UpdateBuffers(1);
+
+							if( result ) {
+
+								int	pos = m_samples.size();
+
+								m_ids[pos] = m_ignoreId[i];
+								m_labels[pos] = label;
+								m_samples.push_back(m_ignoreIdx[i]);
+
+								// remove an element from ignore set
+								m_ignoreIdx.erase(m_ignoreIdx.begin() + i);
+								m_ignoreId.erase(m_ignoreId.begin() + i);
+							}
+						}
+					}
+				}
+
 		}
 	}
 
@@ -1161,6 +1284,7 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 		} else {
 			json_object_set(root, "status", json_string("FAIL"));
 		}
+
 		char *jsonObj = json_dumps(root, 0);
 		bytesWritten = ::write(sock, jsonObj, strlen(jsonObj));
 
@@ -1171,8 +1295,10 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 		free(jsonObj);
 
 	}
+
 	return result;
 }
+
 
 
 
