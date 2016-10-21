@@ -609,6 +609,47 @@ function displayOneslide(sampleArray, slide_num){
 
 	}
 
+	// find max number of samples in each section
+	var a = postile_list.childElementCount;
+	var b = negtile_list.childElementCount;
+	var c = igrtile_list.childElementCount;
+
+	var max = Math.max(a, b);
+	max = Math.max(max, c);
+
+	var sample_num = sampleArray.length;
+	var sizeX = 100;
+	var sizeY = 100;
+	for (i = max; i > 0; i--) {
+		if ((a-i) < 0) {
+			var im = document.createElement('img');
+			im.setAttribute('class',"no-border");
+			im.setAttribute('width',sizeX);
+			im.setAttribute('height',sizeY);
+			im.setAttribute('id','box_'+slide_num+'_'+sample_num);
+			postile_list.appendChild(im);
+			sample_num = sample_num + 1;
+		}
+		if ((b-i) < 0) {
+			var im = document.createElement('img');
+			im.setAttribute('class',"no-border");
+			im.setAttribute('width',sizeX);
+			im.setAttribute('height',sizeY);
+			im.setAttribute('id','box_'+slide_num+'_'+sample_num);
+			negtile_list.appendChild(im);
+			sample_num = sample_num + 1;
+		}
+		if ((c-i) < 0) {
+			var im = document.createElement('img');
+			im.setAttribute('class',"no-border");
+			im.setAttribute('width',sizeX);
+			im.setAttribute('height',sizeY);
+			im.setAttribute('id','box_'+slide_num+'_'+sample_num);
+			igrtile_list.appendChild(im);
+			sample_num = sample_num + 1;
+		}
+	}
+	
 	postile_name.innerHTML = posClass;
 	postile.appendChild(postile_name);
 	postile.appendChild(postile_list);
