@@ -141,6 +141,12 @@ img {
 	margin-right: 2px;
 }
 
+/*
+img.no-border {
+	visibility: hidden;
+}
+*/
+
 .tile {
 	width: 33%;
 	min-width: 245px;
