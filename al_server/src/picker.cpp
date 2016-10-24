@@ -1177,30 +1177,10 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 						sample_id = i;
 						// if label is ignore, add data index and id
 						if( label == 0 ) {
-								MData *trainingSet = new MData();
-
-								if( trainingSet != NULL ) {
-											result = trainingSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
-																m_labels, m_ids, NULL, m_dataset->GetMeans(), m_dataset->GetStdDevs(),
-																m_xCentroid, m_yCentroid, m_dataset->GetSlideNames(), m_slideIdx,
-																m_dataset->GetNumSlides(), m_classNames);
-								}
-
-								int	*intData = NULL;
-								// Get slide indices from the dataset, NOT from the training set.
-								intData = trainingSet->GetSlideIndices();
-								char **slideNames = trainingSet->GetSlideNames();
 								int idx;
-
-								// Keep track fo selected items
-								idx = m_dataset->FindItem(m_xCentroid[i], m_yCentroid[i], slideNames[intData[i]]);
-								// Get the dataset index for this object
+								idx = m_samples[i];
 								m_ignoreIdx.push_back(idx);
 								m_ignoreId.push_back(id);
-
-								if( trainingSet != NULL )
-										delete trainingSet;
-
 							}
 							// if label is positive or negative
 							else{
