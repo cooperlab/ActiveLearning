@@ -724,8 +724,7 @@ bool Learner::Review(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-		// We just return an array of the nuclei database id's, label and iteration when added
-		//
+
 		for(int i = 0; i < m_samples.size(); i++) {
 
 			sample = json_object();
@@ -739,6 +738,32 @@ bool Learner::Review(const int sock, json_t *obj)
 			json_object_set(sample, "id", json_integer(m_ids[i]));
 			json_object_set(sample, "label", json_integer(m_labels[i]));
 			json_object_set(sample, "iteration", json_integer(m_sampleIter[i]));
+			json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
+			json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
+			json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
+			json_object_set(sample, "boundary", json_string(""));
+			json_object_set(sample, "maxX", json_integer(0));
+			json_object_set(sample, "maxY", json_integer(0));
+
+			json_array_append(sampleArray, sample);
+			json_decref(sample);
+		}
+
+		for(int i = 0; i < m_ignoreIdx.size(); i++) {
+			sample = json_object();
+			if( sample == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "Unable to create sample JSON object");
+				result = false;
+				break;
+			}
+
+			int idx = m_ignoreIdx[i];
+			int id = m_ignoreId[i];
+			int iter = m_ignoreIter[i];
+
+			json_object_set(sample, "id", json_integer(id));
+			json_object_set(sample, "label", json_integer(0));
+			json_object_set(sample, "iteration", json_integer(iter));
 			json_object_set(sample, "slide", json_string(m_dataset->GetSlide(idx)));
 			json_object_set(sample, "centX", json_real(m_dataset->GetXCentroid(idx)));
 			json_object_set(sample, "centY", json_real(m_dataset->GetYCentroid(idx)));
@@ -792,7 +817,7 @@ bool Learner::SaveReview(const int sock, json_t *obj)
 
 	if( result ) {
 		size_t	index;
-		int id, label;
+		int id, label, sample_id;
 
 		json_array_foreach(sampleArray, index, jsonObj) {
 
@@ -802,13 +827,99 @@ bool Learner::SaveReview(const int sock, json_t *obj)
 			value = json_object_get(jsonObj, "label");
 			label = json_integer_value(value);
 
-			for(int i = 0; i < m_samples.size(); i++) {
+			vector<int> temp_labels;
+			vector<int> temp_ids;
+			vector<int> temp_sampleIter;
+			vector<int> temp_slideIdx;
+			vector<float> temp_xCentroid;
+			vector<float> temp_yCentroid;
+			vector<float> temp_xClick;
+			vector<float> temp_yClick;
 
+			for(int i = 0; i < m_samples.size(); i++) {
+				// if id is equal to current sample
 				if( id == m_ids[i] ) {
-					count++;
-					m_labels[i] = label;
+						sample_id = i;
+						// if label is ignore, add data index and id
+						if( label == 0 ) {
+								int idx;
+								idx = m_samples[i];
+								// add idx, id, and iter to ignore set
+								m_ignoreIdx.push_back(idx);
+								m_ignoreId.push_back(id);
+								m_ignoreIter.push_back(m_sampleIter[i]);
+							}
+							// if label is positive or negative
+							else{
+										count++;
+										m_labels[i] = label;
+							}
 				}
+				temp_labels.push_back(m_labels[i]);
+				temp_ids.push_back(m_ids[i]);
+				temp_sampleIter.push_back(m_sampleIter[i]);
+				temp_slideIdx.push_back(m_slideIdx[i]);
+				temp_xCentroid.push_back(m_xCentroid[i]);
+				temp_yCentroid.push_back(m_yCentroid[i]);
+				temp_xClick.push_back(m_xClick[i]);
+				temp_yClick.push_back(m_yClick[i]);
 			}
+
+			// only if ignore to pos or neg / pos or neg to ignore, then remove values
+			if( label == 0 ) {
+					m_samples.erase(m_samples.begin() + sample_id);
+
+					result = UpdateBuffers(0, true);
+
+					if( result ) {
+						int j;
+
+						j = 0;
+
+						for(int i = 0; i < m_samples.size(); i++) {
+
+							if (sample_id == j)
+									j = j + 1;
+
+							m_labels[i] = temp_labels[j];
+							m_ids[i] = temp_ids[j];
+							m_sampleIter[i] = temp_sampleIter[j];
+							m_slideIdx[i] = temp_slideIdx[j];
+							m_xCentroid[i] = temp_xCentroid[j];
+							m_yCentroid[i] = temp_yCentroid[j];
+							m_xClick[i] = temp_xClick[j];
+							m_yClick[i] = temp_yClick[j];
+
+							j = j + 1;
+
+						}
+					}
+				} // end remove value
+				else{
+					// check if there's from ignore
+					for(int i = 0; i < m_ignoreId.size(); i++) {
+						if (m_ignoreId[i] == id) {
+							// add +1 to m_samples
+							result = UpdateBuffers(1);
+
+							if( result ) {
+
+								int	pos = m_samples.size();
+
+								m_ids[pos] = m_ignoreId[i];
+								m_labels[pos] = label;
+								m_sampleIter[pos] = m_ignoreIter[i];
+								m_samples.push_back(m_ignoreIdx[i]);
+
+								// remove an element from ignore set
+								m_ignoreIdx.erase(m_ignoreIdx.begin() + i);
+								m_ignoreId.erase(m_ignoreId.begin() + i);
+								m_ignoreIter.erase(m_ignoreIter.begin() + i);
+							}
+						}
+					}
+				}
+
 		}
 	}
 
@@ -1055,8 +1166,10 @@ bool Learner::Submit(const int sock, json_t *obj)
 			idx = m_dataset->FindItem(centX, centY, slide);
 
 			if( label == 0 ) {
-				m_ignoreSet.insert(idx);
-
+				//m_ignoreSet.insert(idx);
+				m_ignoreIdx.push_back(idx);
+				m_ignoreId.push_back(id);
+				m_ignoreIter.push_back(iter);
 			} else {
 
 				result = UpdateBuffers(1);

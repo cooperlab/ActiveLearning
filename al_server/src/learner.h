@@ -84,7 +84,10 @@ protected:
 	vector<int>	m_curSet;
 	vector<float> m_curScores;
 
-	set<int>	m_ignoreSet;	// Contains the dataset index of objects to ignore
+	//set<int>	m_ignoreSet;	// Contains the dataset index of objects to ignore
+	vector<int> m_ignoreIdx;
+	vector<int>	m_ignoreId;
+	vector<int>	m_ignoreIter;
 
 	// Training set info
 	//
