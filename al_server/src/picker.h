@@ -69,9 +69,6 @@ protected:
 
 	vector<int> m_samples;
 
-	vector<int> m_ignoreIdx;
-	vector<int>	m_ignoreId;
-
 	// Training set info
 	//
 	int		*m_labels;
@@ -108,6 +105,8 @@ protected:
 
 	bool 	PickerReview(const int sock, json_t *obj);
 	bool	PickerReviewSave(const int sock, json_t *obj);
+
+	bool	RemoveIgnored(void);
 };
 
 
