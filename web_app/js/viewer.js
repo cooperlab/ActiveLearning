@@ -697,6 +697,10 @@ function updateSeg() {
 					}
 				}
     	});
+
+			// set heatmapLoaded to false after retraining
+			heatmapLoaded = false;
+
 	} else {
 
 		// Only display heatmap for active sessions
@@ -741,11 +745,13 @@ function updateSeg() {
 					classMax = data.classMax;
 
 					if( $('#heatmapUncertain').is(':checked') ) {
-						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+uid+"/"+data.uncertFilename);
+						
+						// heatmap should be reloaded with different time after updating heatmap image on local directory
+						ele.setAttributeNS(xlinkns, "href", "heatmaps/"+uid+"/"+data.uncertFilename+"?v="+(new Date()).getTime());
 						document.getElementById('heatMin').innerHTML = data.uncertMin.toFixed(2);
 						document.getElementById('heatMax').innerHTML = data.uncertMax.toFixed(2);
 					} else {
-						ele.setAttributeNS(xlinkns, "xlink:href", "heatmaps/"+uid+"/"+data.classFilename);
+						ele.setAttributeNS(xlinkns, "href", "heatmaps/"+uid+"/"+data.classFilename+"?v="+(new Date()).getTime());
 						document.getElementById('heatMin').innerHTML = data.classMin.toFixed(2);
 						document.getElementById('heatMax').innerHTML = data.classMax.toFixed(2);
 					}
