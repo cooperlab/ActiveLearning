@@ -900,6 +900,12 @@ function retrain() {
 	// Set iteration to -1 to indicate these are hand-picked
 	fixes['iteration'] = -1;
 
+	// Display the progress dialog...
+	$('#progDiag').modal('show');
+
+	var delay = 2000;
+
+
 	$.ajax({
 		type: "POST",
 		url: "php/submitSamples.php",
@@ -915,6 +921,12 @@ function retrain() {
 
 			// Update classification results.
 			updateSeg();
+
+			setTimeout(function() {
+				// Hide progress dialog
+				$('#progDiag').modal('hide');
+		        }, delay);
+
 		}
 	});
 }
