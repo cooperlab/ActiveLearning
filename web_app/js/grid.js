@@ -57,6 +57,7 @@ $(function() {
 	// Setup the thumbnail scroller
 	//
 	var	width = 0;
+
 		
 	$('#overflow .slider div').each(function() {
 		width += $(this).outerWidth(true);
@@ -88,6 +89,11 @@ $(function() {
 			}
 		}
 	});
+
+	if (statusObj.iteration() === 0){
+		// Display the progress dialog...
+		$('#progDiag').modal('show');
+	}
 
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
@@ -376,10 +382,10 @@ function updateSamples() {
 	
 				$(thumbTag).attr("src", thumbNail);
 				updateClassStatus(sample);
-
+				
 				// Hide progress dialog
 				$('#progDiag').modal('hide');
-				
+
 				// Make sure overlay is hidden
 				$('.overlaySvg').css('visibility', 'hidden');
 
