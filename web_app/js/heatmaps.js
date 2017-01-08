@@ -71,6 +71,9 @@ $(function() {
 
 function genHeatmaps() {
 
+	// Display the progress dialog...
+	$('#progDiag').modal('show');
+
 	$.ajax({
 		type: "POST",
 		url: "php/genAllHeatmaps.php",
@@ -85,6 +88,10 @@ function genHeatmaps() {
 			for( var item in slideSet['scores'] ) {
 				createRow(Number(item) + 1, Number(item));
 			}
+
+			// Hide progress dialog
+			$('#progDiag').modal('hide');
+		
 		},
 		failure: function() {
 			console.log("genAllHeatmaps failed");	
