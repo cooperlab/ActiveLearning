@@ -84,10 +84,12 @@ protected:
 	vector<int>	m_curSet;
 	vector<float> m_curScores;
 
-	//set<int>	m_ignoreSet;	// Contains the dataset index of objects to ignore
+	//set<int> m_ignoreSet; // Contains the dataset index of objects to ignore
 	vector<int> m_ignoreIdx;
 	vector<int>	m_ignoreId;
-	vector<int>	m_ignoreIter;
+	vector<int> m_ignoreLabel;
+	vector<int> m_ignoreIter;
+	vector<string> m_ignoreSlide;
 
 	// Training set info
 	//
@@ -155,6 +157,8 @@ protected:
 
 	bool	Review(const int sock, json_t *obj);
 	bool	SaveReview(const int sock, json_t *obj);
+
+	bool	RemoveIgnored(void);
 
 	bool	RestoreSessionData(MData &trainingSet);
 };
