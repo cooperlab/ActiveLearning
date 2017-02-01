@@ -177,7 +177,6 @@ $(function() {
 			if( uid === null ) {
 				// No active session, don;t allow navigation to select & visualize
 				$('#nav_select').hide();
-				$('#nav_visualize').hide();
 				$('#nav_heatmaps').hide();
 				// the review section also should be hided
 				$('#nav_review').hide();
