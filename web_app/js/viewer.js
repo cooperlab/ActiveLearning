@@ -202,7 +202,7 @@ $(function() {
 	// Set the update handlers for the selectors
 	$("#slide_sel").change(updateSlide);
 	$("#dataset_sel").change(updateDataset);
-	$("#classifier_sel").change(updateClassifier);
+	//$("#classifier_sel").change(updateClassifier);
 
 	// Set update handler for the heatmap radio buttons
 	$('input[name=heatmapOption]').change(updateHeatmap);
@@ -382,6 +382,15 @@ function updateClassifierList() {
 
 	classSel.empty();
 
+	if( uid === null ) {
+		classSel.append(new Option('----------------', 'none'));
+	} else {
+		classSel.append(new Option('Current', 'current'));
+	}
+
+	updateClassifier();
+
+	/*
 	// First selection should be none
 	classSel.append(new Option('----------------', 'none'));
 
@@ -403,6 +412,7 @@ function updateClassifierList() {
 	} else {
 		classSel.append(new Option('Current', 'current'));
 	}
+	*/
 }
 
 
@@ -462,7 +472,8 @@ function updateClassifier() {
 
 	curClassifier = class_sel.options[class_sel.selectedIndex].value;
 
- 	if( class_sel.selectedIndex != 0 ) {
+ 	//if( class_sel.selectedIndex != 0 ) {
+	if( curClassifier != "none" ) {
 
 		if( uid === null || classifierSession ) {
 			// No active session, start a classification session
