@@ -5,7 +5,7 @@ A dataset consists of the images, object boundaries and extracted features. For 
 
 -- Whole slide images:
 
-The images will be handled on the IIPImage server. This requires them to be formatted in a multi-resolution 'pyramid'. Vips is used to do the conversion. The path to the image needs to be saved in the database. VALS uses the database to get the path when forming a request for the IIPIMage server.
+The images will be handled on the IIPImage server. This requires them to be formatted in a multi-resolution 'pyramid'. Vips is used to do the conversion. The path to the image needs to be saved in the database. HistomicsML uses the database to get the path when forming a request for the IIPIMage server.
 
 
 

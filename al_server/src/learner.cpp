@@ -632,7 +632,7 @@ bool Learner::RestoreSessionData(MData &trainingSet)
 		memcpy(m_xCentroid, floatData, numObjs * sizeof(float));
 
 		floatData = trainingSet.GetXClickList();
-		// Training sets created with earlier versions of VALS don't have clicks
+		// Training sets created with earlier versions of HistomicsML don't have clicks
 		if( floatData == NULL ) {
 			// Use centroids for click location if not present.
 			floatData = trainingSet.GetXCentroidList();
@@ -984,17 +984,12 @@ bool Learner::Select(const int sock, json_t *obj)
 		int 	*selIdx = NULL;
 		float	*selScores = NULL;
 
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "m_iteration %d", m_iteration);
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "reqIteration %d", reqIteration);
-
 		if( m_iteration != reqIteration ) {
 			double	start = gLogger->WallTime();
 			// Get new samples
 			m_sampler->SelectBatch(SAMPLE_OBJS, selIdx, selScores);
 			gLogger->LogMsg(EvtLogger::Evt_INFO, "Select took %f", gLogger->WallTime() - start);
 		}
-
-		gLogger->LogMsg(EvtLogger::Evt_INFO, "Iter End");
 
 		for(int i = 0; i < SAMPLE_OBJS; i++) {
 
@@ -2167,6 +2162,8 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 			string	fqfn = m_heatmapPath + "/" + uncertFileName;
 			struct stat buffer;
 			int		statResp = stat(fqfn.c_str(), &buffer);
+
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "GenHeatMap Start");
 
 			// Check if heatmap needs to be generated
 			if( m_heatmapReload || statResp != 0 ) {

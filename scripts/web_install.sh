@@ -5,17 +5,17 @@ if [ -z "$1" ]; then
 	exit
 fi
 
-VALS_DIR=$1'/VALS'
-mkdir $VALS_DIR
-mkdir $VALS_DIR'/datasets'
-mkdir $VALS_DIR'/trainingsets'
+HistomicsML_DIR=$1'/HistomicsML'
+mkdir $HistomicsML_DIR
+mkdir $HistomicsML_DIR'/datasets'
+mkdir $HistomicsML_DIR'/trainingsets'
 
-mkdir $VALS_DIR'/heatmaps'
+mkdir $HistomicsML_DIR'/heatmaps'
 
 # For reports
-mkdir $VALS_DIR'/trainingsets/tmp'
-chown www-data:www-data $VALS_DIR'/trainingsets/tmp'
-chmod 777 $VALS_DIR'/trainingsets/tmp'
+mkdir $HistomicsML_DIR'/trainingsets/tmp'
+chown www-data:www-data $HistomicsML_DIR'/trainingsets/tmp'
+chmod 777 $HistomicsML_DIR'/trainingsets/tmp'
 
-cp -r ../web_app/* $VALS_DIR
+cp -r ../web_app/* $HistomicsML_DIR
 

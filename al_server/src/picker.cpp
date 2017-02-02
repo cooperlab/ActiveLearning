@@ -797,7 +797,7 @@ bool Picker::RestoreSessionData(MData& testSet)
 		memcpy(m_xCentroid, floatData, numObjs * sizeof(float));
 
 		floatData = testSet.GetXClickList();
-		// Test sets created with earlier versions of VALS don't have clicks
+		// Test sets created with earlier versions of HistomicsML don't have clicks
 		if( floatData == NULL ) {
 			// Use centroids for click location if not present.
 			floatData = testSet.GetXCentroidList();
