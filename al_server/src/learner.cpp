@@ -2288,6 +2288,15 @@ bool Learner::GenAllHeatmaps(const int sock, json_t *obj)
 			}
 		}
 
+		// To identify the most recent scores,
+		// Classify all objects for heatmap generation
+		//
+		float 	**ptr = m_dataset->GetData();
+		int	dims = m_dataset->GetDims();
+		result = m_classifier->ScoreBatch(ptr, m_dataset->GetNumObjs(), dims, m_scores);
+		if( result == false ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
+		}
 
 		if( result ) {
 			size_t index, numSlides = json_array_size(slides);
