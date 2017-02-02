@@ -48,6 +48,32 @@
 			header("Location:".$_SERVER['HTTP_REFERER']);
 			exit;
 	}
+
+
+
+	// 	Retrieve a list of training set name from db.
+	//
+	$dbConn = guestConnect();
+
+	$sql = 'SELECT name FROM training_sets WHERE name="'.$_POST["classifiername"].'"';
+	// check if trainingset name already exists.
+	if( $result = mysqli_query($dbConn, $sql) ) {
+		while( $array = mysqli_fetch_row($result) ) {
+			$isClassifyName = $array[0];
+		}
+		mysqli_free_result($result);
+	}
+	mysqli_close($dbConn);
+
+	if(isset($isClassifyName)) {
+		echo "<script type='text/javascript'>window.alert('Classifier: $isClassifyName already exists !! ');
+		window.location.href = '../index.html';</script>";;
+	}
+	
+	else {
+
+
+
 	
 	if( empty($_POST["posName"]) ) {
 			// Redirect back to the form
@@ -126,5 +152,6 @@
 	} else {
 	
 		echo "Unable to init session<br>";
+	}
 	}
 ?>
