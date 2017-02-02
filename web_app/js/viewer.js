@@ -755,7 +755,6 @@ function updateSeg() {
 					classMax = data.classMax;
 
 					if( $('#heatmapUncertain').is(':checked') ) {
-
 						// heatmap should be reloaded with different time after updating heatmap image on local directory
 						ele.setAttributeNS(xlinkns, "href", "heatmaps/"+uid+"/"+data.uncertFilename+"?v="+(new Date()).getTime());
 						document.getElementById('heatMin').innerHTML = data.uncertMin.toFixed(2);
