@@ -2163,6 +2163,8 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 			struct stat buffer;
 			int		statResp = stat(fqfn.c_str(), &buffer);
 
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "GenHeatMap Start");
+
 			// Check if heatmap needs to be generated
 			if( m_heatmapReload || statResp != 0 ) {
 
