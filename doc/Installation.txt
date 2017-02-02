@@ -1,8 +1,8 @@
 +++ Installation
 
-VALS has been installed and tested on Ubuntu 14.04 LTS. It should, with minor modification, work on other distributions. 
+HistomicsML has been installed and tested on Ubuntu 14.04 LTS. It should, with minor modification, work on other distributions. 
 
-VALS consists of 4 components: Web server, database, image server and learning server. 
+HistomicsML consists of 4 components: Web server, database, image server and learning server. 
 MySQl and Apache need to be installed on the same server. The IIPImage server and learning server can be installed on the same server as apache or on their own server. The following assumes that all components are installed on the same server.
 
 
@@ -92,7 +92,7 @@ $IIPServer = "http://<your Image Server hostname here!!! >/fcgi-bin/iipsrv.fcgi"
 
 After editing hostspecs.php, copy it to the php directory of the web site
 
-	cp hostspecs.php /var/www/html/VALS/php
+	cp hostspecs.php /var/www/html/HistomicsML/php
 	
 	
 	
@@ -104,7 +104,7 @@ In the 'scripts' directory run:
 	
 Where <privileged user> is a user account capable of creating users, databases and tables and granting privileges. A file named accounts.php is created by this script. This file needs to be copied to the web site directories:
 
-	cp accounts.php <Web root>/VALS/db
+	cp accounts.php <Web root>/HistomicsML/db
 	
 
 	
