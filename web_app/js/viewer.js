@@ -553,18 +553,9 @@ function updateClassifier() {
 //
 function updateHeatmap() {
 
-	var ele = document.getElementById('heatmapImg');
+	heatmapLoaded = false;
+	updateSeg();
 
-	if( $('#heatmapUncertain').is(':checked') ) {
-		ele.setAttribute("xlink:href", "heatmaps/" + uid + "/" + curSlide + ".jpg");
-		document.getElementById('heatMin').innerHTML = uncertMin.toFixed(2);
-		document.getElementById('heatMax').innerHTML = uncertMax.toFixed(2);
-	} else {
-
-		ele.setAttribute("xlink:href", "heatmaps/" + uid + "/" + curSlide + "_class.jpg");
-		document.getElementById('heatMin').innerHTML = classMin.toFixed(2);
-		document.getElementById('heatMax').innerHTML = classMax.toFixed(2);
-	}
 }
 
 
