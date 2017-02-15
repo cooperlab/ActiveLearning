@@ -51,7 +51,7 @@ OpenCV changed the interface to the machine learning modules in version 3.0, so 
 
 	cd ../..
 	sudo cp bin/al_serverd /usr/local/bin
-	sudo cp bin/validate /usr/local/lib
+	sudo cp bin/validate /usr/local/bin
 	
 	cd ../scripts
 	sudo cp al_server /etc/init.d
