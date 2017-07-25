@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -28,8 +28,8 @@ var uid = "";
 var classifier = "";
 var negClass = "";
 var posClass = "";
-
-
+var application = "";
+var strlink = "";
 
 
 //
@@ -38,7 +38,10 @@ var posClass = "";
 //
 $(function() {
 
+	application = $_GET("application");
+
 	var	datasetSel = $("#datasetSel");
+
 
 	// get session vars
 	//
@@ -59,6 +62,9 @@ $(function() {
 				$('#nav_select').hide();
 				$('#nav_heatmaps').hide();
 				$('#nav_review').hide();
+
+				document.getElementById("index").setAttribute("href","index.html");
+
 			} else {
 				// There's an active session, disable the "start session"
 				// form.
@@ -71,23 +77,37 @@ $(function() {
 				$('#reloadSession').attr('disabled', 'true');
 				$('#reloadDatasetSel').attr('disabled', 'true');
 				$('#reloadTrainSetSel').attr('disabled', 'true');
-				
+
 				// No reports while session active
 				$('#nav_reports').hide();
+				$('#nav_data').hide();
+
+				document.getElementById("index").removeAttribute('href');
 
 				// TODO - Populate the text fields with the session values.
 				// This way we can see the criteria for the
 				// current session
 			}
+
+			document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
+			document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
+			document.getElementById("nav_select").setAttribute("href","grid.html?application="+application);
+			document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
+			document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
+
+			$("#applicationSel").val(application);
+			$("#applicationSelreload").val(application);
+			//$("#applicationSel").css("background-color", "gray");
+
 		}
 	});
-
 
 	// Populate Dataset dropdown
 	//
 	$.ajax({
+		type: "POST",
 		url: "db/getdatasets.php",
-		data: "",
+		data: { application: application },
 		dataType: "json",
 		success: function(data) {
 
@@ -112,7 +132,7 @@ $(function() {
 
 
 function updateDataset() {
-	
+
 	var dataset = reloadDatasetSel.options[reloadDatasetSel.selectedIndex].label;
 	updateTrainingSets(dataset);
 }
@@ -136,7 +156,7 @@ function updateTrainingSets(dataSet) {
 
 				reloadTrainSetSel.classList.toggle("show");
 			}
-				
+
 			for( var item in data.trainingSets ) {
 				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
 			}
@@ -162,7 +182,7 @@ function updateTrainingSet() {
 
 
 function updateTrainingsetInfo(trainSet) {
-	
+
 	$.ajax({
 		type: "POST",
 		url: "db/getTrainsetInfo.php",
@@ -177,7 +197,7 @@ function updateTrainingsetInfo(trainSet) {
 			document.getElementById('reloadPosCount').innerHTML = data.counts[1];
 		}
 	});
-} 
+}
 
 
 
@@ -198,7 +218,16 @@ function resetAlServer() {
 		url: "php/cancelSession.php",
 		data: "",
 		success: function() {
-			window.location = "index.html";
+			window.location = "index_home.html?application="+application;
 		}
 	});
+}
+
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
 }
