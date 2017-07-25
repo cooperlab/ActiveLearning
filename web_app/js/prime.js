@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -53,13 +53,17 @@ var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 
 // 8 boxes used for a deleting function performed when the user double-clicking a box
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
-
-
+var application = "";
+var scale = 0.5;
 //
 //	Initialization
 //
 //
 $(function() {
+
+	application = $_GET("application");
+
+	document.getElementById("prime").setAttribute("href","prime.html?application="+application);
 
 	// Setup the grid slider relative to the window width
 	width = 0;
@@ -120,8 +124,10 @@ $(function() {
 	viewer.addHandler('animation-finish', function(event) {
 
 		if( displaySeg ) {
-
-			if( statusObj.scaleFactor() > 0.5 ) {
+			if (application == "region") {
+				scale = 0.05;
+			}
+			if( statusObj.scaleFactor() > scale ) {
 				$('.overlaySvg').css('visibility', 'visible');
 				var centerX = statusObj.dataportLeft() +
 							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
@@ -176,7 +182,6 @@ $(function() {
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
-
 
 			if( uid == null ) {
 				window.alert("No session active");
@@ -308,7 +313,11 @@ function onImageViewChanged(event) {
 //
 function updateSeg() {
 
-	if( statusObj.scaleFactor() > 0.5 ) {
+	if (application == "region") {
+		scale = 0.05;
+	}
+
+	if( statusObj.scaleFactor() > scale ) {
 
 		var left, right, top, bottom, width, height;
 
@@ -333,6 +342,7 @@ function updateSeg() {
 					right:	right,
 					top:	top,
 					bottom:	bottom,
+					application: application,
 			},
 
 			success: function(data) {
@@ -353,27 +363,53 @@ function updateSeg() {
 					}
 
 					// Create segment group
-                    segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    segGrp.setAttribute('id', 'segGrp');
-                    annoGrp.appendChild(segGrp);
+          segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          segGrp.setAttribute('id', 'segGrp');
+          annoGrp.appendChild(segGrp);
 
+					if (application == "cell"){
+						for( cell in data ) {
+							ele = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 
-					for( cell in data ) {
-						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+							ele.setAttribute('cx', data[cell][1]);
+							ele.setAttribute('cy', data[cell][2]);
+							ele.setAttribute('r', 2);
+							ele.setAttribute('id', 'N' + data[cell][0]);
+							ele.setAttribute('stroke', 'aqua');
+							ele.setAttribute('fill', 'aqua');
 
-						ele.setAttribute('points', data[cell][0]);
-						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', 'aqua');
-						ele.setAttribute('fill', 'none');
+							segGrp.appendChild(ele);
+						}
 
-						segGrp.appendChild(ele);
+					} else{
+						for( cell in data ) {
+							ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+
+							ele.setAttribute('points', data[cell][0]);
+							ele.setAttribute('id', 'N' + data[cell][1]);
+							ele.setAttribute('stroke', 'aqua');
+							if (application == "region") {
+								ele.setAttribute('stroke-width', 4);
+								ele.setAttribute("stroke-dasharray", "5,5");
+							}
+							ele.setAttribute('fill', 'none');
+
+							segGrp.appendChild(ele);
+						}
+
 					}
 
 					if( selectedJSON.length > 0 ) {
 						for( i = 0; i < selectedJSON.length; i++ ) {
 							var bound = document.getElementById("N"+selectedJSON[i]['id']);
 							if( bound != null ) {
+								if (application == "region") {
+									bound.setAttribute('fill', 'yellow');
+									bound.setAttribute("fill-opacity", "0.2");
+								}
+								else{
 									bound.setAttribute('stroke', 'yellow');
+								}
 							}
 						}
 					}
@@ -452,16 +488,23 @@ function displayThumbNail(){
 	var currentPath = pyramids[$('#slideSel').prop('selectedIndex')];
 	var SlidePathPre = "";
 	var pyramidPath = "";
+  var scale_cen = 25;
+	var scale_size = 50.0;
+
+	if (application == "region") {
+		scale_cen = 64;
+		scale_size = 128.0;
+	}
 
 	for( i =0; i < selectedJSON.length; i++ ) {
 	 		var box = "#box_" + (i + 1), thumbTag = "#thumb_" + (i + 1),
 					labelTag = "#label_" + (i + 1), loc, label;
 
 
-		centX = (selectedJSON[i]['centX'] - (25 * selectedJSON[i]['scale'])) / selectedJSON[i]['maxX'];
-		centY = (selectedJSON[i]['centY'] - (25 * selectedJSON[i]['scale'])) / selectedJSON[i]['maxY'];
-		sizeX = (50.0 * selectedJSON[i]['scale']) / selectedJSON[i]['maxX'];
-		sizeY = (50.0 * selectedJSON[i]['scale']) / selectedJSON[i]['maxY'];
+		centX = (selectedJSON[i]['centX'] - (scale_cen * selectedJSON[i]['scale'])) / selectedJSON[i]['maxX'];
+		centY = (selectedJSON[i]['centY'] - (scale_cen * selectedJSON[i]['scale'])) / selectedJSON[i]['maxY'];
+		sizeX = (scale_size * selectedJSON[i]['scale']) / selectedJSON[i]['maxX'];
+		sizeY = (scale_size * selectedJSON[i]['scale']) / selectedJSON[i]['maxY'];
 
 		loc = centX+","+centY+","+sizeX+","+sizeY;
 
@@ -501,7 +544,13 @@ function updateBoundColors(currentID) {
 
 		if( bound != null ) {
 			if (selectedJSON[i]['id'] == currentID) {
-				bound.setAttribute('stroke', 'yellow');
+				if (application == "region") {
+					bound.setAttribute('fill', 'yellow');
+					bound.setAttribute("fill-opacity", "0.2");
+				}
+				else{
+					bound.setAttribute('stroke', 'yellow');
+				}
 			}
 		}
 	}
@@ -520,7 +569,12 @@ function undoBoundColors(currentID) {
 
 		if( bound != null ) {
 			if (selectedJSON[i]['id'] == currentID){
-				bound.setAttribute('stroke', 'aqua');
+				if (application == "region") {
+					bound.setAttribute('fill', 'none');
+				}
+				else{
+					bound.setAttribute('stroke', 'aqua');
+				}
 			}
 		}
 	}
@@ -536,7 +590,8 @@ function nucleiSelect() {
             dataType: "json",
             data:   { slide:    curSlide,
                       cellX:    Math.round(statusObj.mouseImgX()),
-                      cellY:    Math.round(statusObj.mouseImgY())
+                      cellY:    Math.round(statusObj.mouseImgY()),
+											application: application,
             },
             success: function(data) {
 					if( data !== null ) {
@@ -651,6 +706,9 @@ function onMouseLeave(event) {
 //
 function onMouseClick(event) {
 
+	if (application =="region"){
+		event.preventDefaultAction = true;
+	}
 	clickCount++;
 	if( clickCount === 1 ) {
 		// If no click within 250ms, treat it as a single click
@@ -729,7 +787,7 @@ function primeSession() {
 			dataType: "json",
 			success: function(data) {
 				if( data === "PASS" ) {
-					window.location = "grid.html";
+					window.location = "grid.html?application="+application;
 				} else {
 					// TODO - Indicate failure
 				}
@@ -774,6 +832,15 @@ function setSelectMode() {
 
 
 
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}
+
 
 
 
@@ -782,7 +849,7 @@ function cancelSession() {
 		url: "php/cancelSession.php",
 		data: "",
 		success: function() {
-			window.location = "index.html";
+			window.location = "index_home.html";
 		}
 	});
 }
