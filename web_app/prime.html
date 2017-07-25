@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 
-<!--	
-	Copyright (c) 2014-2015, Emory University
+<!--
+	Copyright (c) 2014-2017, Emory University
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without modification, are
@@ -28,17 +28,17 @@
 -->
 
 
-<html> 
+<html>
 	<head>
 		<title>HistomicsML - Prime Classifier</title>
-		
+
 		<script src="js/jquery-1.9.0.min.js"></script>
 	 	<script src="js/openseadragon.min.js"></script>
 		<script src="js/openseadragon-imaginghelper.min.js"></script>
 		<script src="js/openseadragon-viewerinputhook.min.js"></script>
 		<script src="js/knockout-3.1.0.js"></script>
 		<script src="js/bootstrap.min.js"></script>
-		
+
 
 		<link rel="stylesheet" media="screen" href="css/bootstrap.min.css"/>
 		<link rel="stylesheet" media="screen" href="css/style.css"/>
@@ -49,20 +49,19 @@
 
 		<nav class="navbar navbar-default" role="navigation">
 			<div class="navbar-header">
-				<!-- Don't use the name as a link -->
-				<div class="navbar-brand">HistomicsML</div>
+				<div><ul class="nav navbar-nav"><li><a id="index">HistomicsML</a></li><ul></div>
 			</div>
-			
+
 			<div>
 				<ul class="nav navbar-nav">   <!-- Don't allow movement for now -->
 		<!--			<li><a href="#">Home</a></li>
-					<li><a href="#">Viewer</a></li>    
+					<li><a href="#">Viewer</a></li>
 		-->
-					<li  class="active"><a href="#">Prime</a></li>
+					<li  class="active"><a href="#" id="prime">Prime</a></li>
 				</ul>
 			</div>
 		</nav>
-		
+
 		<div class="container">
 
 			<div class="row">	<!-- Grid display of selected nuclei -->
@@ -102,7 +101,7 @@
 								<div><img id="thumb_8" height="100" width="100"></div>
 							</div>
 						</div>
-					</div>			
+					</div>
 				</div>
 			</div>	<!-- First row (grid display) -->
 
@@ -110,7 +109,7 @@
 
 			<div class="row">	<!-- Slide selection, status  and instructions -->
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					
+
 					<h4>Slide: </h4>
 					<select id="slideSel" style="font-family: monospace; font-size: 12pt"></select>
 					<p></p>
@@ -125,11 +124,11 @@
 						<span data-bind="text:(haveImage()) ? negSel().toFixed(0) : '-'"></span>
 					</div>
 				</div>
-				
+
 				<div class="col-sm-4 col-md-4 col-lg-4">   <!-- Instructions -->
 					<h4 id="instruct"></h4>
 				</div>
-								
+
 			</div>  <!-- Second row  (slide selection, status & instructions)-->
 
 			<div class="row top-buffer"></div>   <!-- A little space between -->
@@ -144,14 +143,14 @@
 						<input type="button" id="finishBtn" value="Cancel" class="btn btn-danger" onClick="cancelSession()">
 					</div>
 				</div>
-				
+
 				<div class="col-sm-10 col-md-10 col-lg-10">
 					<div id="imageViewerContiner" class="relative-fill-container">
 						<div id="slideZoom" class="openseadragon-view"></div>
-						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg" data-bind="withL svgOverlayVM" 
+						<svg xmlns="http://www.w3.org/2000/svg" version="1.1" class="overlaySvg" data-bind="withL svgOverlayVM"
 							 visibility="hidden" pointer-events="none" zoomAndPan="disable">
 							<defs></defs>
-							<!-- TODO - Can't get the binding to work with the transform function. 
+							<!-- TODO - Can't get the binding to work with the transform function.
 								 Currently applying the transform manually in onImageViewChanged
 							-->
 							<g id="annoGrp" class="svgAnnoGrp" data-bind="attr: {transform: annoGrpTransformFunc}">
@@ -182,7 +181,7 @@
 		</div>
 
 
-		
+
 		<script src="js/prime.js"></script>
 	</body>
 </html>
