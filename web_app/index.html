@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 
 <!--
-	Copyright (c) 2014-2016, Emory University
+	Copyright (c) 2014-2017, Emory University
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without modification, are
@@ -27,176 +27,74 @@
 
 -->
 
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HistomicsML - Interactive machine-learning for histology images</title>
 
-		<title>HistomicsML - Interactive machine-learning for histology images</title>
+  <script src="js/jquery-1.9.0.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
 
-		<script src="js/jquery-1.9.0.min.js"></script>
-		<script src="js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="css/bootstrap.min.css"/>
 
-		<link rel="stylesheet" href="css/style.css"/>
-		<link rel="stylesheet" href="css/bootstrap.min.css"/>
-	</head>
+</head>
 
+<body>
+  <div style="background:transparent !important" class="jumbotron vertical-center">
+    <div class="container">
+      <h1>HistomicsML</h1>
+      <p>Interactive machine-learning for histology images.</p>
+      <p>Source: <a href="https://github.com/cooperlab/ActiveLearning"> https://github.com/cooperlab/ActiveLearning</a></p>
+    </div>
+  </div>
 
-	<body>
+  <div class="container-fluid">
+        <div class="row">
 
-		<nav class="navbar navbar-default" role="navigation">
-			<div class="container-fluid">
-				<div class="navbar-header">
-					<div class="navbar-brand">HistomicsML</div>
-				</div>
+          <div class="col-md-4">
+            <div class="thumbnail">
+              <a href="index_home.html?application=nuclei" id="nuclei">
+                <img src="images/demo_nuclei.png"></img>
+              </a>
+                <div class="caption">
+                  <h3>Nuclei</h3>
+                    <p>Segmentation based active learning classification software.
+                    <a href="index_home.html?application=nuclei"> Main </a><a href="PICKER/index.html?application=nuclei"> Picker </a></p>
+                </div>
+            </div>
+          </div>
 
-				<div>
-					<ul class="nav navbar-nav">
-						<li class="active"><a href="#">Home</a></li>
-						<li><a href="grid.html" id="nav_select">Select</a></li>
-						<li><a href="review.html" id="nav_review">Review</a></li>
-						<li><a href="viewer.html">Viewer</a></li>
-						<li><a href="heatmaps.html" id="nav_heatmaps">Heatmaps</a></li>
-						<li><a href="reports.html" id="nav_reports">Reports</a></li>
-					</ul>
-				</div>
-			</div>
-		</nav>
+          <div class="col-md-4">
+            <div class="thumbnail">
+              <a href="index_home.html?application=region" id="region">
+                <img src="images/demo_region.png"></img>
+              </a>
+                <div class="caption">
+                  <h3>Region</h3>
+                    <p>Region based active learning classificaion software characterized by autoencoders.
+                    <a href="index_home.html?application=region"> Main </a><a href="PICKER/index.html?application=region"> Picker </a></p>
+                </div>
+            </div>
+          </div>
 
-		<div class="container">
-		    <div class="row">
-		    	<div class="col-xs-10 col-sm-10 col-md-10 col-lg-10">
-			    	<center><img src="images/banner.png" class="img-responsive"></center>
- 				</div>
-			</div>
+          <div class="col-md-4">
+            <div class="thumbnail">
+              <a href="index_home.html?application=cell" id="cell">
+                <img src="images/demo_cell.png"></img>
+              </a>
+                <div class="caption">
+                  <h3>Cell</h3>
+                    <p>Cell based active learning classification software characterized by autoencoders.
+                    <a href="index_home.html?application=cell"> Main </a><a href="PICKER/index.html?application=cell"> Picker </a></p>
+                </div>
+            </div>
+          </div>
 
-			<br />
+      </div>
+    </div>
 
-			<div class="row">
-				<div class="col-sm-4 col-md-4 col-lg-4">
-					<h2>Start a session</h2>
-				</div>
-
-				<div class="col-sm-2 col-md-2 col-lg-2">
-				</div>
-
-				<div class="col-sm-4 col-md-4 col-lg-4">
-					<h2>Continue a session</h2>
-				</div>
-
-			</div>
-
-			<br />
-
-			<div class="row">
-
-				<div class="col-sm-4 col-md-4 col-lg-4">
-					<form role="form" id="classifier_form" method="POST" action="php/initSession.php" onsubmit=displayProg()>
-						<div class="form-group">
-							<label for="trainset">Training Set Name</label>
-							<input type="text" class="form-control" id="trainset"
-									name="classifiername" placeholder="Enter classifier name">
-						</div>
-						<div class="form-group">
-							<label for="datasetSel">Dataset</label>
-							<select class="form-control" id="datasetSel" name="dataset">
-							</select>
-						</div>
-
-						<label for="name">Classifier type</label>
-						<div class="form-group">
-							<label class="checkbox-inline">
-								<input type="radio" name="classType" id="classSelect"
-										value="binary" checked>Binary
-							</label>
-							<label class="checkbox-inline">
-								<input type="radio" name="classType" id="classSelect"
-										value="multiClass" disabled>Multi-class
-							</label>
-						</div>
-
-						<div class="form-group">
-							<label for="posClass">Positive class</label>
-							<input type="text" class="form-control" id="posClass"
-									name="posName" placeholder="Enter positive class name">
-						</div>
-
-						<div class="form-group">
-							<label for="negClass">Negative class</label>
-							<input type="text" class="form-control" id="negClass"
-									name="negName" placeholder="Enter negative class name">
-						</div>
-
-						<button id="beginSession" type="submit" name="submit" class="btn btn-default" value="submitted" >Begin</button>
-					</form>
-				</div>
-
-				<div class="col-sm-2 col-md-2 col-lg-2">
-				</div>
-
-				<div class="col-sm-4 col-md-4 col-lg-4">
-					<form role="form" id="reload_form" method="POST" action="php/reloadSession.php" onsubmit=displayProg()>
-
-						<div class="form-group">
-							<label for="reloadDatasetSel">Dataset</label>
-							<select class="form-control" id="reloadDatasetSel" name="reloadDataset">
-							</select>
-						</div>
-
-						<div class="form-group">
-							<label for="reloadTrainSetSel">Training Set</label>
-							<select class="form-control" id="reloadTrainSetSel" name="trainingset">
-							</select>
-							<br/>
-							<div>
-								<span><strong>Pos class:</strong></span>
-								<span id="reloadPos">Pos</span>
-								<br/>
-								<span><strong>Count:</strong></span>
-								<span id="reloadPosCount">0</span>
-								<br/>
-								<span><strong>Neg class:</strong></span>
-								<span id="reloadNeg">Neg</span>
-								<br/>
-								<span><strong>Count:</strong></span>
-								<span id="reloadNegCount">0</span>
-								<br/>
-								<span><strong>Iterations:</strong></span>
-								<span id="reloadIter">0</span>
-							</div>
-						</div>
-
-						<button id="reloadSession" type="submit" name="continue" class="btn btn-default" value="submitted" >Continue</button>
-					</form>
-				</div>
-
-			</div>
-
-
-			<div class="row top-buffer"></div>   <!-- A little space between -->
-
-			<div class="row">
-				<input type="button" id="resetBtn" value="Reset Session" class="btn btn-danger" onClick="resetAlServer()">
-			</div>
-		</div>
-
-		<div class="modal fade" id="progDiag" tabindex="-1" role="dialog"
-			aria-labelledby="myModalLabel" aria-hidden="true">
-			<div class="modal-dialog">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h4 class="modal-title" id="myModalLabel">
-							Loading Dataset
-						</h4>
-					</div>
-					<div class="modal-body">
-						Please wait while the dataset is loaded
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<script src="js/app_main.js"></script>
-	</body>
+  </body>
 </html>
