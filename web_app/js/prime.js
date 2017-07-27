@@ -849,7 +849,7 @@ function cancelSession() {
 		url: "php/cancelSession.php",
 		data: "",
 		success: function() {
-			window.location = "index_home.html";
+			window.location = "index_home.html?application="+application;
 		}
 	});
 }
