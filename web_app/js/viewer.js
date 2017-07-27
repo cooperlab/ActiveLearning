@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -56,7 +56,7 @@ var classifierSession = false;
 
 // check if the screen is panned or not. Defalut value is false
 var ispannedXY = false;
-
+var application = "";
 //
 //	Initialization
 //
@@ -71,6 +71,16 @@ $(function() {
 	// gets x and y positions
 	pannedX = $_GET('x_pos');
 	pannedY = $_GET('y_pos');
+
+	application = $_GET("application");
+
+	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
+	document.getElementById("nav_select").setAttribute("href","grid.html?application="+application);
+	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
+	document.getElementById("nav_review").setAttribute("href","review.html?application="+application);
+	document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
+	document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
+	document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
 
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
@@ -143,7 +153,9 @@ $(function() {
 
 			} else {
 
-				updateSeg();
+				if (application != "region"){
+					updateSeg();
+				}
 
 				// Zoomed out, hide boundaries, show heatmap
 				$('#anno').hide();
@@ -180,12 +192,14 @@ $(function() {
 				$('#nav_heatmaps').hide();
 				// the review section also should be hided
 				$('#nav_review').hide();
+
 			} else {
 				// Active session, dataset selection not allowed
 				document.getElementById('dataset_sel').disabled = true
 
 				// No report generation during active session
 				$('#nav_reports').hide();
+				$('#nav_data').hide();
 			}
 
 			if( curClassifier === "none" ) {
@@ -293,8 +307,9 @@ function updateDatasetList() {
 
 	// Get a list of datasets
 	$.ajax({
+		type: "POST",
 		url: "db/getdatasets.php",
-		data: "",
+		data: { application: application },
 		dataType: "json",
 		success: function(data) {
 
@@ -438,12 +453,117 @@ function updateSlide() {
 			heatmapGrp.parentNode.removeChild(heatmapGrp);
 		}
 
-		updateSeg();
+		if (application == "region"){
+			updateSlideSeg();
+		} else{
+			updateSeg();
+		}
 	}
 }
 
+//
+//	A new seg should be applied to the slide updated.
+//
+//
+function updateSlideSeg() {
+
+	var ele, segGrp, annoGrp;
+
+	var left, right, top, bottom, width, height;
+
+	// Grab nuclei a viewport width surrounding the current viewport
+	//
+	width = statusObj.dataportRight() - statusObj.dataportLeft();
+	height = statusObj.dataportBottom() - statusObj.dataportTop();
+
+	left = (statusObj.dataportLeft() - width > 0) ?	statusObj.dataportLeft() - width : 0;
+	right = statusObj.dataportRight() + width;
+	top = (statusObj.dataportTop() - height > 0) ?	statusObj.dataportTop() - height : 0;
+	bottom = statusObj.dataportBottom() + height;
 
 
+	var class_sel = document.getElementById('classifier_sel');
+
+    $.ajax({
+		type: "POST",
+     	 	url: "db/getnuclei.php",
+     	 	dataType: "json",
+		data: { uid:	uid,
+				slide: 	curSlide,
+				left:	left,
+				right:	right,
+				top:	top,
+				bottom:	bottom,
+				dataset: curDataset,
+				trainset: curClassifier,
+				application: application
+		},
+
+		success: function(data) {
+
+				segGrp = document.getElementById('segGrp');
+				annoGrp = document.getElementById('anno');
+
+				// Save current viewport location
+				boundsLeft = statusObj.dataportLeft();
+				boundsRight = statusObj.dataportRight();
+				boundsTop = statusObj.dataportTop();
+				boundsBottom = statusObj.dataportBottom();
+
+				// If group exists, delete it
+				if( segGrp != null ) {
+					segGrp.parentNode.removeChild(segGrp);
+				}
+
+				// Create segment group
+        segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        segGrp.setAttribute('id', 'segGrp');
+        annoGrp.appendChild(segGrp);
+
+
+				for( cell in data ) {
+					ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+
+					ele.setAttribute('points', data[cell][0]);
+					ele.setAttribute('id', 'N' + data[cell][1]);
+					ele.setAttribute('stroke', 'aqua');
+					ele.setAttribute('stroke-width', 4);
+					ele.setAttribute("stroke-dasharray", "5,5");
+					ele.setAttribute('fill', data[cell][2]);
+					ele.setAttribute("fill-opacity", "0.2");
+					//ele.setAttribute("fill", "none");
+					segGrp.appendChild(ele);
+				}
+
+				if( panned ) {
+					ele = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+
+					ele.setAttribute('x', pannedX - 50);
+					ele.setAttribute('y', pannedY - 50);
+					ele.setAttribute('width', 100);
+					ele.setAttribute('height', 100);
+					ele.setAttribute('stroke', 'yellow');
+					ele.setAttribute('fill', 'none');
+					ele.setAttribute('stroke-width', 4);
+					ele.setAttribute('id', 'boundBox');
+
+					segGrp.appendChild(ele);
+				}
+				// if the number of samples fixed is larger than 0,
+				if( fixes['samples'].length > 0 ) {
+					for( cell in fixes['samples'] ) {
+						var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
+
+						if( bound != null ) {
+								bound.setAttribute("fill", "yellow");
+								bound.setAttribute("fill-opacity", "0.2");
+						}
+					}
+				}
+			}
+  	});
+
+}
 
 
 //
@@ -553,8 +673,64 @@ function updateClassifier() {
 //
 function updateHeatmap() {
 
-	heatmapLoaded = false;
-	updateSeg();
+	if (application == "region"){
+		$.ajax({
+			type: "POST",
+			url: "php/getHeatmap.php",
+			data: { slide: curSlide,
+							application: application,
+							uid: uid },
+			dataType: "json",
+			success: function(data) {
+
+			data = JSON.parse(data);
+
+			annoGrp = document.getElementById('annoGrp');
+			segGrp = document.getElementById('heatmapGrp');
+
+			if( segGrp != null ) {
+				segGrp.parentNode.removeChild(segGrp);
+			}
+
+			segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+			segGrp.setAttribute('id', 'heatmapGrp');
+			annoGrp.appendChild(segGrp);
+
+			var xlinkns = "http://www.w3.org/1999/xlink";
+			ele = document.createElementNS("http://www.w3.org/2000/svg", "image");
+			ele.setAttributeNS(null, "x", 0);
+			ele.setAttributeNS(null, "y", 0);
+			ele.setAttributeNS(null, "width", data.width);
+			ele.setAttributeNS(null, "height", data.height);
+			ele.setAttributeNS(null, 'opacity', 0.25);
+			ele.setAttribute('id', 'heatmapImg');
+
+			uncertMin = data.uncertMin;
+			uncertMax = data.uncertMax;
+			classMin = data.classMin;
+			classMax = data.classMax;
+
+			if( $('#heatmapUncertain').is(':checked') ) {
+				// heatmap should be reloaded with different time after updating heatmap image on local directory
+				ele.setAttributeNS(xlinkns, "href", "heatmaps/"+uid+"/"+data.uncertFilename+"?v="+(new Date()).getTime());
+				document.getElementById('heatMin').innerHTML = data.uncertMin.toFixed(2);
+				document.getElementById('heatMax').innerHTML = data.uncertMax.toFixed(2);
+			} else {
+				ele.setAttributeNS(xlinkns, "href", "heatmaps/"+uid+"/"+data.classFilename+"?v="+(new Date()).getTime());
+				document.getElementById('heatMin').innerHTML = data.classMin.toFixed(2);
+				document.getElementById('heatMax').innerHTML = data.classMax.toFixed(2);
+			}
+			segGrp.appendChild(ele);
+
+			heatmapLoaded = true;
+			console.log("Uncertainty min: "+uncertMin+", max: "+uncertMax+", median: "+data.uncertMedian);
+			}
+		});
+	} else{
+		heatmapLoaded = false;
+		updateSeg();
+
+	}
 
 }
 
@@ -636,7 +812,8 @@ function updateSeg() {
 					top:	top,
 					bottom:	bottom,
 					dataset: curDataset,
-					trainset: curClassifier
+					trainset: curClassifier,
+					application: application
 			},
 
 			success: function(data) {
@@ -656,21 +833,44 @@ function updateSeg() {
 					}
 
 					// Create segment group
-                    segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    segGrp.setAttribute('id', 'segGrp');
-                    annoGrp.appendChild(segGrp);
+          segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          segGrp.setAttribute('id', 'segGrp');
+          annoGrp.appendChild(segGrp);
 
 
-					for( cell in data ) {
-						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+					if (application == "cell"){
+						for( cell in data ) {
+							ele = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 
-						ele.setAttribute('points', data[cell][0]);
-						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', data[cell][2]);
-						ele.setAttribute('fill', 'none');
+							ele.setAttribute('cx', data[cell][1]);
+							ele.setAttribute('cy', data[cell][2]);
+							ele.setAttribute('r', 2);
+							ele.setAttribute('id', 'N' + data[cell][0]);
+							ele.setAttribute('stroke', data[cell][3]);
+							ele.setAttribute('fill',  data[cell][3]);
 
-						segGrp.appendChild(ele);
+							segGrp.appendChild(ele);
+						}
+					} else{
+						for( cell in data ) {
+							ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+
+							ele.setAttribute('points', data[cell][0]);
+							ele.setAttribute('id', 'N' + data[cell][1]);
+							if (application == "region"){
+								ele.setAttribute('stroke', 'aqua');
+								ele.setAttribute('fill', data[cell][2]);
+								ele.setAttribute("fill-opacity", "0.2");
+								ele.setAttribute('stroke-width', 4);
+								ele.setAttribute("stroke-dasharray", "5,5");
+							} else{
+								ele.setAttribute('stroke', data[cell][2]);
+								ele.setAttribute('fill', 'none');
+							}
+							segGrp.appendChild(ele);
+						}
 					}
+
 
 					if( panned ) {
 						ele = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -692,7 +892,12 @@ function updateSeg() {
 							var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
 
 							if( bound != null ) {
+								if (application == "region"){
+									bound.setAttribute("fill", "yellow");
+									bound.setAttribute("fill-opacity", "0.2");
+								} else{
 									bound.setAttribute('stroke', 'yellow');
+								}
 							}
 						}
 					}
@@ -714,6 +919,7 @@ function updateSeg() {
     	   	 	dataType: "json",
 				data: { uid:	uid,
 						slide: 	curSlide,
+						application: 	application,
 				},
 
 				success: function(data) {
@@ -777,7 +983,15 @@ function updateBoundColors(obj) {
 
 		if( bound != null ) {
 			if (fixes['samples'][cell]['id'] == obj['id']){
+				if (application == "region"){
+					bound.setAttribute('fill', 'yellow');
+					bound.setAttribute("fill-opacity", "0.2");
+				} else if (application == "cell"){
+					bound.setAttribute('stroke', 'yellow');
+					bound.setAttribute('fill', 'yellow');
+				} else{
 				bound.setAttribute('stroke', 'yellow');
+				}
 			}
 		}
 	}
@@ -798,9 +1012,32 @@ function undoBoundColors(obj) {
 			if (fixes['samples'][cell]['id'] == obj['id']){
 				// check label
 				if( fixes['samples'][cell]['label'] == -1 ) {
-					bound.setAttribute('stroke', 'lime');
+					if (application == "region"){
+						bound.setAttribute('fill', 'lime');
+						bound.setAttribute("fill-opacity", "0.2");
+
+					} else if(application == "cell"){
+						bound.setAttribute('stroke', 'lime');
+						bound.setAttribute('fill', 'lime');
+
+					}
+					else{
+						bound.setAttribute('stroke', 'lime');
+					}
+
 				} else if( fixes['samples'][cell]['label'] == 1 ) {
-					bound.setAttribute('stroke', 'lightgrey');
+					if (application == "region"){
+						bound.setAttribute('fill', 'lightgrey');
+						bound.setAttribute("fill-opacity", "0.2");
+
+					} else if (application == "cell"){
+						bound.setAttribute('stroke', 'lightgrey');
+						bound.setAttribute('fill', 'lightgrey');
+
+					}else{
+						bound.setAttribute('stroke', 'lightgrey');
+					}
+
 				}
 			}
 		}
@@ -817,7 +1054,8 @@ function nucleiSelect() {
 		    dataType: "json",
 		    data:   { slide:    curSlide,
 		              cellX:    Math.round(statusObj.mouseImgX()),
-		              cellY:    Math.round(statusObj.mouseImgY())
+		              cellY:    Math.round(statusObj.mouseImgY()),
+									application: application,
 		            },
 		    success: function(data) {
 		            if( data !== null ) {
@@ -840,19 +1078,37 @@ function nucleiSelect() {
 							// the color is niether, the sample has been picked already so
 							// ignore.
 							//
-							if( cell.getAttribute('stroke') === "lime" ) {
-								obj['label'] = -1;
-							} else if( cell.getAttribute('stroke') === "lightgrey" ) {
-								obj['label'] = 1;
-							// if the color of the selected cell is yellow
-							}	else if( cell.getAttribute('stroke') === "yellow" ) {
-							    // find a cell with the same id
-									for( cell in fixes['samples'] ) {
-										if (fixes['samples'][cell]['id'] == obj['id']){
-											obj['label'] = fixes['samples'][cell]['label'];
+							if (application == "region"){
+								if( cell.getAttribute('fill') === "lime" ) {
+									obj['label'] = -1;
+								} else if( cell.getAttribute('fill') === "lightgrey" ) {
+									obj['label'] = 1;
+								// if the color of the selected cell is yellow
+								}	else if( cell.getAttribute('fill') === "yellow" ) {
+										// find a cell with the same id
+										for( cell in fixes['samples'] ) {
+											if (fixes['samples'][cell]['id'] == obj['id']){
+												obj['label'] = fixes['samples'][cell]['label'];
+											}
 										}
-									}
-									undo = true;
+										undo = true;
+								}
+							}else {
+								if( cell.getAttribute('stroke') === "lime" ) {
+									obj['label'] = -1;
+								} else if( cell.getAttribute('stroke') === "lightgrey" ) {
+									obj['label'] = 1;
+								// if the color of the selected cell is yellow
+								}	else if( cell.getAttribute('stroke') === "yellow" ) {
+										// find a cell with the same id
+										for( cell in fixes['samples'] ) {
+											if (fixes['samples'][cell]['id'] == obj['id']){
+												obj['label'] = fixes['samples'][cell]['label'];
+											}
+										}
+										undo = true;
+								}
+
 							}
 
 							// if the cell is already selected
@@ -911,6 +1167,9 @@ function retrain() {
 
 			// Update classification results.
 			updateSeg();
+			if (application == "region"){
+				updateHeatmap();
+			}
 
 			setTimeout(function() {
 				// Hide progress dialog
@@ -965,7 +1224,10 @@ function onMouseLeave(event) {
 
 
 function onMouseClick(event) {
+		if (application == "region"){
+			event.preventDefaultAction = true;
 
+		}
     clickCount++;
     if( clickCount === 1 ) {
         // If no click within 250ms, treat it as a single click
@@ -976,8 +1238,10 @@ function onMouseClick(event) {
     } else if( clickCount >= 2 ) {
         // Double click
         clearTimeout(singleClickTimer);
+				if( segDisplayOn ) {
         clickCount = 0;
         nucleiSelect();
+			}
     }
 }
 
@@ -1009,6 +1273,9 @@ function viewSegmentation() {
 		segDisplayOn = true;
 
 		updateSeg();
+		if (application == "region"){
+			updateHeatmap();
+		}
 	}
 }
 
