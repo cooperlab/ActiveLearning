@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 
 <!--
-	Copyright (c) 2014-2015, Emory University
+	Copyright (c) 2014-2017, Emory University
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without modification, are
@@ -47,14 +47,15 @@
 
 		<nav class="navbar navbar-default" role="navigation">
 			<div class="navbar-header">
-				<a class="navbar-brand" >HistomicsML</a>
+				<div><ul class="nav navbar-nav"><li><a id="index">HistomicsML</a></li><ul></div>
 			</div>
 
 			<div>
 				<ul class="nav navbar-nav">
-					<li><a href="index.html">Home</a></li>
-					<li><a href="viewer.html?view">Viewer</a></li>
-					<li class="active"><a href="#">Reports</a></li>
+					<li><a href="index_home.html" id='home'>Home</a></li>
+					<li><a href="viewer.html?view" id="viewer">Viewer</a></li>
+					<li class="active"><a href="#" id='nav_reports'>Reports</a></li>
+					<li><a href="data.html" id="nav_data">Import</a></li>
 				</ul>
 			</div>
 		</nav>

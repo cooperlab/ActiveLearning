@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -8,7 +8,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -16,7 +16,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -28,19 +28,31 @@
 //	Initialization
 //
 //
+
+var application = "";
+
 $(function() {
+
+	application = $_GET("application");
 
 	var	datasetSel = $("#datasetSel"), trainsetSel = $("#trainsetSel"),
 		downloadsetSel = $("#downloadsetSel");
 
+
+	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
+	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
+	document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
+	document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
+
 	// Populate Dataset dropdown
 	//
 	$.ajax({
+		type: "POST",
 		url: "db/getdatasets.php",
-		data: "",
+		data: { application: application },
 		dataType: "json",
 		success: function(data) {
-							
+
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][1]));
 				$('#datasetMapSel').append(new Option(data[item][0], data[item][1]));
@@ -57,7 +69,7 @@ $(function() {
 		data: "",
 		dataType: "json",
 		success: function(data) {
-			
+
 			for( var item in data ) {
 				trainsetSel.append(new Option(data[item][0], data[item][1]));
 				downloadsetSel.append(new Option(data[item][0], data[item][1]));
@@ -66,7 +78,7 @@ $(function() {
 			}
 		}
 	});
-	
+
 	// Need to montior changes for the map score select controls. Slide image
 	//	size is dependant on these.
 	//
@@ -83,7 +95,7 @@ $(function() {
 function updateSlideList() {
 
 	var	dataset = datasetMapSel.options[datasetMapSel.selectedIndex].label;
-	
+
 	// Get the list of slides for the current dataset
 	$.ajax({
 		type: "POST",
@@ -95,7 +107,7 @@ function updateSlideList() {
 			$('#slideMapSel').empty();
 			// Add the slides we have segmentation boundaries for to the dropdown
 			// selector
-			for( var item in data['slides'] ) {			
+			for( var item in data['slides'] ) {
 				$('#slideMapSel').append(new Option(data['slides'][item], data['slides'][item]));
 			}
 			updateSlideSize();
@@ -138,3 +150,11 @@ function updateSlideSize() {
 }
 
 
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}
