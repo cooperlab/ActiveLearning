@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -8,7 +8,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -16,7 +16,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -29,18 +29,25 @@ var curDataset = "";
 var slideSet = null;
 var slideReq = null;
 var uid = null;
-
+var application = "";
 
 //
 //	Initialization
-//	
+//
 //		Get a list of available slides from the database
 //		Populate the selection and classifier dropdowns
 //		load the first slide
 //		Register event handlers
 //
 $(function() {
-	
+
+	application = $_GET("application");
+
+	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
+	document.getElementById("nav_select").setAttribute("href","grid.html?application="+application);
+	document.getElementById("nav_review").setAttribute("href","review.html?application="+application);
+	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
+	document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
 
 	// get slide host info
 	//
@@ -49,15 +56,15 @@ $(function() {
 		data: "",
 		dataType: "json",
 		success: function(data) {
-			
+
 			uid = data['uid'];
 			IIPServer = data['IIPServer'];
 			curDataset = data['dataset'];
-			
+
 			if( uid === null ) {
 				window.alert("No session active");
 				window.history.back();
-			} else {	
+			} else {
 				genHeatmaps();
 			}
 		}
@@ -78,7 +85,8 @@ function genHeatmaps() {
 		type: "POST",
 		url: "php/genAllHeatmaps.php",
 		data: { dataset: curDataset,
-				uid: uid 
+				uid: uid,
+				application : application,
 			  },
 		dataType: "json",
 		success: function(data) {
@@ -91,12 +99,12 @@ function genHeatmaps() {
 
 			// Hide progress dialog
 			$('#progDiag').modal('hide');
-		
+
 		},
 		failure: function() {
-			console.log("genAllHeatmaps failed");	
+			console.log("genAllHeatmaps failed");
 		}
-	});	
+	});
 }
 
 
@@ -114,9 +122,9 @@ function createRow(rowNo, index) {
 	row.setAttribute('id', 'row'+rowNo);
 	row.setAttribute('class', 'row');
 
-	anchorRef = "viewer.html?slide="+ slide;
+	anchorRef = "viewer.html?application="+application+"&slide="+ slide;
 
-	// 1st column - Uncertainty heatmap	
+	// 1st column - Uncertainty heatmap
 	col = document.createElement("div");
 	col.setAttribute('id', 'box_'+rowNo+'_1');
 	col.setAttribute('class', 'col-sm-4 col-md-4 col-lg-4');
@@ -125,9 +133,9 @@ function createRow(rowNo, index) {
 	svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 	svg.setAttributeNS(null, "id", 'svg'+rowNo+'_1');
 	anchor.appendChild(svg);
-	col.appendChild(anchor);	
+	col.appendChild(anchor);
 	row.appendChild(col);
-	
+
 	// 2nd column - Class count heatmap
 	col = document.createElement("div");
 	col.setAttribute('id', 'box_'+rowNo+'_2');
@@ -137,7 +145,7 @@ function createRow(rowNo, index) {
 	svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 	svg.setAttributeNS(null, "id", 'svg'+rowNo+'_2');
 	anchor.appendChild(svg);
-	col.appendChild(anchor);	
+	col.appendChild(anchor);
 	row.appendChild(col);
 
 	// 3rd column - stats
@@ -157,7 +165,7 @@ function createRow(rowNo, index) {
 
 	col.appendChild(ele);
 	row.appendChild(col);
-	
+
 	container.appendChild(row);
 
 	// Add a horizontal line between slides
@@ -179,9 +187,9 @@ function genSVG(width, height, rowNo, index) {
 	var xlinkns = "http://www.w3.org/1999/xlink", imageRef, heatRef;
 	var path = String(slideSet['paths'][slideSet['scores'][index]['index']]),
 		slide = String(slideSet['scores'][index]['slide']);
-	
+
 	if( width >= height ) {
-		svgWidth = img1.offsetWidth - 30;	
+		svgWidth = img1.offsetWidth - 30;
 		scale = svgWidth / width;
 		svgHeight = height * scale;
 	} else {
@@ -246,3 +254,11 @@ function genSVG(width, height, rowNo, index) {
 
 }
 
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}
