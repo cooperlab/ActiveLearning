@@ -1,7 +1,7 @@
 <?php
 
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -40,7 +40,7 @@
 
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
-		$filename = mysqli_fetch_row($result);			
+		$filename = mysqli_fetch_row($result);
 		mysqli_free_result($result);
 	} else {
 		log_error("Unable to get training set from the database");
@@ -49,7 +49,7 @@
 	$sql = 'SELECT features_file FROM datasets WHERE name="'.$_POST["reloadDataset"].'"';
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
-		$featureFile = mysqli_fetch_row($result);			
+		$featureFile = mysqli_fetch_row($result);
 		mysqli_free_result($result);
 	} else {
 		log_error("Unable to get training set from the database");
@@ -61,9 +61,9 @@
 
 
 	// Send init command to AL server
-	//	
+	//
 	$init_data =  array( "command" => "reload",
-						 "dataset" => $_POST["reloadDataset"], 
+						 "dataset" => $_POST["reloadDataset"],
 				 	     "features" => $featureFile[0],
 						 "trainingset" => $_POST["trainingset"],
 					     "trainingfile" => $filename[0],
@@ -75,31 +75,31 @@
 	require 'hostspecs.php';
 	//
 	//	$host and $port are defined in hostspecs.php
-	//			
+	//
 	$addr = gethostbyname($host);
 	set_time_limit(0);
-	
+
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
 	if( $socket === false ) {
 		log_error("socket_create failed:  ". socket_strerror(socket_last_error()));
 	}
-	
+
 	$result = socket_connect($socket, $addr, $port);
 	if( !$result ) {
 		log_error("socket_connect failed: ".socket_strerror(socket_last_error()));
 	}
-	
-	socket_write($socket, $init_data, strlen($init_data));	
+
+	socket_write($socket, $init_data, strlen($init_data));
 	$response = socket_read($socket, 1024);
 	socket_close($socket);
-	
+
 	$response = json_decode($response, true);
 
 	if( strcmp($response['result'], "PASS") == 0 ) {
 
 		write_log("INFO", "Session '".$_POST["trainingset"]."' reloaded");
-		
-		session_start();	
+
+		session_start();
 		$_SESSION['uid'] = $UID;
 		$_SESSION['classifier'] = $_POST["trainingset"];
 		$_SESSION['dataset'] = $_POST["reloadDataset"];
@@ -107,7 +107,7 @@
 		$_SESSION['negClass'] = $response['negName'];
 		$_SESSION['iteration'] = (int)$response['iteration'];
 		$_SESSION['reloaded'] = true;
-		header("Location: ../grid.html");
+		header("Location: ../grid.html?application=".$_POST['applicationreload']);
 	} else {
 		echo "Unable to init session<br>";
 	}
