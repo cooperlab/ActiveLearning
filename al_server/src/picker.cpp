@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -1178,8 +1178,39 @@ bool Picker::PickerReviewSave(const int sock, json_t *obj)
 }
 
 
+bool Picker::RemoveDuplicated(void)
+{
+	bool 	result = true;
+	int 	newLength = m_samples.size();
 
+	int i, j, k;
 
+	for(i=0; i<newLength; i++) {
+    for(j=i+1; j<newLength; j++) {
+				if( m_ids[i] == m_ids[j]){
+						  for(k=j; k<newLength-1; k++) {
+					  	m_labels[k] = m_labels[k+1];
+							m_ids[k] = m_ids[k+1];
+							memcpy(m_trainSet[k], m_trainSet[k+1], m_dataset->GetDims());
+							m_slideIdx[k] = m_slideIdx[k+1];
+							m_xCentroid[k] = m_xCentroid[k+1];
+							m_yCentroid[k] = m_yCentroid[k+1];
+							m_xClick[k] = m_xClick[k+1];
+							m_yClick[k] = m_yClick[k+1];
+            }
+          j=i;
+          newLength--;
+        }
+    }
+  }
+	// Remove the extra samples from the end of the vector, the Finalize code uses
+	// the sample vector's length for the number of samples to save.
+	int diff = m_samples.size() - newLength;
+
+	m_samples.erase(m_samples.end()-(diff+1), m_samples.end()-1);
+
+	return result;
+}
 
 bool Picker::RemoveIgnored(void)
 {
@@ -1191,7 +1222,7 @@ bool Picker::RemoveIgnored(void)
 		if( m_labels[i] == 0 ) {
 			newLength--;
 			while( m_labels[newLength] == 0 && newLength > i ) {
-				// Make sure the sample we are swapping is not to be 
+				// Make sure the sample we are swapping is not to be
 				// ignored
 				newLength--;
 			}
@@ -1211,7 +1242,7 @@ bool Picker::RemoveIgnored(void)
 
 		i++;
 	}
-	
+
 	// Remove the extra samples from the end of the vector, the Finalize code uses
 	// the sample vector's length for the number of samples to save.
 	int 	diff = m_samples.size() - newLength;
@@ -1249,6 +1280,7 @@ bool Picker::PickerFinalize(const int sock, json_t *obj)
 		}
 
 		result = RemoveIgnored();
+		//result = RemoveDuplicated();
 
 		if( result ) {
 			result = testSet->Create(m_trainSet[0], m_samples.size(), m_dataset->GetDims(),
