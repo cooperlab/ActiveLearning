@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -53,14 +53,18 @@ var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 var defaultClass;
 
 var reloaded = false;
-
-
+var application = "";
+var scale = 0.5;
 
 //
 //	Initialization
 //
 //
 $(function() {
+
+	application = $_GET("application");
+
+	document.getElementById("revBtn").setAttribute("onClick", "window.location='picker_review.html?application="+application+"'");
 
 	// Setup the grid slider relative to the window width
 	width = 0;
@@ -121,7 +125,11 @@ $(function() {
 
 		if( displaySeg ) {
 
-			if( statusObj.scaleFactor() > 0.5 ) {
+			if (application == "region") {
+				scale = 0.2;
+			}
+
+			if( statusObj.scaleFactor() > scale ) {
 				$('.overlaySvg').css('visibility', 'visible');
 				var centerX = statusObj.dataportLeft() +
 							  ((statusObj.dataportRight() - statusObj.dataportLeft()) / 2);
@@ -346,7 +354,11 @@ function onImageViewChanged(event) {
 //
 function updateSeg() {
 
-	if( statusObj.scaleFactor() > 0.5 ) {
+	if (application == "region") {
+		scale = 0.2;
+	}
+
+	if( statusObj.scaleFactor() > scale ) {
 
 		var left, right, top, bottom, width, height;
 
@@ -371,7 +383,8 @@ function updateSeg() {
 					left:	left,
 					right:	right,
 					top:	top,
-					bottom:	bottom
+					bottom:	bottom,
+					application: application
 			},
 
 			success: function(data) {
@@ -392,20 +405,41 @@ function updateSeg() {
 					}
 
 					// Create segment group
-                    segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    segGrp.setAttribute('id', 'segGrp');
-                    annoGrp.appendChild(segGrp);
+          segGrp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          segGrp.setAttribute('id', 'segGrp');
+          annoGrp.appendChild(segGrp);
 
 
-					for( cell in data ) {
-						ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+					if (application == "cell"){
+						for( cell in data ) {
+							ele = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 
-						ele.setAttribute('points', data[cell][0]);
-						ele.setAttribute('id', 'N' + data[cell][1]);
-						ele.setAttribute('stroke', data[cell][2]);
-						ele.setAttribute('fill', 'none');
+							ele.setAttribute('cx', data[cell][1]);
+							ele.setAttribute('cy', data[cell][2]);
+							ele.setAttribute('r', 2);
+							ele.setAttribute('id', 'N' + data[cell][0]);
+							ele.setAttribute('stroke', 'aqua');
+							ele.setAttribute('fill', 'aqua');
 
-						segGrp.appendChild(ele);
+							segGrp.appendChild(ele);
+						}
+
+					} else{
+						for( cell in data ) {
+							ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+
+							ele.setAttribute('points', data[cell][0]);
+							ele.setAttribute('id', 'N' + data[cell][1]);
+							ele.setAttribute('stroke', 'aqua');
+							if (application == "region") {
+								ele.setAttribute('stroke-width', 4);
+								ele.setAttribute("stroke-dasharray", "5,5");
+							}
+							ele.setAttribute('fill', 'none');
+
+							segGrp.appendChild(ele);
+						}
+
 					}
 
 					if( selectedJSON.length > 0 ) {
@@ -473,7 +507,8 @@ function nucleiSelect() {
             dataType: "json",
             data:   { slide:    curSlide,
                       cellX:    statusObj.mouseImgX().toFixed(1),
-                      cellY:    statusObj.mouseImgY().toFixed(1)
+                      cellY:    statusObj.mouseImgY().toFixed(1),
+											application: application
             },
             success: function(data) {
 					if( data !== null ) {
@@ -507,6 +542,9 @@ function nucleiSelect() {
 						sample['clickX'] = data[7];
 						sample['clickY'] = data[8];
 
+						// check if a sample selected is duplicated or not
+						if (!duplicateCheck(sample['centX'], sample['centY'])){
+
 						// Add the selected nuclei
 						//
 						statusObj.totalSel(statusObj.totalSel() + 1);
@@ -537,10 +575,18 @@ function nucleiSelect() {
 							labelTag = "#label_" + statusObj.totalSel(), loc;
 
 						$(box).show();
-						centX = (sample['centX'] - (25 * sample['scale'])) / sample['maxX'];
-						centY = (sample['centY'] - (25 * sample['scale'])) / sample['maxY'];
-						sizeX = (50.0 * sample['scale']) / sample['maxX'];
-						sizeY = (50.0 * sample['scale']) / sample['maxY'];
+
+						var scale_cent = 25;
+						var scale_size = 50.0;
+
+						if (application == "region"){
+							scale_cent = 64;
+							scale_size = 128;
+						}
+						centX = (sample['centX'] - (scale_cent * sample['scale'])) / sample['maxX'];
+						centY = (sample['centY'] - (scale_cent * sample['scale'])) / sample['maxY'];
+						sizeX = (scale_size * sample['scale']) / sample['maxX'];
+						sizeY = (scale_size * sample['scale']) / sample['maxY'];
 						loc = centX+","+centY+","+sizeX+","+sizeY;
 
 						var thumbNail = IIPServer+"FIF="+pyramids[$('#slideSel').prop('selectedIndex')]+
@@ -549,12 +595,37 @@ function nucleiSelect() {
 						$(thumbTag).attr("src", thumbNail);
 						updateClassStatus(statusObj.totalSel() - 1);
 						updateBoundColors();
+					}	else {
+					window.alert("Selected sample is duplicted !!");
+					}
+
 				}
 			}
     	});
 	}
 }
 
+
+//
+// Check if a sample selected is duplicated or not
+// Parameters
+// centroid position (X,Y) of the selected sample
+// Return
+// true: if duplicated
+// false: if not duplicated
+//
+function duplicateCheck(x,y) {
+
+	var centX = x;
+	var centY = y;
+
+	for( i = 0; i < selectedJSON.length; i++ ) {
+			if ((selectedJSON[i]['centX'] == centX) && (selectedJSON[i]['centY'] == centY))
+			return true;
+	}
+
+	return false;
+}
 
 
 //
@@ -573,6 +644,9 @@ function thumbSingleClick(box) {
 		selectedJSON[index]['label'] = 1;
 	}
 	updateClassStatus(index);
+	if (application = "region"){
+		updateBoundColors();
+	}
 };
 
 
@@ -646,7 +720,20 @@ function updateBoundColors() {
 		var bound = document.getElementById("N"+selectedJSON[cell]['id']);
 
 		if( bound != null ) {
-			bound.setAttribute('stroke', 'yellow');
+			if (application == "region"){
+				if( selectedJSON[cell]['label'] === 1 ) {
+					bound.setAttribute('stroke', 'yellow');
+					bound.setAttribute('fill', 'yellow');
+					bound.setAttribute("fill-opacity", "0.2");
+				} else {
+					bound.setAttribute('stroke', 'aqua');
+					bound.setAttribute('fill', 'aqua');
+					bound.setAttribute("fill-opacity", "0.2");
+				}
+			} else{
+				bound.setAttribute('stroke', 'yellow');
+
+			}
 		}
 	}
 }
@@ -697,6 +784,10 @@ function onMouseLeave(event) {
 //
 function onMouseClick(event) {
 
+	if (application == "region"){
+		event.preventDefaultAction = true;
+
+	}
 	clickCount++;
 	if( clickCount === 1 ) {
 		// If no click within 250ms, treat it as a single click
@@ -832,7 +923,7 @@ function saveTrainingSet() {
 				if( data['status'] === "PASS" ) {
 					console.log("Pos: "+data['posClass']+", Neg: "+data['negClass']);
 					window.alert("Test set saved to: " + data['filename']);
-					window.location = "PICKER/index.html";
+					window.location = "PICKER/index.html?application="+application;
 				} else {
 					window.alert("Unable to save test set");
 				}
@@ -851,7 +942,7 @@ function saveTrainingSet() {
 				if( data['status'] === "PASS" ) {
 					console.log("Pos: "+data['posClass']+", Neg: "+data['negClass']);
 					window.alert("Test set saved to: " + data['filename']);
-					window.location = "PICKER/index.html";
+					window.location = "PICKER/index.html?application="+application;
 				} else {
 					window.alert("Unable to save test set");
 				}
@@ -890,6 +981,17 @@ function setSelectMode() {
 
 
 
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}
+
+
+
 
 
 function cancelSession() {
@@ -898,7 +1000,7 @@ function cancelSession() {
 		url: "php/cancelSession.php",
 		data: "",
 		success: function() {
-			window.location = "PICKER/index.html";
+			window.location = "PICKER/index.html?application="+application;
 		}
 	});
 }

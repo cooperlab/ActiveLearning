@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -8,7 +8,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -16,7 +16,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -29,7 +29,7 @@ var classifier = "";
 var negClass = "";
 var posClass = "";
 var curDataSet = "";
-
+var application = "";
 
 
 //
@@ -38,14 +38,16 @@ var curDataSet = "";
 //
 $(function() {
 
-	// get session vars 
+	application = $_GET("application");
+
+	// get session vars
 	//
 	$.ajax({
 		url: "../php/getSession.php",
 		data: "",
 		dataType: "json",
 		success: function(data) {
-			
+
 			uid = data['uid'];
 			classifier = data['className'];
 			posClass = data['posClass'];
@@ -57,15 +59,19 @@ $(function() {
 	});
 
 
+	$("#applicationSel").val(application);
+	$("#applicationSelreload").val(application);
+
 	// Populate Dataset dropdown
 	//
 	$.ajax({
+		type: "POST",
 		url: "../db/getdatasets.php",
-		data: "",
+		data: { application: application },
 		dataType: "json",
 		success: function(data) {
 
-				var	datasetSel = $("#datasetSel"), 
+				var	datasetSel = $("#datasetSel"),
 					reloadDatasetSel = $("#reloadDatasetSel");
 				curDataset = data[0];
 
@@ -86,7 +92,7 @@ $(function() {
 
 
 function updateDataSet() {
-	
+
 	var sel = document.getElementById('reloadDatasetSel'),
 			  dataset = sel.options[sel.selectedIndex].label;
 
@@ -132,14 +138,18 @@ function updateTestSets(dataset) {
 }
 
 
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}
+
 
 
 function displayProg() {
 
 	$('#progDiag').modal('show');
 }
-
-
-
-
-

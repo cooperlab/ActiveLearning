@@ -1,7 +1,7 @@
 <?php
 
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -42,7 +42,7 @@
 
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
-		$filename = mysqli_fetch_row($result);			
+		$filename = mysqli_fetch_row($result);
 		mysqli_free_result($result);
 	} else {
 		log_error("Unable to get test set from the database");
@@ -51,7 +51,7 @@
 	$sql = 'SELECT features_file FROM datasets WHERE name="'.$_POST["reloadDataset"].'"';
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
-		$featureFile = mysqli_fetch_row($result);			
+		$featureFile = mysqli_fetch_row($result);
 		mysqli_free_result($result);
 	} else {
 		log_error("Unable to get training set from the database");
@@ -63,9 +63,9 @@
 
 
 	// Send init command to AL server
-	//	
+	//
 	$init_data =  array( "command" => "pickerReload",
-						 "dataset" => $_POST["reloadDataset"], 
+						 "dataset" => $_POST["reloadDataset"],
 				 	     "features" => $featureFile[0],
 						 "name" => $_POST["testSet"],
 					     "testfile" => $filename[0],
@@ -86,21 +86,21 @@
 			$response = json_decode($response, true);
 		}
 	}
-	
+
 	if( $prog ) {
-		
+
 		if( strcmp($response['result'], "PASS") == 0 ) {
 
 			write_log("INFO", "Session '".$_POST["testSet"]."' reloaded");
-		
-			session_start();	
+
+			session_start();
 			$_SESSION['uid'] = $UID;
 			$_SESSION['classifier'] = $_POST["testSet"];
 			$_SESSION['dataset'] = $_POST["reloadDataset"];
 			$_SESSION['posClass'] = $response['posName'];
 			$_SESSION['negClass'] = $response['negName'];
 			$_SESSION['reloaded'] = true;
-			header("Location: ../picker.html");
+			header("Location: ../picker.html?application=".$_POST["applicationreload"]);
 		} else {
 			echo "Unable to init session<br>";
 		}
