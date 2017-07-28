@@ -1,6 +1,6 @@
 <?php
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -56,7 +56,7 @@
 		// Now get the max X & Y from the database for the slide of the samples
 		//
 		$dbConn = guestConnect();
-	
+
 		for($i = 0, $len = count($response['picker_review']); $i < $len; ++$i) {
 
 			$response['picker_review'][$i]['centX'] = round($response['picker_review'][$i]['centX'], 1);
@@ -76,8 +76,14 @@
 				mysqli_free_result($result);
 			}
 
+			$application = $_POST['application'];
+			$boundaryTableName = "boundaries";
+			if ($application == "region"){
+				$boundaryTableName = "sregionboundaries";
+			}
+
 			// Get database id for the sample
-			$sql = 'SELECT id, boundary FROM boundaries WHERE slide="'.$response['picker_review'][$i]['slide'].'"';
+			$sql = 'SELECT id, boundary FROM '.$boundaryTableName.' WHERE slide="'.$response['picker_review'][$i]['slide'].'"';
 			$sql = $sql.' AND centroid_x='.$response['picker_review'][$i]['centX'].' and centroid_y='.$response['picker_review'][$i]['centY'];
 
 			if( $result = mysqli_query($dbConn, $sql) ) {
