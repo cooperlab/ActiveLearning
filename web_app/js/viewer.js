@@ -911,7 +911,7 @@ function updateSeg() {
 
 		// Only display heatmap for active sessions
 		//
-		if( curClassifier != 'none' && classifierSession == false && heatmapLoaded == false ) {
+		if( curSlide != "" && curClassifier != 'none' && classifierSession == false && heatmapLoaded == false ) {
 
 		    $.ajax({
 				type: "POST",
