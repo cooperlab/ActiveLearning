@@ -34,7 +34,7 @@
 	$projectName = $_POST['projectName'];
 	$datasetFile = $_POST['datasetSel'];
 	$datasetPath = '../../userdata/'.$datasetFile;
-	$linkPath = '../../../../../localdata/datasets/'.$projectName.'/'.$datasetFile;
+	$linkPath = '../../../../../fastdata/features/'.$projectName.'/'.$datasetFile;
 
 	$boundaryDir = $_POST['boundarySel'];
 	$boundaryPath = '../userdata/'.$boundaryDir;
@@ -202,7 +202,7 @@
 						while( $array = mysqli_fetch_row($result) ) {
 						  if ($slidename[0]==$array[0]){
 								echo "<script type='text/javascript'>window.alert('Slides: $slidename[0] already exist !! ');
-								window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+								window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 								exit;
 
 							}
@@ -212,7 +212,7 @@
 				}
 				else {
 					echo "<script type='text/javascript'>window.alert('Slides: Cannot retrieve slide names from database !! ');
-					window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+					window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 					exit;
 				}
 
@@ -232,7 +232,7 @@
 				}
 				else{
 					echo "<script type='text/javascript'>window.alert('Boundaries: Cannot import slide information to database !! ');
-					window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+					window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 					exit;
 				}
 				mysqli_close($link);
@@ -242,8 +242,8 @@
 		/************	Start dataset importing************/
 
 		// create a project directory if project name does not exist
-		if( !file_exists('../../../../../localdata/datasets/'.$projectName) ) {
-			$cmd = 'mkdir '.'../../../../../localdata/datasets/'.$projectName;
+		if( !file_exists('../../../../../fastdata/features/'.$projectName) ) {
+			$cmd = 'mkdir '.'../../../../../fastdata/features/'.$projectName;
 			exec($cmd, $output, $result);
 		}
 
@@ -267,7 +267,7 @@
 
 		if( $result != 0 ) {
 			echo "<script type='text/javascript'>window.alert('Dataset: Cannot import dataset to database !! ');
-			window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+			window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 			exit;
 		}
 		else{
