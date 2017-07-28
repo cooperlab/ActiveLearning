@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -59,6 +59,8 @@
 
 #define CMD_HEATMAP		"heatMap"
 #define CMD_ALLHEATMAPS	"allHeatMaps"
+#define CMD_SREGIONHEATMAP		"sregionHeatMap"
+#define CMD_SREGIONALLHEATMAPS	"sregionallHeatMaps"
 
 #define CMD_STATUS		"sysStatus"
 

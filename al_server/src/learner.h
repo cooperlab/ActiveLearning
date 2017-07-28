@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -161,6 +161,13 @@ protected:
 	bool	RemoveIgnored(void);
 
 	bool	RestoreSessionData(MData &trainingSet);
+
+	bool	GenHeatmapSRegion(const int sock, json_t *obj);
+	bool	GenAllHeatmapsSRegion(const int sock, json_t *obj);
+	void	HeatmapWorkerSRegion(float *slideScores, float *centX, float *centY, int numObjs,
+						  string slide, int width, int height, double *uncertMin, double *uncertMax,
+						  double *classMin, double *classMax, float *uncertMedian);
+
 };
 
 

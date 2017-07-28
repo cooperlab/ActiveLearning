@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -106,6 +106,7 @@ protected:
 	bool 	PickerReview(const int sock, json_t *obj);
 	bool	PickerReviewSave(const int sock, json_t *obj);
 
+	bool	RemoveDuplicated(void);
 	bool	RemoveIgnored(void);
 };
 
