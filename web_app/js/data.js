@@ -57,7 +57,7 @@ $(function() {
 			for (var i = 0; i < data['dirNames'].length; i++) {
 				$("#datasetSel").append(new Option(data['dirNames'][i], data['dirNames'][i]));
 			}
-			updateFeatures();
+			//updateFeatures();
 		}
 	});
 
@@ -140,20 +140,20 @@ $(function() {
 function updateFeatures() {
 
 	featurename = datasetSel.options[datasetSel.selectedIndex].label;
-	document.getElementById('featureName').innerHTML = featurename;
+	//document.getElementById('featureName').innerHTML = featurename;
 
 	// Get the information for the current dataset
-	$.ajax({
-		type: "POST",
-		url: "php/data_getfeatures.php",
-		data: { featurename: featurename },
-		dataType: "json",
-		success: function(data) {
-
-      document.getElementById('featureInfo').innerHTML = data['features'];
-
-		}
-	});
+	// $.ajax({
+	// 	type: "POST",
+	// 	url: "php/data_getfeatures.php",
+	// 	data: { featurename: featurename },
+	// 	dataType: "json",
+	// 	success: function(data) {
+	//
+  //     document.getElementById('featureInfo').innerHTML = data['features'];
+	//
+	// 	}
+	// });
 }
 
 //
