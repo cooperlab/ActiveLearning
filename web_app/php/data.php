@@ -1,4 +1,4 @@
-<?php
+	<?php
 
 //
 //	Copyright (c) 2014-2017, Emory University
@@ -158,7 +158,7 @@
 
 		if( $result != 0 ) {
 			echo "<script type='text/javascript'>window.alert('Boundaries: Cannot extract boundaries from $boundaryDir !! ');
-			window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+			window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 			exit;
 		}
 
