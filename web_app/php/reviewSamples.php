@@ -1,7 +1,7 @@
 <?php
 
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -79,8 +79,14 @@
 			mysqli_free_result($result);
 		}
 
+		$application = $_POST['application'];
+		$boundaryTablename = "boundaries";
+	  if ($application == "region"){
+			$boundaryTablename = "sregionboundaries";
+		}
+
 		// Get database id for the sample
-		$sql = 'SELECT id, boundary FROM boundaries WHERE slide="'.$response['review'][$i]['slide'].'"';
+		$sql = 'SELECT id, boundary FROM '.$boundaryTablename.' WHERE slide="'.$response['review'][$i]['slide'].'"';
 		$sql = $sql.' AND centroid_x='.$response['review'][$i]['centX'].' and centroid_y='.$response['review'][$i]['centY'];
 
 		if( $result = mysqli_query($dbConn, $sql) ) {
