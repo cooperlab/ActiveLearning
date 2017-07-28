@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -68,6 +68,14 @@ var sortable_group_list = [];
 
 $(function() {
 
+	application = $_GET("application");
+
+
+	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
+	document.getElementById("nav_select").setAttribute("href","grid.html?application="+application);
+	document.getElementById("nav_review").setAttribute("href","review.html?application="+application);
+	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
+	document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
 
 	// get slide host info
 	//
@@ -158,24 +166,30 @@ viewer.addHandler('close', function(event) {
 			sampGrp.setAttribute('id', 'sample');
 			annoGrp.appendChild(sampGrp);
 
-			ele = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+			if (application != "region") {
+				ele = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 
-			ele.setAttribute('x', curX - 50);
-			ele.setAttribute('y', curY - 50);
-			ele.setAttribute('width', 100);
-			ele.setAttribute('height', 100);
-			ele.setAttribute('stroke', 'yellow');
-			ele.setAttribute('fill', 'none');
-			ele.setAttribute('stroke-width', 4);
-			ele.setAttribute('id', 'boundBox');
+				ele.setAttribute('x', curX - 50);
+				ele.setAttribute('y', curY - 50);
+				ele.setAttribute('width', 100);
+				ele.setAttribute('height', 100);
+				ele.setAttribute('stroke', 'yellow');
+				ele.setAttribute('fill', 'none');
+				ele.setAttribute('stroke-width', 4);
+				ele.setAttribute('id', 'boundBox');
 
-			sampGrp.appendChild(ele);
+				sampGrp.appendChild(ele);
+			}
 
 
 			ele = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
 			ele.setAttribute('points', boundaries[cur_box]);
 			ele.setAttribute('id', 'boundary');
 			ele.setAttribute('stroke', 'yellow');
+			if (application == "region"){
+				ele.setAttribute('stroke-width', 4);
+			}
+
 			ele.setAttribute('fill', 'none');
 			if( boundaryOn ) {
 				ele.setAttribute('visibility', 'visible');
@@ -204,8 +218,9 @@ viewer.addHandler('close', function(event) {
 //
 function genReview() {
   $.ajax({
+		type: "POST",
     url: "php/reviewSamples.php",
-    data: "",
+		data: { application: application },
     dataType: "json",
     success: function(data) {
 
@@ -585,11 +600,19 @@ function displayOneslide(sampleArray, slide_num){
 		scale = sampleArray[sample]['scale'];
 		slide = sampleArray[sample]['slide'];
 
-		centX = (sampleArray[sample]['centX'] - (25.0 * scale)) / sampleArray[sample]['maxX'];
-		centY = (sampleArray[sample]['centY'] - (25.0 * scale)) / sampleArray[sample]['maxY'];
+		var scale_cent = 25.0;
+		var scale_size = 50.0;
 
-		sizeX = (50.0 * scale) / sampleArray[sample]['maxX'];
-		sizeY = (50.0 * scale) / sampleArray[sample]['maxY'];
+		if (application == "region"){
+			scale_cent = 64.0;
+			scale_size = 128.0;
+		}
+
+		centX = (sampleArray[sample]['centX'] - (scale_cent * scale)) / sampleArray[sample]['maxX'];
+		centY = (sampleArray[sample]['centY'] - (scale_cent * scale)) / sampleArray[sample]['maxY'];
+
+		sizeX = (scale_size * scale) / sampleArray[sample]['maxX'];
+		sizeY = (scale_size * scale) / sampleArray[sample]['maxY'];
 		loc = centX+","+centY+","+sizeX+","+sizeY;
 
 		thumbNail = IIPServer+"FIF="+sampleArray[sample]['path']+SlideLocPre+loc+"&WID=100"+SlideLocSuffix;
@@ -649,7 +672,7 @@ function displayOneslide(sampleArray, slide_num){
 			sample_num = sample_num + 1;
 		}
 	}
-	
+
 	postile_name.innerHTML = posClass;
 	postile.appendChild(postile_name);
 	postile.appendChild(postile_list);
@@ -830,6 +853,15 @@ function onImageViewChanged(event) {
 }
 
 
+
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}
 
 
 
