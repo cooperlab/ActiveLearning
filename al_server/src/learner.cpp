@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -266,6 +266,11 @@ bool Learner::ParseCommand(const int sock, const char *data, int size)
 				result = GenHeatmap(sock, root);
 			} else if( strncmp(command, CMD_ALLHEATMAPS, strlen(CMD_ALLHEATMAPS)) == 0) {
 				result = GenAllHeatmaps(sock, root);
+			} else if( strncmp(command, CMD_SREGIONHEATMAP, strlen(CMD_SREGIONHEATMAP)) == 0) {
+				result = GenHeatmapSRegion(sock, root);
+			} else if( strncmp(command, CMD_SREGIONALLHEATMAPS, strlen(CMD_SREGIONALLHEATMAPS)) == 0) {
+				result = GenAllHeatmapsSRegion(sock, root);
+
 			} else if( strncmp(command, CMD_CLASSEND, strlen(CMD_CLASSEND)) == 0 ) {
 				// Do nothing
 				result = true;
@@ -379,6 +384,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 							m_dataset->GetNumObjs(), m_dataset->GetDims());
 
  		m_classifier = new OCVBinaryRF();
+
 		if( m_classifier == NULL ) {
 			result = false;
 		}
@@ -517,6 +523,7 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 							trainingFileName, trainingData.GetNumObjs());
 
  		m_classifier = new OCVBinaryRF();
+
 		if( m_classifier == NULL ) {
 			result = false;
 		}
@@ -1699,7 +1706,8 @@ bool Learner::ApplyGeneralClassifier(const int sock, int xMin, int xMax,
 {
 	bool	result = true;
 	json_t	*value;
-	Classifier *classifier = new OCVBinaryRF();;
+	Classifier *classifier = new OCVBinaryRF();
+
 	int		*predClass = NULL, *labels = NULL;
 
 
@@ -2230,6 +2238,7 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 #define GRID_SIZE	40
 #define HIST_BINS	20
 #define UNCERT_PERCENTILE	0.90f
+#define SREGION_GRID_SIZE	40
 
 
 
@@ -2526,4 +2535,418 @@ void Learner::HeatmapWorker(float *slideScores, float *centX, float *centY, int 
 
 	// Return the median raw score, min and max should be blurred
 	*uncertMedian = scoreVec[scoreVec.size() / 2];
+}
+
+
+bool Learner::GenHeatmapSRegion(const int sock, json_t *obj)
+{
+	bool	result = true;
+	json_t	*value = NULL, *root = NULL;
+
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	int		width, height;
+	double	uncertMin, uncertMax, classMin, classMax, timing = gLogger->WallTime();
+	float	uncertMedian;
+	string	slide, uncertFileName, classFileName;
+
+	result = IsUIDValid(uid);
+
+	if( result ) {
+		value = json_object_get(obj, "width");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmapSRegion) Unable to decode width");
+			result = false;
+		} else {
+			width = json_integer_value(value);
+		}
+	}
+
+	if( result ) {
+		value = json_object_get(obj, "height");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmapSRegion) Unable to decode height");
+			result = false;
+		} else {
+			height = json_integer_value(value);
+		}
+	}
+
+	if( result ) {
+		value = json_object_get(obj, "slide");
+		if( value == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmapSRegion) Unable to decode slide name");
+			result = false;
+		} else {
+			slide = json_string_value(value);
+		}
+	}
+
+	if( result ) {
+
+		float	*scores = NULL, *xList = m_dataset->GetXCentroidList(), *yList = m_dataset->GetYCentroidList(),
+				*centX, *centY;
+		int		numObjs, offset;
+
+		offset = m_dataset->GetSlideOffset(slide, numObjs);
+		centX = &xList[offset];
+		centY = &yList[offset];
+		scores = (float*)malloc(numObjs * sizeof(float));
+
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Viewer region heatmap generation took %f", gLogger->WallTime() - timing);
+
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Slide name %s, numObjs %d, offset %d", slide.c_str(), numObjs, offset);
+
+		if( scores == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmapSRegion) Unable to allocate score buffer");
+			result = false;
+		}
+
+		if( result ) {
+
+			float 	**ptr = m_dataset->GetSlideData(slide, numObjs);
+			int		dims = m_dataset->GetDims();
+
+			result = m_classifier->ScoreBatch(ptr, numObjs, dims, scores);
+			if( result == false ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmapSRegion) Classification failed");
+			}
+		}
+
+		if( result ) {
+			uncertFileName = slide + ".jpg";
+			classFileName = slide + "_class.jpg";
+
+
+			string	fqfn = m_heatmapPath + "/" + uncertFileName;
+			struct stat buffer;
+			int		statResp = stat(fqfn.c_str(), &buffer);
+
+			gLogger->LogMsg(EvtLogger::Evt_INFO, "GenHeatMapSRegion Start");
+			// Check if heatmap needs to be generated
+			if( m_heatmapReload || statResp != 0 ) {
+
+				HeatmapWorkerSRegion(scores, centX, centY, numObjs, slide, width, height,
+							  &uncertMin, &uncertMax, &classMin, &classMax, &uncertMedian);
+			} else {
+
+				vector<SlideStat*>::iterator	it;
+
+				for(it = m_statList.begin(); it != m_statList.end(); it++) {
+					if( (*it)->slide.compare(slide) == 0 ) {
+						width = (*it)->width;
+						height = (*it)->height;
+						uncertMin = (*it)->uncertMin;
+						uncertMax = (*it)->uncertMax;
+						uncertMedian = (*it)->uncertMedian;
+						classMin = (*it)->classMin;
+						classMax = (*it)->classMax;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+
+	if( result ) {
+		root = json_object();
+		if( root == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenHeatmap) Unable to create JSON object");
+			result = false;
+		}
+	}
+
+	if( result ) {
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Viewer heatmapRegion generation took %f", gLogger->WallTime() - timing);
+
+		json_object_set(root, "width", json_integer(width));
+		json_object_set(root, "height", json_integer(height));
+		json_object_set(root, "uncertFilename", json_string(uncertFileName.c_str()));
+		json_object_set(root, "classFilename", json_string(classFileName.c_str()));
+		json_object_set(root, "uncertMin", json_real(uncertMin));
+		json_object_set(root, "uncertMax", json_real(uncertMax));
+		json_object_set(root, "uncertMedian", json_real(uncertMedian));
+		json_object_set(root, "classMin", json_real(classMin));
+		json_object_set(root, "classMax", json_real(classMax));
+
+		char *jsonObj = json_dumps(root, 0);
+		size_t  bytesWritten = :: write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(root);
+		free(jsonObj);
+	}
+	return result;
+}
+
+
+bool Learner::GenAllHeatmapsSRegion(const int sock, json_t *obj)
+{
+	bool result = true;
+	json_t	*value = NULL, *slideData = NULL;
+
+	value = json_object_get(obj, "uid");
+	const char *uid = json_string_value(value);
+	result = IsUIDValid(uid);
+
+	if( result && m_heatmapReload ) {
+		double	start, timing = gLogger->WallTime();
+
+		if( result ) {
+			slideData = json_object_get(obj, "slides");
+			if( slideData == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode slide data");
+				result = false;
+			}
+		}
+
+		json_t	*slides = NULL, *x_size = NULL, *y_size = NULL;
+
+		if( result ) {
+
+			slides = json_object_get(slideData, "slides");
+			if( !json_is_array(slides) ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode slide name array");
+				result = false;
+			}
+		}
+
+		if( result ) {
+
+			x_size = json_object_get(slideData, "x_size");
+			if( !json_is_array(x_size) ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode x_size array");
+				result = false;
+			}
+		}
+
+		if( result ) {
+
+			y_size = json_object_get(slideData, "y_size");
+			if( !json_is_array(y_size) ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode y_size array");
+				result = false;
+			}
+		}
+
+		// To identify the most recent scores,
+		// Classify all objects for heatmap generation
+		//
+		float 	**ptr = m_dataset->GetData();
+		int	dims = m_dataset->GetDims();
+		result = m_classifier->ScoreBatch(ptr, m_dataset->GetNumObjs(), dims, m_scores);
+		if( result == false ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Classification failed");
+		}
+
+		if( result ) {
+			size_t index, numSlides = json_array_size(slides);
+			const char 	*slideName = NULL;
+			int			width, height;
+			vector<std::thread> workers;
+
+
+			if( !m_statList.empty() ) {
+				for(int i = 0; i < m_statList.size(); i++) {
+					delete m_statList[i];
+				}
+				m_statList.clear();
+			}
+
+			json_array_foreach(slides, index, value) {
+
+				slideName = json_string_value(value);
+				if( slideName == NULL ) {
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode slide name");
+					result = false;
+					break;
+				}
+
+				value = json_array_get(x_size, index);
+				if( value == NULL ) {
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode width");
+					result = false;
+					break;
+				}
+				width = json_integer_value(value);
+
+				value = json_array_get(y_size, index);
+				if( value == NULL ) {
+					gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to decode height");
+					result = false;
+					break;
+				}
+				height = json_integer_value(value);
+
+				int slideObjs, offset = m_dataset->GetSlideOffset(slideName, slideObjs);
+				float	*xList = m_dataset->GetXCentroidList(), *yList = m_dataset->GetYCentroidList();
+				float	*xCent = &xList[offset], *yCent = &yList[offset], *slideScores = &m_scores[offset], uncertMedian;
+				SlideStat   *stats = new SlideStat;
+
+				stats->slide = slideName;
+				stats->alphaIndex = index;
+				stats->width = width;
+				stats->height = height;
+				m_statList.push_back(stats);
+
+				workers.push_back(std::thread(&Learner::HeatmapWorkerSRegion, this, slideScores,
+										xCent, yCent, slideObjs, slideName, width, height,
+										&m_statList[index]->uncertMin, &m_statList[index]->uncertMax,
+										&m_statList[index]->classMin, &m_statList[index]->classMax,
+										&m_statList[index]->uncertMedian));
+			}
+
+			for( auto &t : workers )
+				t.join();
+		}
+
+		sort(m_statList.begin(), m_statList.end(), SortFunc);
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "GenAllHeatmaps_SRegion took %f", gLogger->WallTime() - timing);
+
+		// Indicate heatmaps have been updated
+		//
+		m_heatmapReload = false;
+
+	} else {
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Training set not updated since heatmaps were last generated");
+	}
+
+
+
+	// TODO - Move the following to its own function
+	//
+	json_t	*slideList = NULL, *item = NULL;
+	if( result ) {
+		slideList = json_array();
+		if( slideList == NULL ) {
+			gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to create JSON Array object");
+			result = false;
+		}
+	}
+
+	vector<SlideStat*>::iterator	it;
+
+	if( result ) {
+
+		for(it = m_statList.begin(); it != m_statList.end(); it++) {
+			item = json_object();
+			if( item == NULL ) {
+				gLogger->LogMsg(EvtLogger::Evt_ERROR, "(Learner::GenAllheatmaps) Unable to create JSON object");
+				result = false;
+				break;
+			}
+
+			json_object_set(item, "slide", json_string((*it)->slide.c_str()));
+			json_object_set(item, "width", json_integer((*it)->width));
+			json_object_set(item, "height", json_integer((*it)->height));
+			json_object_set(item, "uncertMin", json_real((*it)->uncertMin));
+			json_object_set(item, "uncertMax", json_real((*it)->uncertMax));
+			json_object_set(item, "uncertMedian", json_real((*it)->uncertMedian));
+			json_object_set(item, "classMin", json_real((*it)->classMin));
+			json_object_set(item, "classMax", json_real((*it)->classMax));
+			json_object_set(item, "index", json_integer((*it)->alphaIndex));
+
+			json_array_append(slideList, item);
+			json_decref(item);
+		}
+
+
+		char *jsonObj = json_dumps(slideList, 0);
+		size_t  bytesWritten = :: write(sock, jsonObj, strlen(jsonObj));
+
+		if( bytesWritten != strlen(jsonObj) )
+			result = false;
+
+		json_decref(slideList);
+		free(jsonObj);
+	}
+
+	return result;
+}
+
+
+void Learner::HeatmapWorkerSRegion(float *slideScores, float *centX, float *centY, int numObjs,
+							string slide, int width, int height, double *uncertMin, double *uncertMax,
+							double *classMin, double *classMax, float *uncertMedian)
+{
+		bool	result = true;
+		int		fX = (ceil((float)width / (float)SREGION_GRID_SIZE)) + 1, fY = (ceil((float)height / (float)SREGION_GRID_SIZE)) + 1,
+				curX, curY;
+		Mat		uncertainMap = Mat::zeros(fY, fX, CV_32F), classMap = Mat::zeros(fY, fX, CV_32F),
+				densityMap = Mat::zeros(fY, fX, CV_32F), grayUncertain(fY, fX, CV_8UC1),
+				grayClass(fY, fX, CV_8UC1);
+		vector<float> scoreVec;
+
+		for(int obj = 0; obj < numObjs; obj++) {
+			scoreVec.push_back(1 - abs(slideScores[obj]));
+		}
+
+		sort(scoreVec.begin(), scoreVec.end());
+		// Return the median raw score, min and max should be blurred
+		*uncertMedian = scoreVec[scoreVec.size() / 2];
+
+		for(int obj = 0; obj < numObjs; obj++) {
+			curX = ceil(centX[obj] / (float)SREGION_GRID_SIZE);
+			curY = ceil(centY[obj] / (float)SREGION_GRID_SIZE);
+			//uncertainMap.at<float>(curY, curX) = max(uncertainMap.at<float>(curY, curX), 1 - abs(slideScores[obj]));
+			float uncertainty = (1 - abs(slideScores[obj]));
+
+			if (uncertainty > *uncertMedian){
+				uncertainMap.at<float>(curY, curX) += 1.0f;
+			}
+
+			if( slideScores[obj] >= 0 ) {
+				classMap.at<float>(curY, curX) += 1.0f;
+			}
+			densityMap.at<float>(curY, curX) += 1.0f;
+		}
+
+
+		for(int row = 0; row < fY; row++) {
+			for(int col = 0; col < fX; col++) {
+
+				if( densityMap.at<float>(row, col) == 0 ) {
+					classMap.at<float>(row, col) = 0;
+					uncertainMap.at<float>(row, col) = 0;
+				} else {
+					classMap.at<float>(row, col) = classMap.at<float>(row, col) / densityMap.at<float>(row, col);
+					uncertainMap.at<float>(row, col) = uncertainMap.at<float>(row, col) / densityMap.at<float>(row, col);
+				}
+			}
+		}
+
+		Size2i kernel(KERN_SIZE, KERN_SIZE);
+		GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5f);
+		GaussianBlur(classMap, classMap, kernel, 3.5f);
+
+		Mat		img, classImg;
+
+		// The min and max scores returned are the "blurred" veraion. Only
+		// the median is the raw score. (calculated later)
+		minMaxLoc(uncertainMap, uncertMin, uncertMax);
+		minMaxLoc(classMap, classMin, classMax);
+
+		for(int row = 0; row < fY; row++) {
+			for(int col = 0; col < fX; col++) {
+
+				grayUncertain.at<uchar>(row, col) = min(255.0 * uncertainMap.at<float>(row, col)/ *uncertMax, 255.0);
+				grayClass.at<uchar>(row, col) = min(255.0 * classMap.at<float>(row, col) / *classMax, 255.0);
+			}
+		}
+
+		string	fqn = m_heatmapPath + "/" + slide + ".jpg",
+				classFqn = m_heatmapPath + "/" + slide + "_class.jpg";
+
+		applyColorMap(grayUncertain, img, COLORMAP_JET);
+		vector<int> params;
+		params.push_back(CV_IMWRITE_JPEG_QUALITY);
+		params.push_back(75);
+		result = imwrite(fqn.c_str(), img, params);
+
+		applyColorMap(grayClass, classImg, COLORMAP_JET);
+		result = imwrite(classFqn.c_str(), classImg, params);
+
 }
