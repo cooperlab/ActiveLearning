@@ -39,9 +39,7 @@
 	/*
 		May want to change this if the joins cause a slowdown
 	*/
-	$sql = 'SELECT s.name, s.pyramid_path FROM slides s JOIN dataset_slides d ON s.id=d.slide_id
-									JOIN datasets t ON d.dataset_id=t.id
-									WHERE t.name="'.$dataset.'" ORDER BY s.name';
+	$sql = 'SELECT s.name, s.pyramid_path FROM slides s JOIN dataset_slides d ON s.id=d.slide_id JOIN datasets t ON d.dataset_id=t.id WHERE t.name="'.$dataset.'" ORDER BY s.name';
 
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
