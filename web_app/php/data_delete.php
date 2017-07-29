@@ -50,14 +50,14 @@
 	}
 	else{
 		echo "<script type='text/javascript'>window.alert('Data deletion cannot be processed !! ');
-		window.location.href = '../data.html?application=".$application."'';</script>";
+		window.location.href = '../data.html?application=".$application."';</script>";
 		exit;
 	}
 
 	mysqli_close($dbConn);
 
 	echo "<script type='text/javascript'>window.alert('$deleteDatasetSel is removed !! ');
-	window.location.href = '../index_home.html?application=".$application."'';</script>";
+	window.location.href = '../index_home.html?application=".$application."';</script>";
 	exit;
 
 ?>

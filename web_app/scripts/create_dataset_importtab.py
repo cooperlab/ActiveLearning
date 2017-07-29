@@ -40,8 +40,9 @@ slideListFile = sys.argv[4]
 featuresFile = sys.argv[3]
 
 
+# you should put guest password here !!
+passWord = ""
 
-passWord = pw.getpass()
 db = mysql.connect(host='localhost', user=userId, passwd=passWord, db="nuclei")
 cursor = db.cursor()
 
@@ -64,7 +65,7 @@ except mysql.Error, e:
 #
 #	Get the id for the dataset
 #
-cursor.execute("SELECT id from datasets where name=%s", (dataset,))
+cursor.execute("SELECT id from datasets where name=%s", (dataset))
 row = cursor.fetchone()
 datasetId = row[0]
 
@@ -74,7 +75,7 @@ slideList = open(slideListFile, 'r').readlines()
 for slide in slideList:
 
 	slide = slide.rstrip('\n')
-	cursor.execute("select id from slides where name=%s", (slide,))
+	cursor.execute("select id from slides where name=%s", (slide))
 	row = cursor.fetchone()
 
 	try:
@@ -85,8 +86,6 @@ for slide in slideList:
 		if db:
 			db.rollback()
 
-		print "Error %d: %s" % (e.args[0], e.args[1])
-		sys.exit(4)
 
 
 print "Created dataset", dataset, "with", len(slideList), "slides"

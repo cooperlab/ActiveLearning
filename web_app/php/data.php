@@ -33,7 +33,7 @@
 	$datasetName = $_POST['datasetName'];
 	$projectName = $_POST['projectName'];
 	$datasetFile = $_POST['datasetSel'];
-	$datasetPath = '../../userdata/'.$datasetFile;
+	$datasetPath = '../../../localdata/userdata/'.$datasetFile;
 	$linkPath = '../../../../../fastdata/features/'.$projectName.'/'.$datasetFile;
 
 	$boundaryDir = $_POST['boundarySel'];
@@ -49,13 +49,13 @@
 	// empty check for project name
 	if( empty($projectName) ) {
 		echo "<script type='text/javascript'>window.alert('Project name is empty !! ');
-		window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+		window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 		exit;
 	}
 	// empty check for dataset name
 	if( empty($datasetName) ) {
 		echo "<script type='text/javascript'>window.alert('Dataset name is empty !! ');
-		window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+		window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 		exit;
 	}
 
@@ -83,7 +83,7 @@
 	// check if dataset name already exists.
 	if(isset($isDatasetName)) {
 		echo "<script type='text/javascript'>window.alert('Dataset: $isDatasetName already exists !! ');
-		window.location.href = '../data.html?application=".$_POST['application']."'';</script>";
+		window.location.href = '../data.html?application=".$_POST['application']."';</script>";
 		exit;
 	}
 
@@ -260,7 +260,7 @@
 
 
 		// add datasets and dataset_slides tables
-		$result = shell_exec('python ../scripts/create_dataset.py guest '.
+		$result = shell_exec('python ../scripts/create_dataset_importtab.py guest '.
 				escapeshellarg($datasetName) . ' '.
 				escapeshellarg($projectName.'/'.$datasetFile) .' '.
 				escapeshellarg($slideListPath));
