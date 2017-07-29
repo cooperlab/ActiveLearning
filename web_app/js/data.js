@@ -32,6 +32,7 @@ $(function() {
 
 	application = $_GET('application');
 	$("#applicationSel").val(application);
+	$("#applicationSeldel").val(application);
 
 	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
 	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
