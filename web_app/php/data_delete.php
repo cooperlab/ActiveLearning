@@ -31,7 +31,7 @@
 	require 'hostspecs.php';
 
 	$deleteDatasetSel = $_POST['deleteDatasetSel'];
-	$application=$_POST['application'];
+	$application=$_POST['applicationdel'];
 
 	/************	Start existing dataset and slide name check ************/
 	// dataset name check
@@ -50,7 +50,7 @@
 	}
 	else{
 		echo "<script type='text/javascript'>window.alert('Data deletion cannot be processed !! ');
-		window.location.href = '../data.html?application=".$application."';</script>";
+		window.location.href = '../data.html?application=".$application."'';</script>";
 		exit;
 	}
 
