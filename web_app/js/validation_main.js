@@ -24,19 +24,40 @@
 //	DAMAGE.
 //
 //
+var uid = "";
+var classifier = "";
+var negClass = "";
+var posClass = "";
+var curDataSet = "";
+var application = "";
+
+
 //
 //	Initialization
 //
 //
-
-var application = "";
-
 $(function() {
 
 	application = $_GET("application");
 
-	var	datasetSel = $("#datasetSel"), trainsetSel = $("#trainsetSel"),
-		downloadsetSel = $("#downloadsetSel");
+	// get session vars
+	//
+	$.ajax({
+		url: "php/getSession.php",
+		data: "",
+		dataType: "json",
+		success: function(data) {
+
+			uid = data['uid'];
+			classifier = data['className'];
+			posClass = data['posClass'];
+			negClass = data['negClass'];
+			curDataset = data['dataset'];
+			IIPServer = data['IIPServer'];
+
+		}
+	});
+
 
 	document.getElementById("index").setAttribute("href","index.html");
 	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
@@ -44,6 +65,9 @@ $(function() {
 	document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
 	document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
 	document.getElementById("nav_validation").setAttribute("href","validation.html?application="+application);
+
+	$("#applicationSel").val(application);
+	$("#applicationSelreload").val(application);
 
 	// Populate Dataset dropdown
 	//
@@ -54,100 +78,70 @@ $(function() {
 		dataType: "json",
 		success: function(data) {
 
-			for( var item in data ) {
-				datasetSel.append(new Option(data[item][0], data[item][1]));
-				$('#datasetMapSel').append(new Option(data[item][0], data[item][1]));
-				$('#applyDatasetSel').append(new Option(data[item][0], data[item][1]));
-			}
-			updateSlideList();
-		}
-	});
-
-	// Populate training set dropdown
-	//
-	$.ajax({
-		url: "db/getTrainingSets.php",
-		data: "",
-		dataType: "json",
-		success: function(data) {
+				var	datasetSel = $("#datasetSel"),
+					reloadDatasetSel = $("#reloadDatasetSel");
+				curDataset = data[0];
 
 			for( var item in data ) {
-				trainsetSel.append(new Option(data[item][0], data[item][1]));
-				downloadsetSel.append(new Option(data[item][0], data[item][1]));
-				$('#trainsetMapSel').append(new Option(data[item][0], data[item][1]));
-				$('#applyTrainsetSel').append(new Option(data[item][0], data[item][1]));
+				datasetSel.append(new Option(data[item][0], data[item][0]));
+				reloadDatasetSel.append(new Option(data[item][0], data[item][0]));
 			}
+
+			updateTestSets(curDataset[0]);
 		}
 	});
-
-	// Need to montior changes for the map score select controls. Slide image
-	//	size is dependant on these.
-	//
-	$("#datasetMapSel").change(updateDataset);
-	$("#slideMapSel").change(updateSlideSize);
-
+	$('#reloadDatasetSel').change(updateDataSet);
 });
 
 
 
-//
-//	Updates the list of available slides for the current dataset
-//
-function updateSlideList() {
 
-	var	dataset = datasetMapSel.options[datasetMapSel.selectedIndex].label;
 
-	// Get the list of slides for the current dataset
+
+function updateDataSet() {
+
+	var sel = document.getElementById('reloadDatasetSel'),
+			  dataset = sel.options[sel.selectedIndex].label;
+
+	updateTestSets(dataset);
+}
+
+
+
+
+
+function updateTestSets(dataset) {
+
 	$.ajax({
 		type: "POST",
-		url: "db/getslides.php",
+		url: "db/getTestsetForDataset.php",
 		data: { dataset: dataset },
 		dataType: "json",
 		success: function(data) {
 
-			$('#slideMapSel').empty();
-			// Add the slides we have segmentation boundaries for to the dropdown
-			// selector
-			for( var item in data['slides'] ) {
-				$('#slideMapSel').append(new Option(data['slides'][item], data['slides'][item]));
+			var reloadTestSel = $("#reloadTestSetSel");
+
+			$("#reloadTestSetSel").empty();
+
+			if( reloadTestSel.length == 0 ) {
+				reloadTestSel.classList.toggle("show");
 			}
-			updateSlideSize();
-		}
-	});
-}
 
-
-
-
-
-function updateDataset() {
-	updateSlideList();
-}
-
-
-
-function updateSlideSize() {
-
-	var	slide = slideMapSel.options[slideMapSel.selectedIndex].label;
-
-	$.ajax({
-		type: "POST",
-		url: "db/getImgSize.php",
-		data: { slide: slide },
-		dataType: "json",
-		success: function(data) {
-
-			document.getElementById('imgSize').innerHTML = data[0]+" x "+data[1];
-
-			if( data[2] == 1 ) {
-				document.getElementById('imgScale').innerHTML = "20x";
-			} else if( data[2] == 2 ) {
-				document.getElementById('imgScale').innerHTML = "40x";
+			if( data.testSets.length === 0 ) {
+				document.getElementById('reloadPicker').disabled = true;
 			} else {
-				document.getElementById('imgScale').innerHTML = "???";
+				document.getElementById('reloadPicker').disabled = false;
 			}
+
+			for( var item in data.testSets ) {
+				reloadTestSel.append(new Option(data.testSets[item], data.testSets[item]));
+			}
+		},
+		error: function(x,s,e) {
+			console.log("Error:"+e);
 		}
 	});
+
 }
 
 
@@ -158,4 +152,11 @@ function updateSlideSize() {
 function $_GET(name) {
 	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
 	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}
+
+
+
+function displayProg() {
+
+	$('#progDiag').modal('show');
 }
