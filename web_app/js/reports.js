@@ -38,11 +38,12 @@ $(function() {
 	var	datasetSel = $("#datasetSel"), trainsetSel = $("#trainsetSel"),
 		downloadsetSel = $("#downloadsetSel");
 
-
+	document.getElementById("index").setAttribute("href","index.html");
 	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
 	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
 	document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
 	document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
+	document.getElementById("nav_validation").setAttribute("href","validation.html?application="+application);
 
 	// Populate Dataset dropdown
 	//

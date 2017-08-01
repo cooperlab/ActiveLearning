@@ -81,6 +81,7 @@ $(function() {
 	document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
 	document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
 	document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
+	document.getElementById("nav_validation").setAttribute("href","validation.html?application="+application);
 
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
@@ -193,6 +194,8 @@ $(function() {
 				// the review section also should be hided
 				$('#nav_review').hide();
 
+				document.getElementById("index").setAttribute("href","index.html");
+
 			} else {
 				// Active session, dataset selection not allowed
 				document.getElementById('dataset_sel').disabled = true
@@ -200,6 +203,7 @@ $(function() {
 				// No report generation during active session
 				$('#nav_reports').hide();
 				$('#nav_data').hide();
+				$('#nav_validation').hide();
 			}
 
 			if( curClassifier === "none" ) {

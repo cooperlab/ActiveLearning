@@ -33,45 +33,55 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-		<title>Test Set Picker</title>
+		<title>HistomicsML - Interactive machine-learning for histology images - Reports</title>
 
-		<script src="../js/jquery-1.9.0.min.js"></script>
-		<script src="../js/bootstrap.min.js"></script>
+		<script src="js/jquery-1.9.0.min.js"></script>
+		<script src="js/bootstrap.min.js"></script>
 
-		<link rel="stylesheet" href="../css/style.css"/>
-		<link rel="stylesheet" href="../css/bootstrap.min.css"/>
+		<link rel="stylesheet" href="css/style.css"/>
+		<link rel="stylesheet" href="css/bootstrap.min.css"/>
 	</head>
 
 
 	<body>
 
-		<div class="container">
-		    <div class="row">
-		    	<div class="col-xs-3 col-sm-4 col-md-4 col-lg-5">
- 				</div>
+		<nav class="navbar navbar-default" role="navigation">
+			<div class="navbar-header">
+				<div><ul class="nav navbar-nav"><li><a id="index">HistomicsML</a></li><ul></div>
+			</div>
 
- 				<div class="clearfix">
- 				<div class="col-xs-9 col-sm-8 col-md-8 col-lg-7">
- 					<h2>Test Set Picker</h2>
-				</div>
+			<div>
+				<ul class="nav navbar-nav">
+					<li><a href="index_home.html" id='home'>Home</a></li>
+					<li><a href="viewer.html?view" id="viewer">Viewer</a></li>
+					<li><a href="reports.html" id="nav_reports">Reports</a></li>
+					<li><a href="data.html" id="nav_data">Import</a></li>
+					<li class="active"><a href="#" id='nav_validation'>Validation</a></li>
+				</ul>
+			</div>
+		</nav>
+
+
+		<div class="container">
+
+			<div class="row">
+				<div class="col-xs-10 col-sm-10 col-md-10 col-lg-10">
+					<center><img src="images/banner.png" class="img-responsive"></center>
 				</div>
 			</div>
 
-			<br />
+		<br />
 
 			<div class="row">
-				<div class="col-sm-1 col-md-1 col-lg-1">
-				</div>
-
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					<h2>Start a new test set</h2>
+					<h2>Start a validation</h2>
 				</div>
 
 				<div class="col-sm-2 col-md-2 col-lg-2">
 				</div>
 
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					<h2>Continue an existing test set</h2>
+					<h2>Continue a validation</h2>
 				</div>
 
 			</div>
@@ -80,11 +90,8 @@
 
 			<div class="row">
 
-				<div class="col-sm-1 col-md-1 col-lg-1">
-				</div>
-
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					<form role="form" id="picker_form" method="POST" action="../php/initpicker.php" onsubmit=displayProg()>
+					<form role="form" id="picker_form" method="POST" action="php/initpicker.php" onsubmit=displayProg()>
 						<input type="hidden" class="form-control" id="applicationSel"
 								name="application" readonly="readonly">
 						<div class="form-group">
@@ -118,7 +125,7 @@
 				</div>
 
 				<div class="col-sm-4 col-md-4 col-lg-4">
-					<form role="form" id="reload_form" method="POST" action="../php/reloadPicker.php" onsubmit=displayProg()>
+					<form role="form" id="reload_form" method="POST" action="php/reloadPicker.php" onsubmit=displayProg()>
 						<input type="hidden" class="form-control" id="applicationSelreload"
 								name="applicationreload" readonly="readonly">
 						<div class="form-group">
@@ -157,6 +164,7 @@
 		</div>
 
 
-		<script src="../js/picker_main.js"></script>
+		<script src="js/validation_main.js"></script>
+
 	</body>
 </html>

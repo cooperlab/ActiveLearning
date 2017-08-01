@@ -43,7 +43,7 @@ $(function() {
 	// get session vars
 	//
 	$.ajax({
-		url: "../php/getSession.php",
+		url: "php/getSession.php",
 		data: "",
 		dataType: "json",
 		success: function(data) {
@@ -59,6 +59,13 @@ $(function() {
 	});
 
 
+	document.getElementById("index").setAttribute("href","index.html");
+	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
+	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
+	document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
+	document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
+	document.getElementById("nav_validation").setAttribute("href","validation.html?application="+application);
+
 	$("#applicationSel").val(application);
 	$("#applicationSelreload").val(application);
 
@@ -66,7 +73,7 @@ $(function() {
 	//
 	$.ajax({
 		type: "POST",
-		url: "../db/getdatasets.php",
+		url: "db/getdatasets.php",
 		data: { application: application },
 		dataType: "json",
 		success: function(data) {
@@ -107,7 +114,7 @@ function updateTestSets(dataset) {
 
 	$.ajax({
 		type: "POST",
-		url: "../db/getTestsetForDataset.php",
+		url: "db/getTestsetForDataset.php",
 		data: { dataset: dataset },
 		dataType: "json",
 		success: function(data) {

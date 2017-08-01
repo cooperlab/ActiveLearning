@@ -923,7 +923,7 @@ function saveTrainingSet() {
 				if( data['status'] === "PASS" ) {
 					console.log("Pos: "+data['posClass']+", Neg: "+data['negClass']);
 					window.alert("Test set saved to: " + data['filename']);
-					window.location = "PICKER/index.html?application="+application;
+					window.location = "validation.html?application="+application;
 				} else {
 					window.alert("Unable to save test set");
 				}
@@ -942,7 +942,7 @@ function saveTrainingSet() {
 				if( data['status'] === "PASS" ) {
 					console.log("Pos: "+data['posClass']+", Neg: "+data['negClass']);
 					window.alert("Test set saved to: " + data['filename']);
-					window.location = "PICKER/index.html?application="+application;
+					window.location = "validation.html?application="+application;
 				} else {
 					window.alert("Unable to save test set");
 				}
@@ -1000,7 +1000,7 @@ function cancelSession() {
 		url: "php/cancelSession.php",
 		data: "",
 		success: function() {
-			window.location = "PICKER/index.html?application="+application;
+			window.location = "validation.html?application="+application;
 		}
 	});
 }

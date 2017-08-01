@@ -81,6 +81,7 @@ $(function() {
 				// No reports while session active
 				$('#nav_reports').hide();
 				$('#nav_data').hide();
+				$('#nav_validation').hide();
 
 				document.getElementById("index").removeAttribute('href');
 
@@ -94,6 +95,7 @@ $(function() {
 			document.getElementById("nav_select").setAttribute("href","grid.html?application="+application);
 			document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
 			document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
+			document.getElementById("nav_validation").setAttribute("href","validation.html?application="+application);
 
 			$("#applicationSel").val(application);
 			$("#applicationSelreload").val(application);
