@@ -178,3 +178,35 @@ img.no-border {
 		cursor: move;
 		margin: 2px;
 	}
+
+
+	table {
+	  border-collapse: collapse;
+		width: 100%;
+	}
+
+	table a:hover, a:active { text-decoration: underline; }
+
+	th {
+		background: #333;
+		color: white;
+		font-weight: bold;
+		cursor: s-resize;
+		background-repeat: no-repeat;
+        background-position: 3% center;
+	}
+	td, th {
+		padding: 6px;
+		border: 1px solid #ccc;
+		text-align: left;
+	}
+
+	th.des:after {
+      content: "\21E9";
+    }
+
+    th.aes:after {
+      content: "\21E7";
+    }
+
+	tr:hover td { background-color: yellow; }
