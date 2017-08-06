@@ -29,14 +29,13 @@
 
 	require '../db/logging.php';
 
-	/* 	Retrieve a list of datasets from the data base.
-		Return as a json object
-	*/
+	$projectDir = $_POST['projectDir'];
 	$filename = $_POST['featurename'];
 
 	// Execute the python script with the JSON data
-	$results = shell_exec('python ../python/readHDF5.py ' . escapeshellarg('../userdata/'.$filename));
+	$array_features = shell_exec('python ../python/readHDF5.py '.escapeshellarg($projectDir.'/'.$filename));
 
-	//write_log("INFO","features: ", $results['features']);
-	echo json_encode($results);
+	$data = json_decode($array_features);
+
+	echo json_encode($data);
 ?>

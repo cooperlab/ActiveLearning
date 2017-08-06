@@ -27,26 +27,27 @@
 //
 //
 
-	require '../db/logging.php';		// Also includes connect.php
+require '../db/logging.php';		// Also includes connect.php
 
-	$dir = "../userdata/";
+$projectDir = $_POST['projectDir'];
 
-	$dirNames = array();
-	// Open a directory, and read its contents
-	if (is_dir($dir)){
-	  if ($dh = opendir($dir)){
-	    	while (($file = readdir($dh)) !== false){
-					$info = pathinfo($file);
-					if ($info["extension"] == "csv") {
-							$dirNames[] = $file;
-					 }
-	    }
-	    closedir($dh);
-	  }
+$array_features = array();
+// Open a directory, and read its contents
+if (is_dir($projectDir)){
+	if ($dh = opendir($projectDir)){
+			while (($file = readdir($dh)) !== false){
+				$info = pathinfo($file);
+				if ($info["extension"] == "csv") {
+						shell_exec('cp '.escapeshellarg($projectDir.'/'.$file).' ../csv/'.$file);
+						$array_features[] = $file;
+				 }
+		}
+		closedir($dh);
 	}
+}
 
-	$response = array("dirNames" => $dirNames);
+$response = array("slideInfo" => $array_features);
 
-	echo json_encode($response);
+echo json_encode($response);
 
 	?>
