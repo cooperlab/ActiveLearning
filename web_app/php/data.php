@@ -47,7 +47,7 @@
 	}
 
 	// check if dataset name exists
-	$dbConn = mysqli_connect("localhost", $guestAccount, $guestPass, "nuclei");
+	$dbConn = mysqli_connect($dbAddress, $guestAccount, $guestPass, "nuclei");
 
 	if( !$dbConn ) {
 		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
@@ -82,7 +82,7 @@
 
 	// dataset name check
 
-	$dbConn = mysqli_connect("localhost", $guestAccount, $guestPass, "nuclei");
+	$dbConn = mysqli_connect($dbAddress, $guestAccount, $guestPass, "nuclei");
 	if( !$dbConn ) {
 		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
 		exit;
@@ -115,7 +115,7 @@
 	// remove duplicated slides from sregionboundaries
 	// dataset name check
 
-	$dbConn = mysqli_connect("localhost", $guestAccount, $guestPass, "nuclei");
+	$dbConn = mysqli_connect($dbAddress, $guestAccount, $guestPass, "nuclei");
 	if( !$dbConn ) {
 		echo("<p>Unable to connect to the database server</p>" . mysqli_connect_error() );
 		exit;
@@ -157,7 +157,7 @@
 
 	$link = mysqli_init();
 	mysqli_options($link, MYSQLI_OPT_LOCAL_INFILE, true);
-	mysqli_real_connect($link, "localhost", $guestAccount, $guestPass, "nuclei");
+	mysqli_real_connect($link, $dbAddress, $guestAccount, $guestPass, "nuclei");
 
 	$sql = 'LOAD DATA LOCAL INFILE "'.$pathToboundaryFile.'"
 		INTO TABLE '.$boundaryTablename.' fields terminated by \'\t\'
@@ -175,7 +175,7 @@
 	$newslidelist = array();
 	$link = mysqli_init();
 	mysqli_options($link, MYSQLI_OPT_LOCAL_INFILE, true);
-	mysqli_real_connect($link, "localhost", $guestAccount, $guestPass, "nuclei");
+	mysqli_real_connect($link, $dbAddress, $guestAccount, $guestPass, "nuclei");
 
 	$sql = 'SELECT name, id FROM slides';
 	if( $result = mysqli_query($link, $sql) ) {
@@ -207,7 +207,7 @@
 	if(count($newslidelist) > 0){
 		$link = mysqli_init();
 		mysqli_options($link, MYSQLI_OPT_LOCAL_INFILE, true);
-		mysqli_real_connect($link, "localhost", $guestAccount, $guestPass, "nuclei");
+		mysqli_real_connect($link, $dbAddress, $guestAccount, $guestPass, "nuclei");
 
 		$sql = 'LOAD DATA LOCAL INFILE "'.$projectDirectory.'/'.$slideInfoFile.'"
 				INTO TABLE slides fields terminated by \',\' lines
@@ -244,7 +244,7 @@
 	/************	Start dataset importing************/
 
 	// add datasets and dataset_slides tables
-	$result = shell_exec('python ../scripts/create_dataset_importtab.py guest '.escapeshellarg($datasetName).' '.$_POST['project'].'/'.escapeshellarg($featureFile).' '.escapeshellarg($projectDirectory.'/slidelist.txt'));
+	$result = shell_exec('python ../scripts/create_dataset_importtab.py '.escapeshellarg($dbAddress).' '.escapeshellarg($guestAccount).' '.escapeshellarg($guestPass).' '.escapeshellarg($datasetName).' '.$_POST['project'].'/'.escapeshellarg($featureFile).' '.escapeshellarg($projectDirectory.'/slidelist.txt'));
 
 	if( $result != 0 ) {
 		echo "<script type='text/javascript'>window.alert('Dataset: Cannot import dataset to database !! ');

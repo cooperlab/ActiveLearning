@@ -30,19 +30,16 @@ import MySQLdb as mysql
 import getpass as pw
 
 
-if len(sys.argv) != 5:
-	print "Usage: ", sys.argv[0], "<user name> <dataset to create> <features file> <slide list>"
+if len(sys.argv) != 7:
+	print "Usage: ", sys.argv[0], "<db address> <user account> <pass> <dataset to create> <features file> <slide list>"
 	exit(1)
 
-dataset = sys.argv[2]
-userId = sys.argv[1]
-slideListFile = sys.argv[4]
-featuresFile = sys.argv[3]
-
-
-# you should put guest password here !!
-passWord = "guest"
-dbAddress = "localhost"
+dbAddress = sys.argv[1]
+userId = sys.argv[2]
+passWord = sys.argv[3]
+dataset = sys.argv[4]
+featuresFile = sys.argv[5]
+slideListFile = sys.argv[6]
 
 db = mysql.connect(host=dbAddress, user=userId, passwd=passWord, db="nuclei")
 cursor = db.cursor()
