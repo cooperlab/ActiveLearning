@@ -26,21 +26,20 @@
 
 import sys
 import h5py
-import httplib, json
-
-#
-# Note that this is a test file and will be updated in the case of the use of feature information
-#
+import numpy as np
+from json import dumps
 
 file = sys.argv[1]
 f = h5py.File(file, 'r')
 d = {}
 
-for i in f.iterkeys():
-    d[i] = f[i][:]
+# for i in f.iterkeys():
+#      d[i] = f[i][:]
+
+d['mean'] = f['mean'][:]
 
 # Generate some data to send to PHP
-results = {'slides': d['slides']}
-sampleJson = json.dumps(results, ensure_ascii = 'False')
+data = {'mean': d['mean'].tolist()}
+results = dumps(data, ensure_ascii = 'False')
 
-print sampleJson
+print results

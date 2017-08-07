@@ -27,24 +27,27 @@
 //
 //
 
+
 	require '../db/logging.php';		// Also includes connect.php
 
-	$dir = "../userdata/";
+	$projectDir = $_POST['projectDir'].'/';
 
-	$dirNames = array();
+	$array_dir = array();
 	// Open a directory, and read its contents
-	if (is_dir($dir)){
-	  if ($dh = opendir($dir)){
+	if (is_dir($projectDir)){
+	  if ($dh = opendir($projectDir)){
 	    	while (($file = readdir($dh)) !== false){
-					if(is_dir($dir.$file)){
-						$dirNames[] = $file;
+					if(is_dir($projectDir.$file)){
+						if($file != '.' && $file != '..'){
+							$array_dir[] = $file;
+						}
+					}
 				}
-	    }
-	    closedir($dh);
-	  }
+    }
+    closedir($dh);
 	}
 
-	$response = array("dirNames" => $dirNames);
+	$response = array("boundaryDir" => $array_dir);
 
 	echo json_encode($response);
 

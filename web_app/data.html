@@ -37,9 +37,12 @@
 
 		<script src="js/jquery-1.9.0.min.js"></script>
 		<script src="js/bootstrap.min.js"></script>
+		<script src="js/radarChart.js"></script>
+		<script src="js/d3.v3.min.js"></script>
 
 		<link rel="stylesheet" href="css/style.css"/>
 		<link rel="stylesheet" href="css/bootstrap.min.css"/>
+
 	</head>
 
 
@@ -73,6 +76,11 @@
 				<div class="col-sm-4 col-md-4 col-lg-4">
 					<h3>Data import</h3>
 				</div>
+				<div class="col-sm-1 col-md-1 col-lg-1">
+				</div>
+				<div class="col-sm-5 col-md-5 col-lg-5">
+					<h3>Data information</h3>
+				</div>
 			</div>
 			<br />
 			<div class="row">
@@ -83,70 +91,69 @@
 									name="application" readonly="readonly">
 
 							<div class="form-group">
-							<label for="ctypeSel">Project name:</label>
-							<input type="text" class="form-control" id="projectName"
-									name="projectName" placeholder="Enter project name"/>
-						</div>
-							<div class="form-group">
 								<label for="datasetName">Dataset name:</label>
 								<input type="text" class="form-control" id="datasetName"
 										name="datasetName" placeholder="Enter dataset name"/>
 							</div>
 							<div class="form-group">
-							<label for="datasetSel">Features:
-							(for each type of features, should have the following expressions.
-							- *spfeatures*' (region based feature name) ex. SKCM-spfeatures-21.h5
-							- '*pofeatures*' (cell based feature name) ex. SKCM-pofeatures-21.h5)</label>
-							<select class="form-control" id="datasetSel" name="datasetSel" onchange="datasetInfo()">
-							</select>
-						</div>
+								<label for="projectSel">Project Directory</label>
+								<select class="form-control" id="projectSel" name="project">
+								</select>
+							</div>
 							<div class="form-group">
-							<label for="boundarySel">Boundaries</label>
-							<select class="form-control" id="boundarySel" name="boundarySel" onchange="boundaryInfo()">
+								<label for="pyramidSel">Slide Information (.csv file)</label>
+								<select class="form-control" id="pyramidSel" name="pyramid">
+								</select>
+							</div>
+							<div class="form-group">
+								<label for="featureSel">Features (.h5 file)</label>
+								<select class="form-control" id="featureSel" name="feature">
+								</select>
+							</div>
+							<div class="form-group">
+							<label for="boundarySel">Boundaries (path to txt files)</label>
+							<select class="form-control" id="boundarySel" name="boundary">
 							</select>
 						</div>
-						<div class="form-group">
-						<label for="slideSel">Slides</label>
-						<select class="form-control" id="slideSel" name="slideSel" onchange="slideInfo()">
-						</select>
-					</div>
-					<div class="form-group">
-					<label for="pyramidSel">Slide information:
-					(select No. if already exists) </label>
-					<input type="radio" name="slideInfo" id="slideInfo" value="yes" checked="checked">Yes
-					<input type="radio" name="slideInfo" value="no">No
-					<br/>
-					<select class="form-control" id="pyramidSel" name="pyramidSel" onchange="pyramidInfo()">
-					</select>
-				</div>
-							<div><button id="_submit" type="submit" class="btn btn-success" > Submit</button></div>
+						<div><button id="_submit" type="submit" class="btn btn-success" > Submit</button></div>
+						</form>
+						<br />
+						<h3>Data deletion</h3>
+					<br />
+							<form id="_form_delete" role="form" method="post" action="php/data_delete.php">
+								<input type="hidden" class="form-control" id="applicationSeldel"
+										name="applicationdel" readonly="readonly">
+								<div class="form-group">
+									<label for="deleteDatasetSel">Dataset name to delete:
+									</label>
+									<select class="form-control" id="deleteDatasetSel" name="deleteDatasetSel" onchange="deleteDatasetInfo()">
+								</select>
+							</div>
+							<div><button id="_submit_delete" type="submit" class="btn btn-danger" > Remove</button></div>
 						</form>
 
 				</div>
-			</div>
-
-			<div class="row">
-				<div class="col-sm-4 col-md-4 col-lg-4">
-					<h3>Data deletion</h3>
+				<div class="col-sm-1 col-md-1 col-lg-1">
 				</div>
-			</div>
-			<br />
-			<div class="row">
-				<div class="col-sm-4 col-md-4 col-lg-4">
-					<form id="_form_delete" role="form" method="post" action="php/data_delete.php">
-						<input type="hidden" class="form-control" id="applicationSeldel"
-								name="applicationdel" readonly="readonly">
-						<div class="form-group">
-							<label for="deleteDatasetSel">Dataset name to delete:
-							</label>
-							<select class="form-control" id="deleteDatasetSel" name="deleteDatasetSel" onchange="deleteDatasetInfo()">
-						</select>
+				<div class="col-sm-5 col-md-5 col-lg-5">
+					<!-- <div id="body"> -->
+					<div class="row">
+					<label>Total Mean values of each feature</label>
+				</br>
+			</br>
+			<div id="chart">
 					</div>
-					<div><button id="_submit_delete" type="submit" class="btn btn-danger" > Remove</button></div>
-				</form>
+				</div>
+
+				<div class="row">
+				<label>Slide information</label>
+			</br>
+					<div id="pyramidTable">
+					</div>
+				</div>
+
 			</div>
 		</div>
-
 		</div>
 		<div class="modal fade" id="progDiag" tabindex="-1" role="dialog"
 			aria-labelledby="myModalLabel" aria-hidden="true">
@@ -154,11 +161,11 @@
 				<div class="modal-content">
 					<div class="modal-header">
 						<h4 class="modal-title" id="myModalLabel">
-							Importing Dataset
+							Processing Dataset
 						</h4>
 					</div>
 					<div class="modal-body">
-						Please wait while the dataset is imported.
+						Please wait while processing...
 					</div>
 				</div>
 			</div>

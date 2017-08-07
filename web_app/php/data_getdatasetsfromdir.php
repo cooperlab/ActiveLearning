@@ -29,23 +29,38 @@
 
 	require '../db/logging.php';		// Also includes connect.php
 
-	$dir = "../userdata/";
+	$application = $_POST['application'];
+	$projectDir = $_POST['projectDir'];
 
-	$dirNames = array();
+	$array_features = array();
 	// Open a directory, and read its contents
-	if (is_dir($dir)){
-	  if ($dh = opendir($dir)){
+	if (is_dir($projectDir)){
+	  if ($dh = opendir($projectDir)){
 	    	while (($file = readdir($dh)) !== false){
 					$info = pathinfo($file);
 					if ($info["extension"] == "h5") {
-							$dirNames[] = $file;
-					 }
+						if ($application == "nuclei") {
+							if ((strpos($file, 'pofeatures') === false) && (strpos($file, 'spfeatures') === false)) {
+								$array_features[] = $file;
+							}
+						}	else if ($application == "region") {
+							if (strpos($file, 'spfeatures') !== false) {
+								$array_features[] = $file;
+							}
+						}	else if ($application == "cell") {
+							if (strpos($file, 'pofeatures') !== false) {
+								$array_features[] = $file;
+							}
+						}	else{
+							log_error("Can't find ".$application);
+						}
+				 }
 	    }
 	    closedir($dh);
 	  }
 	}
 
-	$response = array("dirNames" => $dirNames);
+	$response = array("featureName" => $array_features);
 
 	echo json_encode($response);
 

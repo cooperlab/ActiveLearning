@@ -27,15 +27,27 @@
 //
 //
 
-	require '../db/logging.php';
+	require '../db/logging.php';		// Also includes connect.php
 
-	$projectDir = $_POST['projectDir'];
-	$filename = $_POST['featurename'];
+	$projectDir = $_POST['projectDirMain'];
 
-	// Execute the python script with the JSON data
-	$array_features = shell_exec('python ../python/readHDF5.py '.escapeshellarg($projectDir.'/'.$filename));
+	$array_dir = array();
+	// Open a directory, and read its contents
+	if (is_dir($projectDir)){
+	  if ($dh = opendir($projectDir)){
+	    	while (($file = readdir($dh)) !== false){
+					if(is_dir($projectDir.$file)){
+						if($file != '.' && $file != '..'){
+							$array_dir[] = $file;
+						}
+					}
+				}
+    }
+    closedir($dh);
+	}
 
-	$data = json_decode($array_features);
+	$response = array("projectDir" => $array_dir);
 
-	echo json_encode($data);
-?>
+	echo json_encode($response);
+
+	?>

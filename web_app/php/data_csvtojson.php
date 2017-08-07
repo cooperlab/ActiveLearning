@@ -27,15 +27,41 @@
 //
 //
 
-	require '../db/logging.php';
+require '../db/logging.php';		// Also includes connect.php
 
-	$projectDir = $_POST['projectDir'];
-	$filename = $_POST['featurename'];
+$csvFile = $_POST['csvFile'];
 
-	// Execute the python script with the JSON data
-	$array_features = shell_exec('python ../python/readHDF5.py '.escapeshellarg($projectDir.'/'.$filename));
+// Function to convert CSV into associative array
+function csvToArray($file, $delimiter) {
+  if (($handle = fopen($file, 'r')) !== FALSE) {
+    $i = 0;
+    while (($lineArray = fgetcsv($handle, 4000, $delimiter, '"')) !== FALSE) {
+      for ($j = 0; $j < count($lineArray); $j++) {
+        $arr[$i][$j] = $lineArray[$j];
+      }
+      $i++;
+    }
+    fclose($handle);
+  }
+  return $arr;
+}
 
-	$data = json_decode($array_features);
+$data = csvToArray('../csv/'.$csvFile, ',');
+$count = count($data);
 
-	echo json_encode($data);
+$keys = array("slides", "width", "height", "path", "scale");
+
+// Bring it all together
+for ($j = 0; $j < $count; $j++) {
+  $d = array_combine($keys, $data[$j]);
+  $response[$j] = $d;
+}
+//write_log("INFO","response: ".$response[0]);
+
+$fp = fopen('../csv/data.json', 'w');
+fwrite($fp, json_encode($response));
+fclose($fp);
+
+echo json_encode($response);
+
 ?>
