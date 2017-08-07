@@ -41,9 +41,10 @@ featuresFile = sys.argv[3]
 
 
 # you should put guest password here !!
-passWord = ""
+passWord = "guest"
+dbAddress = "localhost"
 
-db = mysql.connect(host='localhost', user=userId, passwd=passWord, db="nuclei")
+db = mysql.connect(host=dbAddress, user=userId, passwd=passWord, db="nuclei")
 cursor = db.cursor()
 
 #
