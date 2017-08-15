@@ -37,8 +37,6 @@
 
 		<script src="js/jquery-1.9.0.min.js"></script>
 		<script src="js/bootstrap.min.js"></script>
-		<script src="js/radarChart.js"></script>
-		<script src="js/d3.v3.min.js"></script>
 
 		<link rel="stylesheet" href="css/style.css"/>
 		<link rel="stylesheet" href="css/bootstrap.min.css"/>
@@ -76,10 +74,10 @@
 				<div class="col-sm-4 col-md-4 col-lg-4">
 					<h3>Data import</h3>
 				</div>
-				<div class="col-sm-1 col-md-1 col-lg-1">
+				<div class="col-sm-2 col-md-2 col-lg-2">
 				</div>
-				<div class="col-sm-5 col-md-5 col-lg-5">
-					<h3>Data information</h3>
+				<div class="col-sm-4 col-md-4 col-lg-4">
+					<h3>Data deletion</h3>
 				</div>
 			</div>
 			<br />
@@ -117,40 +115,21 @@
 						</div>
 						<div><button id="_submit" type="submit" class="btn btn-success" > Submit</button></div>
 						</form>
-						<br />
-						<h3>Data deletion</h3>
-					<br />
-							<form id="_form_delete" role="form" method="post" action="php/data_delete.php">
+				</div>
+				<div class="col-sm-2 col-md-2 col-lg-2">
+				</div>
+				<div class="col-sm-4 col-md-4 col-lg-4">
+							<form onsubmit="return confirm('Do you really want to delete this dataset?');" id="_form_delete" role="form" method="post" action="php/data_delete.php">
 								<input type="hidden" class="form-control" id="applicationSeldel"
 										name="applicationdel" readonly="readonly">
 								<div class="form-group">
-									<label for="deleteDatasetSel">Dataset name to delete:
+									<label for="deleteDatasetSel">Dataset to delete:
 									</label>
 									<select class="form-control" id="deleteDatasetSel" name="deleteDatasetSel" onchange="deleteDatasetInfo()">
 								</select>
 							</div>
 							<div><button id="_submit_delete" type="submit" class="btn btn-danger" > Remove</button></div>
 						</form>
-
-				</div>
-				<div class="col-sm-1 col-md-1 col-lg-1">
-				</div>
-				<div class="col-sm-5 col-md-5 col-lg-5">
-					<!-- <div id="body"> -->
-					<div class="row">
-					<label>Total Mean values of each feature</label>
-				</br>
-			</br>
-			<div id="chart">
-					</div>
-				</div>
-
-				<div class="row">
-				<label>Slide information</label>
-			</br>
-					<div id="pyramidTable">
-					</div>
-				</div>
 
 			</div>
 		</div>
