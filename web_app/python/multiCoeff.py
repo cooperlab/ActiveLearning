@@ -147,18 +147,29 @@ if __name__ == '__main__':
 		uni_dt.columns.values[0] = 'Hazard Ratio'
 		col_list = ['Hazard Ratio', 'lower 0.95', 'upper 0.95', 'p']
 		uni_dt = uni_dt.ix[:, col_list]
-		uni_dt.to_csv("uni_output.csv",mode='w+',index_label="Variable")
+		uni_dt.to_csv("uni_output.csv",mode='w+')
 	#multi_variate
 	elif (sys.argv[2] == 'multi'):
 		df = pd.read_json(data)
 		df.columns = df.columns.str.replace('\r','')
 		clean_df = generate_clean_df(df)
 		uni_df = pd.DataFrame.from_csv("uni_output.csv")
-		# import pdb; pdb.set_trace()
+
 		multi_result_dic = cox_regression(clean_df)
+
 		multi_df = pd.DataFrame.from_dict(multi_result_dic)
-		multi_df.columns.values[0] = 'Hazard Ratio'
-		col_list = ['Hazard Ratio', 'lower 0.95', 'upper 0.95', 'p']
-		multi_df = multi_df.ix[:, col_list]
+
+		multi_df.columns.values[0] = 'multi Hazard Ratio'
+		multi_df.columns.values[1] = 'multi lower'
+		multi_df.columns.values[2] = 'multi upper'
+		multi_df.columns.values[3] = 'multi p'
+
+		col_list = ['multi Hazard Ratio', 'multi lower', 'multi upper', 'multi p']
+		# col_list = ['Hazard Ratio', 'lower 0.95', 'upper 0.95', 'p']
+
+		# multi_df = multi_df.ix[:, col_list]
+		multi_df = multi_df[col_list]
 		result = pd.concat([uni_df,multi_df], axis=1)
-		result.to_csv("multi_output.csv",mode='w+',index_label="Variable")
+		result.index.name = "Variable"
+		result = result.reset_index()
+		result.to_csv("multi_output.csv",mode='w+',index=False)
