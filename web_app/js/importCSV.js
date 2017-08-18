@@ -41,7 +41,7 @@ var slideReq = null;
 var uid = null;
 var application = "";
 
-$(document).ready(function() {
+$(function() {
 
     application = $_GET("application");
 
@@ -346,3 +346,12 @@ $('#submit').click(function(){
     }
     getInputDataAndDrawKM();
 });
+
+//
+// Retruns the value of the GET request variable specified by name
+//
+//
+function $_GET(name) {
+	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
+}

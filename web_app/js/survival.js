@@ -148,7 +148,7 @@ function getInputDataAndDrawKM(){
  */
 function getInputData(){
     // Remove any highlighting from the input boxes.
-    dehighlight();
+    //dehighlight();
 
     // Get the (required) event/censoring times.
     var times = getTextareaData("timesdata");
