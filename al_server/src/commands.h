@@ -67,4 +67,6 @@
 #define CMD_REVIEW		"review"
 #define CMD_REVIEWSAVE		"reviewSave"
 
+#define CMD_SURVIVAL		"survival"
+
 #endif /* SRC_COMMANDS_H_ */
