@@ -82,6 +82,7 @@ $(function() {
 	document.getElementById("nav_reports").setAttribute("href","reports.html?application="+application);
 	document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
 	document.getElementById("nav_validation").setAttribute("href","validation.html?application="+application);
+	document.getElementById("nav_survival").setAttribute("href","survival.html?application="+application);
 
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded

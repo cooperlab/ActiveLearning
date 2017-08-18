@@ -61,6 +61,7 @@ $(function() {
 	document.getElementById("nav_review").setAttribute("href","review.html?application="+application);
 	document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
 	document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
+	document.getElementById("nav_survival").setAttribute("href","survival.html?application="+application);
 
 	// Setup the thumbnail scroller
 	//

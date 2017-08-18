@@ -1,5 +1,4 @@
 <?php
-
 //
 //	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
@@ -26,32 +25,56 @@
 //	DAMAGE.
 //
 //
+	require '../db/logging.php';		// Also includes connect.php
+	require 'hostspecs.php';
 
-	require 'hostspecs.php'; // declares $host
-	session_start();
+	$dataset = $_POST['dataset'];
 
-	$statusCmd = array( "command" => "pickerCnt",
-	  			 	    "uid" => $_SESSION['uid']);
+	// Get slide info for the dataset from the database
+	//
+	$dbConn = guestConnect();
 
-	$statusCmd = json_encode($statusCmd, JSON_NUMERIC_CHECK);
+	$sql = 'SELECT s.name FROM slides s JOIN dataset_slides d ON s.id=d.slide_id JOIN datasets t ON d.dataset_id=t.id WHERE t.name="'.$dataset.'" ORDER BY s.name';
 
+	if( $result = mysqli_query($dbConn, $sql) ) {
+		$slideNames = array();
+		while( $row = mysqli_fetch_row($result) ) {
+			$slideNames[] = $row[0];
+		}
+		$slideData = array("slides" => $slideNames);
+		$serverData = array("slides" => $slideNames);
+		mysqli_free_result($result);
+	}
+	mysqli_close($dbConn);
+
+	$cmd_data =  array("command" => "survival",
+					   "slides" => $serverData,
+	  			 	   "uid" => $_POST['uid'] );
+
+	$cmd_data = json_encode($cmd_data, JSON_NUMERIC_CHECK);
 	$addr = gethostbyname($host);
 	set_time_limit(0);
-
 	$socket = socket_create(AF_INET, SOCK_STREAM, 0);
-	if( $socket === false ) {
-		echo "socket_create failed:  ". socket_strerror(socket_last_error()) . "<br>";
-	}
 
+	if( $socket === false ) {
+		log_error("socket_create failed:  ". socket_strerror(socket_last_error()));
+	}
 	$result = socket_connect($socket, $addr, $port);
 	if( !$result ) {
-		echo "socket_connect failed: ".socket_strerror(socket_last_error()) . "<br>";
+		log_error("socket_connect failed: ".socket_strerror(socket_last_error()));
 	}
+	socket_write($socket, $cmd_data, strlen($cmd_data));
 
-	socket_write($socket, $statusCmd, strlen($statusCmd));
-	$response = socket_read($socket, 1024);
+	$response = socket_read($socket, 4096);
+	$additional = socket_read($socket, 4096);
+
+	while( $additional != false ) {
+		$response = $response.$additional;
+		$additional = socket_read($socket, 4096);
+	}
 	socket_close($socket);
-
-	echo $response;
+	$response = json_decode($response);
+	$slideData = array("scores" => $response );
+	echo json_encode($slideData);
 
 ?>

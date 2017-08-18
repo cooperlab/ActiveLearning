@@ -1,3 +1,4 @@
+<?php
 //
 //	Copyright (c) 2014-2017, Emory University
 //	All rights reserved.
@@ -24,49 +25,33 @@
 //	DAMAGE.
 //
 //
-#if !defined(SRC_COMMANDS_H_)
-#define SRC_COMMANDS_H_
-
-
-// JSON object tags
-//
-#define UID_TAG		"uid"
-#define CMD_TAG		"command"
-
-
-// Server commands
-//
-#define CMD_INIT		"init"
-#define CMD_END			"end"
-#define CMD_FINAL		"finalize"
-#define CMD_CLASSINIT	"viewerLoad"
-#define CMD_CLASSEND	"viewerEnd"
-#define CMD_PRIME		"prime"
-#define CMD_SELECT		"select"
-#define CMD_SUBMIT		"submit"
-#define CMD_APPLY		"apply"
-#define CMD_VISUAL		"visualize"
-#define CMD_RELOAD		"reload"
-
-#define CMD_PICKINIT	"pickerInit"
-#define CMD_PICKADD		"pickerAdd"
-#define CMD_PICKCNT		"pickerCnt"
-#define CMD_PICKEND		"pickerSave"
-#define CMD_PICKREVIEW		"pickerReview"
-#define CMD_PICKREVIEWSAVE		"pickerReviewSave"
-#define CMD_PICKRELOAD	"pickerReload"
-#define CMD_VIEWLOAD	"viewerLoad"
-
-#define CMD_HEATMAP		"heatMap"
-#define CMD_ALLHEATMAPS	"allHeatMaps"
-#define CMD_SREGIONHEATMAP		"sregionHeatMap"
-#define CMD_SREGIONALLHEATMAPS	"sregionallHeatMaps"
-
-#define CMD_STATUS		"sysStatus"
-
-#define CMD_REVIEW		"review"
-#define CMD_REVIEWSAVE		"reviewSave"
-
-#define CMD_SURVIVAL		"survival"
-
-#endif /* SRC_COMMANDS_H_ */
+	require '../db/logging.php';
+	/* 	Retrieve a list of datasets from the data base.
+		Return as a json object
+	*/
+	$slides = $_POST['slideSet'];
+  //$posfloat = $slides['scores'][0]['posNum']/$slides['scores'][0]['totalNum'];
+	//$posPernt = round($posfloat * 100 );
+	$list = array();
+	foreach ($slides['scores'] as $v) {
+		$posfloat = $v['posNum']/$v['totalNum'];
+		$posPernt = round($posfloat * 100 );
+		$slidelist = array();
+		array_push($slidelist, $v['slide']);
+		array_push($slidelist, $posPernt);
+		array_push($list, $slidelist);
+	}
+		$fpath = '../trainingsets/tmp/tmp.csv';
+		$fp = fopen($fpath, 'w');
+		foreach ($list as $fields) {
+		    fputcsv($fp, $fields);
+		}
+		fclose($fp);
+		// Execute the python script with the JSON data
+		$results = shell_exec('python ../python/test.py '.$fpath);
+	  // Decode the result
+	  $results = json_decode($results);
+		//write_log("INFO","json results fro python code: ".$results['test']);
+		$clinicalData = array("scores" => $results );
+		echo json_encode($clinicalData);
+?>
