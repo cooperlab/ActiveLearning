@@ -17,7 +17,7 @@ The following can be installed using the package manager
 	Python
 	python mysqldb module
 	numpy & scipy
-	
+	pandas & lifelines
 IIPImage server needs to be built from the project's repository, since the Ubuntu package does not work with large tiff's. The project's web site is: 
 	
 	http://iipimage.sourceforge.net
@@ -26,7 +26,7 @@ IIPImage server needs to be built from the project's repository, since the Ubunt
 
 +++ Learning server
 
-The following are needed to build the leraning server.
+The following are needed to build the learning server.
 
 	CMake
 	HDF5					http://www.hdfgroup.org
@@ -35,6 +35,8 @@ The following are needed to build the leraning server.
 	h5py					http://www.h5py.org
 	jannson					http://www.digip.org/jansson/
 	OpenCV	v2.4.10 		http://opencv.org
+	pandas                  https://pypi.python.org/pypi/pandas/
+	lifelines               https://pypi.python.org/pypi/lifelines
 	
 OpenCV changed the interface to the machine learning modules in version 3.0, so version 2.4.10 is required. 
 
