@@ -62,7 +62,6 @@ $(function() {
 				$('#nav_select').hide();
 				$('#nav_heatmaps').hide();
 				$('#nav_review').hide();
-				$('#nav_survival').hide();
 
 				document.getElementById("index").setAttribute("href","index.html");
 
@@ -97,7 +96,6 @@ $(function() {
 			document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
 			document.getElementById("nav_data").setAttribute("href","data.html?application="+application);
 			document.getElementById("nav_validation").setAttribute("href","validation.html?application="+application);
-			document.getElementById("nav_survival").setAttribute("href","survival.html?application="+application);
 
 			$("#applicationSel").val(application);
 			$("#applicationSelreload").val(application);

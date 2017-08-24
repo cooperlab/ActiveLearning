@@ -1,30 +1,8 @@
-//
-//	Copyright (c) 2014-2017, Emory University
-//	All rights reserved.
-//
-//	Redistribution and use in source and binary forms, with or without modification, are
-//	permitted provided that the following conditions are met:
-//
-//	1. Redistributions of source code must retain the above copyright notice, this list of
-//	conditions and the following disclaimer.
-//
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list
-// 	of conditions and the following disclaimer in the documentation and/or other materials
-//	provided with the distribution.
-//
-//	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
-//	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-//	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-//	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-//	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-//	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-//	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
-//	WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-//	DAMAGE.
-//
-//
-
+$(document).ready(function() {
+    if (window.File && window.FileReader && window.FileList && window.Blob) {
+      $('#files').bind('change', handleFileSelect);
+    }
+});
 var eventSel = $("#censoringdata");
 var timeSel = $("#timesdata");
 var groupSel = $("#groupdata");
@@ -34,101 +12,6 @@ var chosen_var = [];
 var chosen_field;
 var json_for_send = ''
 var csv_Json;
-var IIPServer="";
-var curDataset = "";
-var slideSet = null;
-var slideReq = null;
-var uid = null;
-var application = "";
-
-$(function() {
-
-    application = $_GET("application");
-
-    document.getElementById("home").setAttribute("href","index_home.html?application="+application);
-    document.getElementById("nav_select").setAttribute("href","grid.html?application="+application);
-    document.getElementById("nav_review").setAttribute("href","review.html?application="+application);
-    document.getElementById("viewer").setAttribute("href","viewer.html?application="+application);
-    document.getElementById("nav_heatmaps").setAttribute("href","heatmaps.html?application="+application);
-    document.getElementById("nav_survival").setAttribute("href","survival.html?application="+application);
-
-    // get slide host info
-  	//
-  	$.ajax({
-  		url: "php/getSession.php",
-  		data: "",
-  		dataType: "json",
-  		success: function(data) {
-
-  			uid = data['uid'];
-  			curDataset = data['dataset'];
-
-  			if( uid === null ) {
-  				window.alert("No session active");
-  				window.history.back();
-  			}
-  			else{
-  				getObjectCnt();
-  			}
-  		}
-  	});
-
-    if (window.File && window.FileReader && window.FileList && window.Blob) {
-      $('#files').bind('change', handleFileSelect);
-    }
-});
-
-
-function getSurvivalData() {
-
-	// Get the information for the current dataset
-	$.ajax({
-		type: "POST",
-		url: "php/getSurvivalData.php",
-		data: { slideSet: slideSet,
-			test: curDataset},
-		dataType: "json",
-		success: function(data) {
-				var result = data['scores'];
-		}
-	});
-}
-
-function getObjectCnt() {
-
-	// Display the progress dialog...
-	$('#progDiag').modal('show');
-
-	$.ajax({
-		type: "POST",
-		url: "php/getcounts.php",
-		data: { dataset: curDataset,
-				uid: uid
-			  },
-		dataType: "json",
-		success: function(data) {
-
-			slideSet = data;
-
-			for( var i in slideSet['scores'] ) {
-				var slide = String(slideSet['scores'][i]['slide']);
-				var posNum = slideSet['scores'][i]['posNum'];
-				var totalNum = slideSet['scores'][i]['totalNum'];
-			}
-
-			getSurvivalData();
-
-			// Hide progress dialog
-			$('#progDiag').modal('hide');
-
-		},
-		failure: function() {
-			console.log("getCounts failed");
-		}
-	});
-}
-
-
 function handleFileSelect(evt) {
   var files = evt.target.files; // FileList object
   var file = files[0];
@@ -148,7 +31,7 @@ function handleFileSelect(evt) {
            updateTable(filename);
         }
       });
-
+   
       data = $.csv.toObjects(csv);
       console.log(data);
 
@@ -346,12 +229,3 @@ $('#submit').click(function(){
     }
     getInputDataAndDrawKM();
 });
-
-//
-// Retruns the value of the GET request variable specified by name
-//
-//
-function $_GET(name) {
-	var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
-	return match && decodeURIComponent(match[1].replace(/\+/g,' '));
-}
