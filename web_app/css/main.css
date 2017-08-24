@@ -5,7 +5,7 @@ body{
 }
 
 /* Graph Stuff */
-	
+
 .axis path, .axis line{
 	stroke: black;
 	fill: none;
@@ -17,56 +17,45 @@ body{
 	font-size: 14px;
 }
 
-.survline{
+.survline {
 	fill: none;
 	stroke-width: 2;
-/*	stroke: rgba(0, 0, 255, 1);*/
     stroke: rgba(51, 170, 51,  1);
 	shape-rendering: crispEdges;
 }
+
 .survline.active{
-/*	stroke: rgba(255, 0, 0, 1);*/
     stroke: rgba(255,255,0,0.7);
 	z-index: 100;
 }
 
 .survarea{
 	stroke-width: 0;
-/*	fill: rgba(0, 0, 255, 0.2);*/
-    fill: rgba(51, 170, 51, .4)    /*  40% opaque green */ 
+    fill: rgba(51, 170, 51, .4)      40% opaque green
 }
 .survarea.active{
-/*	fill: rgba(255, 0, 0, 0.4);*/
-    fill:  rgba(51, 170, 51, .4) 
+    fill:  rgba(51, 170, 51, .4)
 }
 
+
+
 .survcircle{
-/*
-	fill: rgba(0, 0, 255, 1); 
-	stroke: rgba(0, 0, 255, 1);
-*/
-    fill: rgba(51, 170, 51,  1); 
-	stroke:rgba(51, 170, 51,  1);
-    
+display: none;
 }
 .survcircle.active{
-/*
-	fill: rgba(255, 0, 0, 1); 
-	stroke: rgba(255, 0, 0, 1);
-*/
-    fill: rgba(255,255,0,0.7); 
-	stroke: rgba(255,255,0,0.7);
+    display: none;
 }
 
 /* UI Stuff */
 
-#message-holder{
+/*#message-holder{
 	height: 30px;
-}
-#message{
+}*/
+#pvalue_message{
 	width: 540px;
 	padding: 5px;
 	font-weight: bold;
+	font-size: 18px;
 }
 #message.active{
 	border: 1px solid #999;
@@ -100,7 +89,7 @@ textarea{
 	width: 500px;
 }
 button{
-	cursor: pointer; 
+	cursor: pointer;
 	cursor: hand;
 }
 
@@ -151,7 +140,7 @@ margin: 0 auto;
 	td, th {
 		padding: 6px 9px 6px 9px;
 		border: 1px solid #ccc;
-		text-align: left;
+		text-align: center;
 	}
 
 	th.des:after {
@@ -161,3 +150,23 @@ margin: 0 auto;
     th.aes:after {
       content: "\21E7";
     }
+#crv_even {
+    fill: none;
+	stroke-width: 2;
+	stroke: rgba(0, 0, 255, 1);
+/*    stroke: rgba(51, 170, 51,  1);*/
+	shape-rendering: crispEdges;
+}
+#crv_odd {
+    fill: none;
+	stroke-width: 2;
+	stroke: rgba(255, 0, 0, 1);
+/*    stroke: rgba(51, 170, 51,  1);*/
+	shape-rendering: crispEdges;
+}
+#ci_even{
+    fill:rgba(0, 0, 255, 0.4);
+}
+#ci_odd{
+    fill: rgba(255, 0, 0, 0.4);
+}
