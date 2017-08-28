@@ -57,9 +57,11 @@ $(function() {
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][1]));
 				$('#datasetMapSel').append(new Option(data[item][0], data[item][1]));
+				$('#datasetLabelSel').append(new Option(data[item][0], data[item][1]));
 				$('#applyDatasetSel').append(new Option(data[item][0], data[item][1]));
 			}
 			updateSlideList();
+			updateSlideListLabel();
 		}
 	});
 
@@ -75,6 +77,7 @@ $(function() {
 				trainsetSel.append(new Option(data[item][0], data[item][1]));
 				downloadsetSel.append(new Option(data[item][0], data[item][1]));
 				$('#trainsetMapSel').append(new Option(data[item][0], data[item][1]));
+				$('#trainsetLabelSel').append(new Option(data[item][0], data[item][1]));
 				$('#applyTrainsetSel').append(new Option(data[item][0], data[item][1]));
 			}
 		}
@@ -84,6 +87,7 @@ $(function() {
 	//	size is dependant on these.
 	//
 	$("#datasetMapSel").change(updateDataset);
+	$("#datasetLabelSel").change(updateDatasetLabel);
 	$("#slideMapSel").change(updateSlideSize);
 
 });
@@ -117,6 +121,30 @@ function updateSlideList() {
 }
 
 
+//
+//	Updates the list of available slides for the current dataset
+//
+function updateSlideListLabel() {
+
+	var	dataset = datasetLabelSel.options[datasetLabelSel.selectedIndex].label;
+
+	// Get the list of slides for the current dataset
+	$.ajax({
+		type: "POST",
+		url: "db/getslides.php",
+		data: { dataset: dataset },
+		dataType: "json",
+		success: function(data) {
+
+			$('#slideLabelSel').empty();
+			// Add the slides we have segmentation boundaries for to the dropdown
+			// selector
+			for( var item in data['slides'] ) {
+				$('#slideLabelSel').append(new Option(data['slides'][item], data['slides'][item]));
+			}
+		}
+	});
+}
 
 
 
@@ -124,6 +152,9 @@ function updateDataset() {
 	updateSlideList();
 }
 
+function updateDatasetLabel() {
+	updateSlideListLabel();
+}
 
 
 function updateSlideSize() {
