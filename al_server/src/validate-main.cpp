@@ -471,7 +471,7 @@ int GenerateMask(MData& trainSet, MData& testSet, Classifier *classifier,
 	// get slide name
 	//char	**slideNames = testSet.GetSlideNames();
 	// magnification should be provided before this, at this time, we set this to 40x.
-	int mag = 40;
+	int mag = 20;
 	int tileSize = 4096;
 	int m_factor = 2;
 	int spixelWidth = 28;
@@ -538,11 +538,14 @@ int GenerateMask(MData& trainSet, MData& testSet, Classifier *classifier,
 											 }
 											 // end finding function we can make a funtion for this process.
 
-											int num_x = atoi(str_array[2].c_str());
-											int num_y = atoi(str_array[3].c_str());
+											int num_x = atoi(str_array[str_array.size()-3].c_str());
+											int num_y = atoi(str_array[str_array.size()-2].c_str());
 
 											// set size of total tiled images, we set im_mask to 8-bit with single channel
 									 		im_mask = Mat::zeros(num_y*tileSize, num_x*tileSize, CV_8UC1);
+											cout << str_array[str_array.size()-3] << " / " << str_array[str_array.size()-2] << endl;
+											cout << "Mask num " << num_x << " / " << num_y << endl;
+											cout << "Mask size " << im_mask.rows << " / " << im_mask.cols << endl;
 
 											int n_tiles = 1;
 											// set postive and negative value
@@ -550,9 +553,9 @@ int GenerateMask(MData& trainSet, MData& testSet, Classifier *classifier,
 
 												string tileImageName = *it;
 												string tilePath = tileDirPath + "/" + tileImageName;
-												// cout << "tilePath " << tilePath << endl;
 												// we are going to copy im_pnlabels to im_mask using im_labels
 												Mat im_labels = imread(tilePath, IMREAD_UNCHANGED);
+												cout << "Label size " << im_labels.rows << " " << im_labels.cols << endl;
 												Mat im_pnlabels = Mat::zeros(im_labels.rows, im_labels.cols, CV_8UC1);
 
 												// start finding location of tiled slides
@@ -572,15 +575,16 @@ int GenerateMask(MData& trainSet, MData& testSet, Classifier *classifier,
 											 	}
 												// end finding location of tiled slides
 
-												int num_y_tile = atoi(str_array_tile[2].c_str());
-												int num_x_tile = atoi(str_array_tile[3].c_str());
+												int num_y_tile = atoi(str_array_tile[str_array_tile.size()-3].c_str());
+												int num_x_tile = atoi(str_array_tile[str_array_tile.size()-2].c_str());
 												int starty = (num_y_tile-1)*tileSize;
 												int startx = (num_x_tile-1)*tileSize;
 												int endy = starty + tileSize - 1;
 												int endx = startx + tileSize - 1;
-
+												int n_slideobjs = 0;
 												// loop all objects in the given dataset
 												for(int obj = 0; obj < slideObjs; obj++) {
+
 														// get center x, y on an object
 														int ceny = testSet.GetXCentroid(offset+obj);
 														int cenx = testSet.GetYCentroid(offset+obj);
@@ -634,11 +638,20 @@ int GenerateMask(MData& trainSet, MData& testSet, Classifier *classifier,
 																				}
 																		}
 																}
+
+																n_slideobjs = n_slideobjs + 1;
+
 														}
 												} //end object loop
 												// copy im_pnlabels to im_mask
 												cout << "Processing ... " << n_tiles << " / " << tile_array.size() << endl;
-												im_pnlabels.copyTo(im_mask(Rect(starty, startx, im_pnlabels.rows, im_pnlabels.cols)));
+												cout << "Processing ... im_mask " << im_mask.rows << " / " << im_mask.cols << endl;
+												cout << "Processing ... im_pnlabels " << im_pnlabels.rows << " / " << im_pnlabels.cols << endl;
+												cout << "Processing ... starty " << starty << " / " << startx << endl;
+
+												if (n_slideobjs > 0) {
+													im_pnlabels.copyTo(im_mask(Rect(starty, startx, im_pnlabels.rows, im_pnlabels.cols)));
+												}
 												n_tiles = n_tiles + 1;
 											}
 
