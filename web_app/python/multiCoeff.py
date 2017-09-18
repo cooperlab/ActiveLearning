@@ -7,6 +7,7 @@ from math import *
 import multiprocessing
 from lifelines import CoxPHFitter
 from lifelines.utils import k_fold_cross_validation
+from lifelines.statistics import logrank_test
 
 def check_if_binary(arr):
 	uni = np.unique(arr)
@@ -58,10 +59,9 @@ def generate_clean_df(raw_df):
 	#drop patients with NaN features
 	clean_df = processed_df.dropna(axis=0, how='any')
 	#transform the original data to meet the default of linelines
-	clean_df.loc[:, 'event'] = -1 * clean_df.loc[:, 'event']+ 1
+	# clean_df.loc[:, 'event'] = -1 * clean_df.loc[:, 'event']+ 1
 	num_coef = clean_df.shape[1] - 2 #exclude time and event columns
 	assert num_coef > 0
-
 	for i in range(2, num_coef + 2):
 		#standardization if necessary
 		if not (check_if_binary(clean_df.iloc[:,i])):
@@ -127,10 +127,6 @@ if __name__ == '__main__':
 		# data = json.loads(sys.argv[1])
 		df = pd.read_json(data)
 		df.columns = df.columns.str.replace('\r','')
-		# import pdb; pdb.set_trace()
-		# colms = df.columns
-		# colms = [i.strip() for i in colms]
-		# df = df.ix[:, colms]
 		df = df.dropna(axis=0,how='any')
 		df.loc[:, 'event'] = -1 * df.loc[:, 'event']+ 1
 		clean_df = rearrange_col_names(df)
@@ -154,22 +150,34 @@ if __name__ == '__main__':
 		df.columns = df.columns.str.replace('\r','')
 		clean_df = generate_clean_df(df)
 		uni_df = pd.DataFrame.from_csv("uni_output.csv")
-
 		multi_result_dic = cox_regression(clean_df)
-
+		#for KM-plotting
+		data_mat = clean_df.values[:,2:]
+		coefs = [np.log(multi_result_dic['exp(coef)'][name]) for name in clean_df.columns[2:]]
+		coefs = np.array(coefs).reshape(-1, 1)
+		mat_for_plotting = np.concatenate([clean_df.values[:,:2], np.dot(data_mat, coefs)], axis=1)
+		critical_val = np.median(mat_for_plotting, axis=0)[2]
+		abv_median = mat_for_plotting[mat_for_plotting[:,-1] >= critical_val]
+		abv_time = np.array(abv_median[:,0]).tolist()
+		abv_event = np.array(abv_median[:,1]).tolist()
+		below_median = mat_for_plotting[mat_for_plotting[:,-1] < critical_val]
+		blw_time = np.array(below_median[:,0]).tolist()
+		blw_event = np.array(below_median[:,1]).tolist()
+		# import pdb; pdb.set_trace()
 		multi_df = pd.DataFrame.from_dict(multi_result_dic)
-
 		multi_df.columns.values[0] = 'multi Hazard Ratio'
 		multi_df.columns.values[1] = 'multi lower'
 		multi_df.columns.values[2] = 'multi upper'
 		multi_df.columns.values[3] = 'multi p'
-
 		col_list = ['multi Hazard Ratio', 'multi lower', 'multi upper', 'multi p']
-		# col_list = ['Hazard Ratio', 'lower 0.95', 'upper 0.95', 'p']
-
-		# multi_df = multi_df.ix[:, col_list]
 		multi_df = multi_df[col_list]
 		result = pd.concat([uni_df,multi_df], axis=1)
 		result.index.name = "Variable"
 		result = result.reset_index()
 		result.to_csv("multi_output.csv",mode='w+',index=False)
+		rst = logrank_test(abv_time, blw_time, abv_event, blw_event)
+		# pvalue = rst.p_value
+		pvalue = round(rst.p_value, 6)
+		last = {"abv_time" : abv_time,"abv_event" :abv_event, "blw_time" : blw_time,"blw_event": blw_event, "pvalue":pvalue}
+		json_last = json.dumps(last, ensure_ascii = 'false')
+		print json_last
