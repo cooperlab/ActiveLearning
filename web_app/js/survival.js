@@ -36,19 +36,15 @@ function isIE(){
 	return ms_ie;
 }
 
-// Functions to deal with messages for the user.
-function message(s){$("#message").html(s).addClass("active");}
-function clearMessage(){$("#message").html("").removeClass("active");}
-
-//// Functions to highlight or dehighlight textareas.
-//function highlightTimesData(){$("#timesdata"    ).css({'background-color' : 'rgba(255, 0, 0, 0.4)'});}
-//function highlightEventData(){$("#censoringdata").css({'background-color' : 'rgba(255, 0, 0, 0.4)'});}
-//function highlightGroupData(){$("#groupdata"    ).css({'background-color' : 'rgba(255, 0, 0, 0.4)'});}
-//function dehighlight(){
-//    $("#timesdata"    ).css({'background-color' : 'rgba(255, 255, 255, 1)'});
-//    $("#censoringdata").css({'background-color' : 'rgba(255, 255, 255, 1)'});
-//    $("#groupdata"    ).css({'background-color' : 'rgba(255, 255, 255, 1)'});
-//}
+// Functions to highlight or dehighlight textareas.
+function highlightTimesData(){$("#timesdata"    ).css({'background-color' : 'rgba(255, 0, 0, 0.4)'});}
+function highlightEventData(){$("#censoringdata").css({'background-color' : 'rgba(255, 0, 0, 0.4)'});}
+function highlightGroupData(){$("#groupdata"    ).css({'background-color' : 'rgba(255, 0, 0, 0.4)'});}
+function dehighlight(){
+    $("#timesdata"    ).css({'background-color' : 'rgba(255, 255, 255, 1)'});
+    $("#censoringdata").css({'background-color' : 'rgba(255, 255, 255, 1)'});
+    $("#groupdata"    ).css({'background-color' : 'rgba(255, 255, 255, 1)'});
+}
 
 d3.selection.prototype.moveToFront = function(){
     return this.each(function(){
@@ -63,14 +59,18 @@ function getInputDataAndDrawKM(){
     // Parameters.
     var id = "#viz", width = 800, height = 550, margin = 40;
 
+
+
+		var dict = [];
+
     // Get the data from the input box and draw the Kaplan Meier plot.
     var inputData = getInputData();
     if (typeof(inputData) == "string"){
         // We've got an error message. The user supplied incorrectly formatted data.
-        message(inputData);
+        //message(inputData);
     }
     else{
-		clearMessage();
+				//clearMessage();
 
         if (d3.select("svg") != false){
             d3.select("svg").remove();
@@ -131,7 +131,7 @@ function getInputDataAndDrawKM(){
         for (var igrp = 0; igrp < groups.length; igrp++){
             var cmp = compare(x=inputData.groups, operator="eq", val=groups[igrp]);
             var groupName = subset(inputData.groups, cmp)[0];
-            drawKM(g, subset(inputData.times, cmp), subset(inputData.events, cmp), xTransform, yTransform, igrp, groupName);
+						drawKM(g, subset(inputData.times, cmp), subset(inputData.events, cmp), xTransform, yTransform, igrp, groupName, dict);
         }
     }
 }
@@ -148,7 +148,7 @@ function getInputDataAndDrawKM(){
  */
 function getInputData(){
     // Remove any highlighting from the input boxes.
-    //dehighlight();
+    dehighlight();
 
     // Get the (required) event/censoring times.
     var times = getTextareaData("timesdata");
@@ -263,17 +263,26 @@ function drawKMCI(g, times, events, z, ciType, xTransform, yTransform, groupNum)
      // Draw the confidence intervals.
     var areaData = joinArrays(arrayOf2DimArrays(ciLowerStep["x"], ciLowerStep["y"], xTransform, yTransform),
                               arrayOf2DimArrays(ciUpperStep["x"], ciUpperStep["y"], xTransform, yTransform).reverse());
-    g.append("path")
-     .attr("class", "survarea survarea" + groupNum)
-     .attr("d", lineFunction(areaData));
+		if(groupNum % 2 ==0) {
+      g.append("path")
+      .attr("class", "survarea survarea" + groupNum)
+      .attr("id","ci_even")
+      .attr("d", lineFunction(areaData));
+     }else{
+         g.append("path")
+      .attr("class", "survarea survarea" + groupNum)
+      .attr("id","ci_odd")
+      .attr("d", lineFunction(areaData));
+     }
 }
 
 /**
  * Draws a Kaplan-Meier estimate of the survival curve obtained from the supplied array of times and events.
  */
-function drawKM(g, times, events, xTransform, yTransform, groupNum, groupName){
+function drawKM(g, times, events, xTransform, yTransform, groupNum, groupName, dict){
     var km = kaplanMeier(times, events);
     var kmStep = stepFnData(joinArrays([0], km.time), joinArrays([1], km.kaplanMeier));
+
     var lineFunction = d3.svg.line()
                          .x(function(d){return d[0];})
                          .y(function(d){return d[1];})
@@ -288,22 +297,44 @@ function drawKM(g, times, events, xTransform, yTransform, groupNum, groupName){
 			d3.selectAll(".survline"   + groupNum).classed("active", true).moveToFront();
 			d3.selectAll(".survcircle" + groupNum).classed("active", true).moveToFront();
 		}
-        d3.selectAll(".survarea"   + groupNum).classed("active", true);
-        message("Highlighted Group:  " + groupName);
+        //d3.selectAll(".survarea"   + groupNum).classed("active", true);
+        //message("Highlighted Group:  " + groupName);
     }
     var dehighlight_fn = function(){
         d3.selectAll(".survline"   + groupNum).classed("active", false);
         d3.selectAll(".survcircle" + groupNum).classed("active", false);
         d3.selectAll(".survarea"   + groupNum).classed("active", false);
-        clearMessage();
+        //clearMessage();
     }
 
+		var width = 800, height = 550, margin = 40;
+
+     if(groupNum % 2 == 0) {
+        dict.push({
+              "key":  groupName,
+              "color" : "blue"
+        });
+         g.append("path")
+         .attr("class", "survline survline" + groupNum)
+         .attr("id","crv_even")
+         .attr("d", lineFunction(arrayOf2DimArrays(kmStep["x"], kmStep["y"], xTransform, yTransform)))
+         .on("mouseover", highlight_fn)
+         .on("mouseout",  dehighlight_fn);
+     }else{
+
+            dict.push({
+                "key":  groupName,
+                "color" : "red"
+            });
+           g.append("path")
+             .attr("class", "survline survline" + groupNum)
+             .attr("id","crv_odd")
+             .attr("d", lineFunction(arrayOf2DimArrays(kmStep["x"], kmStep["y"], xTransform, yTransform)))
+             .on("mouseover", highlight_fn)
+             .on("mouseout",  dehighlight_fn);
+     }
+
     // Draw the lines.
-    g.append("path")
-     .attr("class", "survline survline" + groupNum)
-     .attr("d", lineFunction(arrayOf2DimArrays(kmStep["x"], kmStep["y"], xTransform, yTransform)))
-     .on("mouseover", highlight_fn)
-     .on("mouseout",  dehighlight_fn);
 
     // Draw circles to show censoring.
     var hasCensoring = compare(km.nCensored, "gt", 0)
@@ -317,6 +348,27 @@ function drawKM(g, times, events, xTransform, yTransform, groupNum, groupName){
      .attr("r", 3)
      .on("mouseover", highlight_fn)
      .on("mouseout",  dehighlight_fn);
+
+		 var legend = g.append("g")
+       .attr("font-family", "sans-serif")
+       .attr("font-size", 15)
+       .attr("text-anchor", "end")
+     .selectAll("g")
+     .data(dict)
+     .enter().append("g")
+       .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+   legend.append("rect")
+       .attr("x", width - 19)
+       .attr("width", 19)
+       .attr("height", 19)
+      .style('fill',function(d) { return d.color; })
+
+   legend.append("text")
+       .attr("x", width - 24)
+       .attr("y",8)
+       .attr("dy", "0.32em")
+      .text(function(d) { return d.key; });
 }
 
 /**
