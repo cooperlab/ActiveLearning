@@ -5,7 +5,7 @@ body{
 }
 
 /* Graph Stuff */
-	
+
 .axis path, .axis line{
 	stroke: black;
 	fill: none;
@@ -33,28 +33,28 @@ body{
 .survarea{
 	stroke-width: 0;
 /*	fill: rgba(0, 0, 255, 0.2);*/
-    fill: rgba(51, 170, 51, .4)    /*  40% opaque green */ 
+    fill: rgba(51, 170, 51, .4)    /*  40% opaque green */
 }
 .survarea.active{
 /*	fill: rgba(255, 0, 0, 0.4);*/
-    fill:  rgba(51, 170, 51, .4) 
+    fill:  rgba(51, 170, 51, .4)
 }
 
 .survcircle{
 /*
-	fill: rgba(0, 0, 255, 1); 
+	fill: rgba(0, 0, 255, 1);
 	stroke: rgba(0, 0, 255, 1);
 */
-    fill: rgba(51, 170, 51,  1); 
+    fill: rgba(51, 170, 51,  1);
 	stroke:rgba(51, 170, 51,  1);
-    
+
 }
 .survcircle.active{
 /*
-	fill: rgba(255, 0, 0, 1); 
+	fill: rgba(255, 0, 0, 1);
 	stroke: rgba(255, 0, 0, 1);
 */
-    fill: rgba(255,255,0,0.7); 
+    fill: rgba(255,255,0,0.7);
 	stroke: rgba(255,255,0,0.7);
 }
 
@@ -100,7 +100,7 @@ textarea{
 	width: 500px;
 }
 button{
-	cursor: pointer; 
+	cursor: pointer;
 	cursor: hand;
 }
 
