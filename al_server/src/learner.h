@@ -52,9 +52,6 @@ struct SlideStat{
 	int		alphaIndex;
 	int		width;
 	int		height;
-	int		posNum;
-	int		negNum;
-	int		totalNum;
 };
 
 
@@ -130,7 +127,6 @@ protected:
 	bool	GenHeatmap(const int sock, json_t *obj);
 	bool	GenAllHeatmaps(const int sock, json_t *obj);
 	bool	ReloadSession(const int sock, json_t *obj);
-	bool	Survival(const int sock, json_t *obj);
 
 	bool	ApplyGeneralClassifier(const int sock, int xMin, int xMax,
 								   int yMin, int yMax, string slide);
