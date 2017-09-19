@@ -229,6 +229,7 @@ $(function() {
 	$("#x_pos").keydown(filter);
 	$("#y_pos").keydown(filter);
 
+	$('#SelClassifier').hide();
 });
 
 //
