@@ -35,8 +35,9 @@ $(function() {
 
 	application = $_GET("application");
 
-	var	datasetSel = $("#datasetSel"), trainsetSel = $("#trainsetSel"),
-		downloadsetSel = $("#downloadsetSel");
+	var	datasetslideSummary = $("#datasetSel"), trainsetSel = $("#trainsetSel"),
+		downloadsetSel = $("#downloadsetSel"), datasetpredictDataset = $("#applyDatasetSel"),
+		datasetpredictSlide = $('#datasetMapSel'), datasetLabel = $("#datasetLabelSel");
 
 	document.getElementById("index").setAttribute("href","index.html");
 	document.getElementById("home").setAttribute("href","index_home.html?application="+application);
@@ -54,14 +55,20 @@ $(function() {
 		dataType: "json",
 		success: function(data) {
 
+			var curDataset = data[0];
+
 			for( var item in data ) {
-				datasetSel.append(new Option(data[item][0], data[item][1]));
-				$('#datasetMapSel').append(new Option(data[item][0], data[item][1]));
-				$('#datasetLabelSel').append(new Option(data[item][0], data[item][1]));
-				$('#applyDatasetSel').append(new Option(data[item][0], data[item][1]));
+				datasetslideSummary.append(new Option(data[item][0], data[item][1]));
+				datasetpredictSlide.append(new Option(data[item][0], data[item][1]));
+				datasetpredictDataset.append(new Option(data[item][0], data[item][1]));
+				datasetLabel.append(new Option(data[item][0], data[item][1]));
 			}
+			updateTrainSetsforSlideSummary(curDataset[0]);
+			updateTrainSets(curDataset[0]);
 			updateSlideList();
-			updateSlideListLabel();
+			updateTrainSetsforPredictDataset(curDataset[0]);
+			updateTrainSetsforLabel(curDataset[0]);
+			updateSlideListForLabel(curDataset[0]);
 		}
 	});
 
@@ -72,13 +79,8 @@ $(function() {
 		data: "",
 		dataType: "json",
 		success: function(data) {
-
 			for( var item in data ) {
-				trainsetSel.append(new Option(data[item][0], data[item][1]));
 				downloadsetSel.append(new Option(data[item][0], data[item][1]));
-				$('#trainsetMapSel').append(new Option(data[item][0], data[item][1]));
-				$('#trainsetLabelSel').append(new Option(data[item][0], data[item][1]));
-				$('#applyTrainsetSel').append(new Option(data[item][0], data[item][1]));
 			}
 		}
 	});
@@ -86,12 +88,60 @@ $(function() {
 	// Need to montior changes for the map score select controls. Slide image
 	//	size is dependant on these.
 	//
-	$("#datasetMapSel").change(updateDataset);
-	$("#datasetLabelSel").change(updateDatasetLabel);
+	datasetslideSummary.change(updateslideSummary);
+	datasetpredictSlide.change(updatepredictSlide);
 	$("#slideMapSel").change(updateSlideSize);
+	datasetpredictDataset.change(updatepredictDataset);
+	datasetLabel.change(updateLabel);
 
 });
 
+function updateslideSummary() {
+	var sel = document.getElementById('datasetSel'),
+			  dataset = sel.options[sel.selectedIndex].label;
+	updateTrainSetsforSlideSummary(dataset);
+}
+
+function updatepredictSlide() {
+	var sel = document.getElementById('datasetMapSel'),
+			  dataset = sel.options[sel.selectedIndex].label;
+	updateTrainSets(dataset);
+	updateSlideList();
+}
+
+function updatepredictDataset() {
+	var sel = document.getElementById('applyDatasetSel'),
+			  dataset = sel.options[sel.selectedIndex].label;
+	updateTrainSetsforPredictDataset(dataset);
+}
+
+function updateLabel() {
+	var sel = document.getElementById('datasetLabelSel'),
+			  dataset = sel.options[sel.selectedIndex].label;
+	updateTrainSetsforLabel(dataset);
+	updateSlideListForLabel(dataset);
+}
+
+
+function updateTrainSetsforSlideSummary(dataSet) {
+
+	$.ajax({
+		type: "POST",
+		url: "db/getTrainsetForDataset.php",
+		data: { dataset: dataSet },
+		dataType: "json",
+		success: function(data) {
+
+			var	reloadTrainSel = $("#trainsetSel");
+			$("#trainsetSel").empty();
+
+			for( var item in data.trainingSets ) {
+				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
+			}
+		}
+	});
+
+}
 
 
 //
@@ -121,40 +171,50 @@ function updateSlideList() {
 }
 
 
-//
-//	Updates the list of available slides for the current dataset
-//
-function updateSlideListLabel() {
 
-	var	dataset = datasetLabelSel.options[datasetLabelSel.selectedIndex].label;
+function updateTrainSets(dataSet) {
 
-	// Get the list of slides for the current dataset
 	$.ajax({
 		type: "POST",
-		url: "db/getslides.php",
-		data: { dataset: dataset },
+		url: "db/getTrainsetForDataset.php",
+		data: { dataset: dataSet },
 		dataType: "json",
 		success: function(data) {
 
-			$('#slideLabelSel').empty();
-			// Add the slides we have segmentation boundaries for to the dropdown
-			// selector
-			for( var item in data['slides'] ) {
-				$('#slideLabelSel').append(new Option(data['slides'][item], data['slides'][item]));
+			var	reloadTrainSel = $("#trainsetMapSel");
+			$("#trainsetMapSel").empty();
+
+			for( var item in data.trainingSets ) {
+				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
 			}
 		}
 	});
+
 }
 
 
 
-function updateDataset() {
-	updateSlideList();
+function updateTrainSetsforPredictDataset(dataSet) {
+
+	$.ajax({
+		type: "POST",
+		url: "db/getTrainsetForDataset.php",
+		data: { dataset: dataSet },
+		dataType: "json",
+		success: function(data) {
+
+			var	reloadTrainSel = $("#applyTrainsetSel");
+			$("#applyTrainsetSel").empty();
+
+			for( var item in data.trainingSets ) {
+				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
+			}
+		}
+	});
+
 }
 
-function updateDatasetLabel() {
-	updateSlideListLabel();
-}
+
 
 
 function updateSlideSize() {
@@ -180,6 +240,53 @@ function updateSlideSize() {
 		}
 	});
 }
+
+
+
+function updateTrainSetsforLabel(dataSet) {
+
+	$.ajax({
+		type: "POST",
+		url: "db/getTrainsetForDataset.php",
+		data: { dataset: dataSet },
+		dataType: "json",
+		success: function(data) {
+
+			var	reloadTrainSel = $("#trainsetLabelSel");
+			$("#trainsetLabelSel").empty();
+
+			for( var item in data.trainingSets ) {
+				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
+			}
+		}
+	});
+
+}
+
+
+//
+//	Updates the list of available slides for the current dataset
+//
+function updateSlideListForLabel(dataset) {
+
+	// Get the list of slides for the current dataset
+	$.ajax({
+		type: "POST",
+		url: "db/getslides.php",
+		data: { dataset: dataset },
+		dataType: "json",
+		success: function(data) {
+
+			$('#slideLabelSel').empty();
+			// Add the slides we have segmentation boundaries for to the dropdown
+			// selector
+			for( var item in data['slides'] ) {
+				$('#slideLabelSel').append(new Option(data['slides'][item], data['slides'][item]));
+			}
+		}
+	});
+}
+
 
 
 //
