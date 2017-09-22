@@ -81,30 +81,36 @@ $(function() {
 
 				var	datasetSel = $("#datasetSel"),
 					reloadDatasetSel = $("#reloadDatasetSel"),
+					validateTrainDatasetSel = $("#validateTrainDatasetSel");
 					validateDatasetSel = $("#validateDatasetSel");
 				curDataset = data[0];
 
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][0]));
 				reloadDatasetSel.append(new Option(data[item][0], data[item][0]));
+				validateTrainDatasetSel.append(new Option(data[item][0], data[item][0]));
 				validateDatasetSel.append(new Option(data[item][0], data[item][0]));
 			}
 
 			updateTestSets(curDataset[0]);
+			updateTrainSets(curDataset[0]);
 			updateSetsForValidate(curDataset[0]);
-			updateTrainingSet();
 		}
 	});
 	$('#reloadDatasetSel').change(updateDataSet);
-	$('#validateDatasetSel').change(updateSet);
+	$('#validateTrainDatasetSel').change(updateDataSetforTrain);
+	$('#validateDatasetSel').change(updateDataSetforTest);
 });
 
+function updateDataSetforTrain() {
 
+	var sel = document.getElementById('validateTrainDatasetSel'),
+			  dataset = sel.options[sel.selectedIndex].label;
 
+	updateTrainSets(dataset);
+}
 
-
-
-function updateSet() {
+function updateDataSetforTest() {
 
 	var sel = document.getElementById('validateDatasetSel'),
 			  dataset = sel.options[sel.selectedIndex].label;
@@ -184,19 +190,20 @@ function updateSetsForValidate(dataset) {
 }
 
 
-function updateTrainingSet() {
+function updateTrainSets(dataSet) {
 
-	// Populate training set dropdown
-	//
 	$.ajax({
 		type: "POST",
-		url: "db/getTrainingSets.php",
-		data: "",
+		url: "db/getTrainsetForDataset.php",
+		data: { dataset: dataSet },
 		dataType: "json",
 		success: function(data) {
+
+			var	reloadTrainSel = $("#validateTrainsetSel");
 			$("#validateTrainsetSel").empty();
-			for( var item in data ) {
-				$('#validateTrainsetSel').append(new Option(data[item][0], data[item][1]));
+
+			for( var item in data.trainingSets ) {
+				reloadTrainSel.append(new Option(data.trainingSets[item], data.trainingSets[item]));
 			}
 		}
 	});
