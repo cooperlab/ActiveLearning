@@ -28,7 +28,7 @@
 //
 	require '../db/logging.php';
 
-	$trainSet = '../trainingsets/'.$_POST['trainset'];
+	$trainSet = '../trainingsets/'.$_POST['trainset'].'.h5';
 	$dataSet = '../datasets/'.$_POST['dataset'];
 	$slide = $_POST['slide'];
 
