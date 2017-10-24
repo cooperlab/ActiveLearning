@@ -484,7 +484,7 @@ bool MData::Load(string fileName)
 		result = ReadFeatureData(fileId);
 	}
 
-	bool is_string = true;
+	bool is_string = false;
 
 	if( result && slidesExist ) {
 
