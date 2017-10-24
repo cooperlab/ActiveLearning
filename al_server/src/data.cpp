@@ -156,12 +156,12 @@ void MData::Cleanup(void)
 			free(m_slides);
 			m_slides = NULL;
 		}
-		
+
 		if( m_classNames ) {
 			H5Dvlen_reclaim(m_classNameMemType, m_classNameSpace, H5P_DEFAULT, m_classNames);
 			free(m_classNames);
 			m_slides = NULL;
-		}			
+		}
 	}
 	m_numSlides = 0;
 	m_numClasses = 0;
@@ -386,7 +386,7 @@ bool MData::Load(string fileName)
 	}
 
 	if( result && H5Lexists(fileId, "/x_centroid", H5P_DEFAULT) ) {
-		
+
 		// Allocate buffer for x_centroid
 		//
 		if( result ) {
@@ -484,12 +484,14 @@ bool MData::Load(string fileName)
 		result = ReadFeatureData(fileId);
 	}
 
+	bool is_string = true;
 
 	if( result && slidesExist ) {
 
 		// Read slide names, do this last because we reuse the dims variable
 		//
 		hid_t	dset, fileType;
+		size_t sdim;
 		if( result ) {
 			dset = H5Dopen(fileId, "/slides", H5P_DEFAULT);
 			fileType = H5Dget_type(dset);
@@ -497,6 +499,16 @@ bool MData::Load(string fileName)
 			H5Sget_simple_extent_dims(m_slideSpace, dims, NULL);
 
 			m_slides = (char**)malloc(dims[0] * sizeof(char*));
+
+			if (is_string) {
+				sdim = H5Tget_size (fileType);
+				sdim++;
+
+				m_slides[0] = (char *) malloc (dims[0] * sdim * sizeof (char));
+	      for (int i=1; i<dims[0]; i++)
+	        m_slides[i] = m_slides[0] + i * sdim;
+			}
+
 			if( m_slides == NULL ) {
 				result = false;
 			}
@@ -504,8 +516,14 @@ bool MData::Load(string fileName)
 
 		if( result ) {
 			m_slideMemType = H5Tcopy(H5T_C_S1);
-			H5Tset_size(m_slideMemType, H5T_VARIABLE);
-			status = H5Dread(dset, m_slideMemType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides);
+			if (is_string) {
+				H5Tset_size(m_slideMemType, sdim);
+				status = H5Dread(dset, m_slideMemType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides[0]);
+			}
+			else {
+				H5Tset_size(m_slideMemType, H5T_VARIABLE);
+				status = H5Dread(dset, m_slideMemType, H5S_ALL, H5S_ALL, H5P_DEFAULT, m_slides);
+			}
 			if( status < 0 ) {
 				result = false;
 			} else {
@@ -804,7 +822,7 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 	for(int i = 0; i < numObjs; i++) {
 		usedSlides.insert(slideIdx[i]);
 	}
-	
+
 	// Original slide idx, new index is crossRef[idx]
 	//
 	crossRef = (int*)malloc(numSlides * sizeof(int));
@@ -856,10 +874,10 @@ bool MData::CreateSlideData(char **slides, int *slideIdx, int numSlides, int num
 		m_slideIdx = newSlideList;
 		m_numSlides = usedSlides.size();
 	}
-	
-	if( crossRef ) 
+
+	if( crossRef )
 		free(crossRef);
-		
+
 	return result;
 }
 
