@@ -3,6 +3,20 @@ set(AL_SERVER_VERSION_MAJOR 0)
 set(AL_SERVER_VERSION_MINOR 50)
 
 
+#
+### TIFF package
+#
+find_package(TIFF REQUIRED)
+
+
+if( NOT TIFF_FOUND )
+	message(FATAL_ERROR "Package TIFF not found")
+endif( NOT TIFF_FOUND )
+
+include_directories(${TIFF_INCLUDE_DIRS})
+set(LIBRARIES ${LIBRARIES} ${TIFF_LIBRARIES})
+
+
 
 #
 ### HDF5 package
@@ -25,7 +39,7 @@ set(LIBRARIES ${LIBRARIES} ${HDF5_HL_LIBRARIES})
 #
 find_package( OpenCV REQUIRED )
 
-if( NOT OpenCV_FOUND ) 
+if( NOT OpenCV_FOUND )
     message(FATAL_ERROR "Package OpenCV not found")
 endif( NOT OpenCV_FOUND )
 
@@ -56,12 +70,12 @@ find_package(JANSSON REQUIRED)
 if( NOT JANSSON_FOUND )
     message(FATAL_ERROR "Package Jansson not found")
 endif( NOT JANSSON_FOUND )
-  
+
 include_directories(${JANSSON_INCLUDE_DIR})
 set(LIBRARIES ${LIBRARIES} ${JANSSON_LIBRARIES})
- 
- 
- 
+
+
+
 
 #
 ## libconfig++
@@ -76,7 +90,7 @@ set(LIBRARIES ${LIBRARIES} ${LIBCONFIG_LIBRARIES})
 
 
 #
-### gengetopt 
+### gengetopt
 #
 find_program(GENGETOPT gengetopt)
 if( GENGETOPT STREQUAL "GENGETOPT-NOTFOUND")
@@ -88,12 +102,12 @@ endif( GENGETOPT STREQUAL "GENGETOPT-NOTFOUND")
 
 #
 ## Generate gengetopt files and cmdline.c, cmdline.h
-# 
+#
 configure_file("${PROJECT_SOURCE_DIR}/src/validate-opt.ggo.in" "${CMAKE_CURRENT_BINARY_DIR}/validate-opt.ggo")
 
 ADD_CUSTOM_COMMAND(
 	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.h
-	COMMAND ${GENGETOPT} 
+	COMMAND ${GENGETOPT}
 	ARGS  -i ${CMAKE_CURRENT_BINARY_DIR}/validate-opt.ggo -F val-cmdline
 	DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/validate-opt.ggo
 )
@@ -112,11 +126,11 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #
 # Executables
 #
-add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.cpp 
+add_executable(al_server server.cpp learner.cpp data.cpp ocvsvm.cpp classifier.cpp
                 sampler.cpp ocvrandforest.cpp logger.cpp sessionMgr.cpp picker.cpp
                 sessionClient.cpp)
 
-add_executable(validate validate-main.cpp classifier.cpp ocvsvm.cpp ocvrandforest.cpp 
+add_executable(validate validate-main.cpp classifier.cpp ocvsvm.cpp ocvrandforest.cpp
                 data.cpp logger.cpp ${CMAKE_CURRENT_BINARY_DIR}/val-cmdline.c)
 
 
