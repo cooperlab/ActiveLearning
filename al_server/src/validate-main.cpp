@@ -28,6 +28,7 @@
 #include <set>
 #include <dirent.h>
 #include <string.h>
+#include <map>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -42,14 +43,281 @@
 #include "val-cmdline.h"
 #include "base_config.h"
 
+#include "hdf5.h"
+#include "hdf5_hl.h"
+#include "tiffio.h"
 
 using namespace std;
-
+using namespace cv;
 
 EvtLogger	*gLogger = NULL;
 
 
+int GenerateMask(MData& trainSet, MData& testSet, Classifier *classifier,
+					string slide, string imlabelDir, string outFileName)
+{
+	int		result = 0, dims = trainSet.GetDims(), *trainLabel = trainSet.GetLabels(),
+			numTestObjs = testSet.GetNumObjs();
 
+	float	**test = testSet.GetData(), **train = trainSet.GetData(),
+			*predScore = NULL;
+
+	if( dims != testSet.GetDims() ) {
+		cerr << "Training and test set dimensions do not match" << endl;
+		result = -30;
+	}
+
+	if( result == 0 ) {
+		cout << "Allocating prediction buffer" << endl;
+		predScore = (float*)malloc(numTestObjs * sizeof(float));
+		if( predScore == NULL ) {
+			cerr << "Unable to allocae prediction buffer" << endl;
+			result = -31;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Training classifier..." << endl;
+		if( !classifier->Train(train[0], trainLabel, trainSet.GetNumObjs(), dims) ) {
+			cerr << "Classifier training failed" << endl;
+			result = -32;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Applying classifier..." << endl;
+		if( ! classifier->ScoreBatch(test, numTestObjs, dims, predScore) ) {
+			cerr << "Applying classifier failed" << endl;
+			result = -33;
+		}
+	}
+
+	cout << "Generating mask..." << endl;
+
+	// get slide name
+	//char	**slideNames = testSet.GetSlideNames();
+	// magnification should be provided before this, at this time, we set this to 40x.
+	int mag = 40;
+	int tileSize = 4096;
+	int m_factor = 2;
+	int spixelWidth = 28;
+
+	if( mag == 40 ) {
+		m_factor = 4;
+	}
+
+	int bboxWidth = spixelWidth*m_factor*m_factor;
+	tileSize = tileSize*m_factor;
+
+	if( result == 0 ) {
+			int slideObjs, offset = testSet.GetSlideOffset(slide, slideObjs);
+			float	*slideScores = &predScore[offset];
+
+			// find label direcoty
+			DIR *dir = opendir(imlabelDir.c_str());
+	    if(dir) {
+	        struct dirent *ent;
+					string slideName = "";
+					Mat im_mask;
+					int	result_slide = 0;
+			    while((ent = readdir(dir)) != NULL) {
+						slideName= ent->d_name;
+						if(strcmp(slide.c_str(), slideName.c_str())==0) {
+								string tileDirPath = imlabelDir + "/" + slideName;
+
+								// find slide tile directory
+						   	DIR *dir_tile = opendir(tileDirPath.c_str());
+						    if(dir_tile) {
+						        struct dirent *ent_tile;
+										vector<string> tile_array;
+
+								    while((ent_tile = readdir(dir_tile)) != NULL) {
+												string tileName= ent_tile->d_name;
+												// remove . or ..
+												if((strcmp(tileName.c_str(), ".")!=0)&&(strcmp(tileName.c_str(), "..")!=0)) {
+													// get an array of tile images
+													tile_array.push_back(tileName);
+												}
+										}
+										// sort tile array this is to find the last tile numbers
+									  sort (tile_array.begin(), tile_array.end());
+
+										/******************************/
+										/* find x y position in tiles */
+										char delimiter = '.';
+										vector<string> str_array;
+										string::size_type str_i = 0;
+										string::size_type str_j = tile_array.back().find(delimiter);
+										while (str_j != string::npos) {
+										    str_array.push_back(tile_array.back().substr(str_i, str_j-str_i));
+										    str_i = ++str_j;
+										    str_j = tile_array.back().find(delimiter, str_j);
+										    if (str_j == string::npos)
+										       str_array.push_back(tile_array.back().substr(str_i, tile_array.back().length()));
+										}
+										// label image format slidename.x.y.tif
+										int num_x = atoi(str_array[str_array.size()-3].c_str());
+										int num_y = atoi(str_array[str_array.size()-2].c_str());
+										/******************************/
+
+										// set size of total tiled images, we set im_mask to 8-bit with single channel
+								 		//im_mask = Mat::zeros(num_y*tileSize, num_x*tileSize, CV_8UC1);
+										cout << "Tile number " << num_x << " / " << num_y << endl;
+
+										TIFF* out = TIFFOpen(outFileName.c_str(), "w");
+
+										// set for tile image compression
+										int width, height;
+										width = tileSize*num_y;
+										height = tileSize*num_x;
+
+										short int compression = COMPRESSION_LZW;
+										ttile_t index_tile;
+
+										TIFFSetField(out, TIFFTAG_IMAGEWIDTH, width);
+										TIFFSetField(out, TIFFTAG_IMAGELENGTH, height);
+										TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);
+										TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, 32);
+										TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
+										TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
+										TIFFSetField(out, TIFFTAG_COMPRESSION, compression);
+										TIFFSetField(out, TIFFTAG_FILLORDER, FILLORDER_MSB2LSB);
+										TIFFSetField(out, TIFFTAG_TILEWIDTH, tileSize);
+										TIFFSetField(out, TIFFTAG_TILELENGTH, tileSize);
+										//TIFFSetField(out, TIFFTAG_PREDICTOR, PREDICTOR_HORIZONTAL);
+										TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
+										TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
+
+										float* chunk32 = new float[tileSize * tileSize];
+
+										// set postive and negative value
+										for (vector<string>::iterator it=tile_array.begin(); it!=tile_array.end(); ++it){
+
+												string tileImageName = *it;
+												string tilePath = tileDirPath + "/" + tileImageName;
+												// we are going to copy im_pnlabels to im_mask using im_labels
+												Mat im_labels = imread(tilePath, IMREAD_UNCHANGED);
+												cout << "Label size " << im_labels.rows << " " << im_labels.cols << endl;
+
+												// start finding location of tiled slides
+												char delimiter_tile = '.';
+												vector<string> str_array_tile;
+
+												string::size_type str_i_tile = 0;
+												string::size_type str_j_tile = tileImageName.find(delimiter_tile);
+
+												while (str_j_tile != string::npos) {
+													str_array_tile.push_back(tileImageName.substr(str_i_tile, str_j_tile-str_i_tile));
+													str_i_tile = ++str_j_tile;
+													str_j_tile = tileImageName.find(delimiter_tile, str_j_tile);
+
+													if (str_j_tile == string::npos)
+														 str_array_tile.push_back(tileImageName.substr(str_i_tile, tileImageName.length()));
+											 	}
+												// end finding location of tiled slides
+
+												int num_y_tile = atoi(str_array_tile[str_array_tile.size()-3].c_str());
+												int num_x_tile = atoi(str_array_tile[str_array_tile.size()-2].c_str());
+												int starty = (num_y_tile-1)*tileSize;
+												int startx = (num_x_tile-1)*tileSize;
+												int endy = starty + tileSize - 1;
+												int endx = startx + tileSize - 1;
+
+												index_tile = TIFFComputeTile(out, startx, starty, 0, 0);
+
+												cout << "Allocating chunk32 buffer for index " << index_tile << endl;
+												cout << "startx " << startx << " starty " << starty << endl;
+												cout << "tile size " << tileSize << endl;
+
+												float *ptr_copy = chunk32;
+												// mapping RGB value and x, y coordinates
+												map<int, Vec3b> labelMap;
+												int index;
+
+												for(int x = 0; x < tileSize; x++){
+													for(int y = 0; y < tileSize; y++){
+
+														Vec3b intensity = im_labels.at<Vec3b>(x, y);
+														uchar blue = intensity.val[0];
+														uchar green = intensity.val[1];
+														uchar red = intensity.val[2];
+
+														index = y + x*tileSize;
+														chunk32[index] = 0.0;
+
+														if (!((blue==255)&&(green==255)&&(red==255))) {
+																labelMap[index] = intensity;
+														}
+
+													}
+												}
+
+												cout << "Mapping is done. " << endl;
+												cout << "labelMap size " << labelMap.size() << endl;
+
+												for(int obj = 0; obj < slideObjs; obj++) {
+
+														int ceny = testSet.GetXCentroid(offset+obj);
+														int cenx = testSet.GetYCentroid(offset+obj);
+
+														if ((cenx < tileSize)&&(ceny < tileSize)){
+																// find current pixel value using center x and y
+																Vec3b c_intensity = im_labels.at<Vec3b>(cenx, ceny);
+																uchar c_blue = c_intensity.val[0];
+																uchar c_green = c_intensity.val[1];
+																uchar c_red = c_intensity.val[2];
+
+																int cindex = ceny + cenx*tileSize;
+																int pindex = 0;
+																//int c_index = ceny + cenx*tileSize;
+
+																for (map<int, Vec3b>::iterator it=labelMap.begin(); it!=labelMap.end(); ++it) {
+																		uchar blue = it->second.val[0];
+																		uchar green = it->second.val[1];
+																		uchar red = it->second.val[2];
+
+																		if ((c_blue==blue)&&(c_green==green)&&(c_red==red)) {
+
+																					pindex = (int) it->first;
+																					ptr_copy[pindex] = slideScores[obj];
+																					labelMap.erase(pindex);
+
+																		}
+																}
+														} // if end
+												} // for end
+
+												cout << "Processing is done. " << endl;
+
+												TIFFWriteEncodedTile(out, index_tile, ptr_copy, tileSize*tileSize*sizeof(float));
+
+												cout << "Processing ... " << starty << " / " << startx << " end "<< endl;
+										}
+
+										delete[] chunk32;
+
+										TIFFWriteDirectory(out);
+
+								    TIFFClose(out);
+
+										closedir (dir_tile);
+
+								} else {
+						        cout << "Error opening slide directory" << endl;
+						    }
+						 } //if end
+				 	} // while end
+			 		closedir (dir);
+		    } else {
+		        cout << "Error opening directory" << endl;
+		    }
+	} // result = 0 end
+
+	if( predScore )
+		free(predScore);
+
+	return result;
+}
 
 // Renormalize the training set using the test set's mean and std dev.
 int Renormalize(MData& trainSet, MData& testSet)
@@ -435,503 +703,6 @@ int ApplyClassifier(MData& trainSet, MData& testSet, Classifier *classifier,
 
 	return result;
 }
-
-
-int GenerateMask(MData& trainSet, MData& testSet, Classifier *classifier,
-					string slide, string imlabelDir, string outFileName)
-{
-	int		result = 0, dims = trainSet.GetDims(), *trainLabel = trainSet.GetLabels(),
-			numTestObjs = testSet.GetNumObjs();
-
-	float	**test = testSet.GetData(), **train = trainSet.GetData(),
-			*predScore = NULL;
-
-	if( dims != testSet.GetDims() ) {
-		cerr << "Training and test set dimensions do not match" << endl;
-		result = -30;
-	}
-
-	if( result == 0 ) {
-		cout << "Allocating prediction buffer" << endl;
-		predScore = (float*)malloc(numTestObjs * sizeof(float));
-		if( predScore == NULL ) {
-			cerr << "Unable to allocae prediction buffer" << endl;
-			result = -31;
-		}
-	}
-
-	if( result == 0 ) {
-		cout << "Training classifier..." << endl;
-		if( !classifier->Train(train[0], trainLabel, trainSet.GetNumObjs(), dims) ) {
-			cerr << "Classifier training failed" << endl;
-			result = -32;
-		}
-	}
-
-	if( result == 0 ) {
-		cout << "Applying classifier..." << endl;
-		if( ! classifier->ScoreBatch(test, numTestObjs, dims, predScore) ) {
-			cerr << "Applying classifier failed" << endl;
-			result = -33;
-		}
-	}
-
-	cout << "Generating mask..." << endl;
-
-	// get slide name
-	//char	**slideNames = testSet.GetSlideNames();
-	// magnification should be provided before this, at this time, we set this to 40x.
-	int mag = 20;
-	int tileSize = 4096;
-	int m_factor = 2;
-	int spixelWidth = 28;
-
-	if( mag == 40 ) {
-		m_factor = 4;
-	}
-
-	int bboxWidth = spixelWidth*m_factor*m_factor;
-	tileSize = tileSize*m_factor;
-
-	if( result == 0 ) {
-		//	for(int i = 0; i < testSet.GetNumSlides(); i++) {
-
-				int slideObjs, offset = testSet.GetSlideOffset(slide, slideObjs);
-				float	*slideScores = &predScore[offset];
-
-				// get labeled image from directory
-				DIR *dir = opendir(imlabelDir.c_str());
-
-		    if(dir) {
-		        struct dirent *ent;
-						string slideName = "";
-						Mat im_mask;
-						int	result_slide = 0;
-
-				    while((ent = readdir(dir)) != NULL) {
-							slideName= ent->d_name;
-
-							if(strcmp(slide.c_str(), slideName.c_str())==0) {
-									// read tile images from one slide
-									string tileDirPath = imlabelDir + "/" + slideName;
-							   	DIR *dir_tile = opendir(tileDirPath.c_str());
-							    if(dir_tile) {
-							        struct dirent *ent_tile;
-
-											vector<string> tile_array;
-
-  								    while((ent_tile = readdir(dir_tile)) != NULL) {
-													string tileName= ent_tile->d_name;
-													// we do not consider . or ..
-													if((strcmp(tileName.c_str(), ".")!=0)&&(strcmp(tileName.c_str(), "..")!=0)) {
-														// add tile image names to a tile array
-														tile_array.push_back(tileName);
-													}
-											}
-											// sort tile array this is to find the last tile numbers
-										  sort (tile_array.begin(), tile_array.end());
-
-											// start finding last image name to get the row and column numbers of tile images
-											char delimiter = '.';
-											vector<string> str_array;
-
-											string::size_type str_i = 0;
-											string::size_type str_j = tile_array.back().find(delimiter);
-
-											 while (str_j != string::npos) {
-											    str_array.push_back(tile_array.back().substr(str_i, str_j-str_i));
-											    str_i = ++str_j;
-											    str_j = tile_array.back().find(delimiter, str_j);
-
-											    if (str_j == string::npos)
-											       str_array.push_back(tile_array.back().substr(str_i, tile_array.back().length()));
-											 }
-											 // end finding function we can make a funtion for this process.
-
-											int num_x = atoi(str_array[str_array.size()-3].c_str());
-											int num_y = atoi(str_array[str_array.size()-2].c_str());
-
-											// set size of total tiled images, we set im_mask to 8-bit with single channel
-									 		im_mask = Mat::zeros(num_y*tileSize, num_x*tileSize, CV_8UC1);
-											cout << str_array[str_array.size()-3] << " / " << str_array[str_array.size()-2] << endl;
-											cout << "Mask num " << num_x << " / " << num_y << endl;
-											cout << "Mask size " << im_mask.rows << " / " << im_mask.cols << endl;
-
-											int n_tiles = 1;
-											// set postive and negative value
-											for (vector<string>::iterator it=tile_array.begin(); it!=tile_array.end(); ++it){
-
-												string tileImageName = *it;
-												string tilePath = tileDirPath + "/" + tileImageName;
-												// we are going to copy im_pnlabels to im_mask using im_labels
-												Mat im_labels = imread(tilePath, IMREAD_UNCHANGED);
-												cout << "Label size " << im_labels.rows << " " << im_labels.cols << endl;
-												Mat im_pnlabels = Mat::zeros(im_labels.rows, im_labels.cols, CV_8UC1);
-
-												// start finding location of tiled slides
-												char delimiter_tile = '.';
-												vector<string> str_array_tile;
-
-												string::size_type str_i_tile = 0;
-												string::size_type str_j_tile = tileImageName.find(delimiter_tile);
-
-												while (str_j_tile != string::npos) {
-													str_array_tile.push_back(tileImageName.substr(str_i_tile, str_j_tile-str_i_tile));
-													str_i_tile = ++str_j_tile;
-													str_j_tile = tileImageName.find(delimiter_tile, str_j_tile);
-
-													if (str_j_tile == string::npos)
-														 str_array_tile.push_back(tileImageName.substr(str_i_tile, tileImageName.length()));
-											 	}
-												// end finding location of tiled slides
-
-												int num_y_tile = atoi(str_array_tile[str_array_tile.size()-3].c_str());
-												int num_x_tile = atoi(str_array_tile[str_array_tile.size()-2].c_str());
-												int starty = (num_y_tile-1)*tileSize;
-												int startx = (num_x_tile-1)*tileSize;
-												int endy = starty + tileSize - 1;
-												int endx = startx + tileSize - 1;
-												int n_slideobjs = 0;
-												// loop all objects in the given dataset
-												for(int obj = 0; obj < slideObjs; obj++) {
-
-														// get center x, y on an object
-														int ceny = testSet.GetXCentroid(offset+obj);
-														int cenx = testSet.GetYCentroid(offset+obj);
-
-														// check if center x and y is located in the current tile image
-														if (((cenx > startx)&&(cenx < endx))&&((ceny > starty)&&(ceny < endy))) {
-
-																cenx = cenx - startx;
-																ceny = ceny - starty;
-
-																// find current pixel value using center x and y
-																Vec3b c_intensity = im_labels.at<Vec3b>(cenx, ceny);
-
-																uchar c_blue = c_intensity.val[0];
-																uchar c_green = c_intensity.val[1];
-																uchar c_red = c_intensity.val[2];
-
-																// we can use magnitude for RGB, but at this time we will use RGB.
-																//double c_magnitude = norm(c_label, CV_L2);
-
-																Scalar gray_Val = 0;
-
-																if (slideScores[obj] > 0){
-																		// if label is positive
-																		gray_Val = 255;
-																}
-																else{
-																	// if negative
-																		gray_Val = 100;
-																}
-
-																// creating bounding box points
-																// we will just
-																int i_start = cenx - bboxWidth/2;
-																int j_start = ceny - bboxWidth/2;
-																int i_end = cenx + bboxWidth/2 - 1;
-																int j_end = ceny + bboxWidth/2 - 1;
-
-																// loop for slide image size
-																for (int i = i_start; i < i_end; i++ ) {
-																		for (int j = j_start; j < j_end; j++) {
-																				Vec3b intensity = im_labels.at<Vec3b>(i, j);
-																				uchar blue = intensity.val[0];
-																				uchar green = intensity.val[1];
-																				uchar red = intensity.val[2];
-
-																				//double magnitude = norm(temp, CV_L2);
-																				if ((c_blue==blue)&&(c_green==green)&&(c_red==red)) {
-																							im_pnlabels.at<uchar>(i, j) = gray_Val[0];
-																							//im_pnlabels.at<Vec3b>(Point(i, j))[1] = g_Val;
-																				}
-																		}
-																}
-
-																n_slideobjs = n_slideobjs + 1;
-
-														}
-												} //end object loop
-												// copy im_pnlabels to im_mask
-												cout << "Processing ... " << n_tiles << " / " << tile_array.size() << endl;
-												cout << "Processing ... im_mask " << im_mask.rows << " / " << im_mask.cols << endl;
-												cout << "Processing ... im_pnlabels " << im_pnlabels.rows << " / " << im_pnlabels.cols << endl;
-												cout << "Processing ... starty " << starty << " / " << startx << endl;
-
-												if (n_slideobjs > 0) {
-													im_pnlabels.copyTo(im_mask(Rect(starty, startx, im_pnlabels.rows, im_pnlabels.cols)));
-												}
-												n_tiles = n_tiles + 1;
-											}
-
-								//Mat gray_image;
-								//cvtColor( im_mask, gray_image, CV_BGR2GRAY );
-								result_slide = imwrite(outFileName.c_str(), im_mask);
-								//waitKey(0);
-
-								closedir (dir_tile);
-						    } else {
-						        cout << "Error opening slide directory" << endl;
-						    }
-						 } //if end
-				 	} // while end
-			 		closedir (dir);
-		    } else {
-		        cout << "Error opening directory" << endl;
-		    }
-		//	} //for slide names end
-	} // result = 0 end
-
-	if( predScore )
-		free(predScore);
-
-	return result;
-}
-
-
-
-int GenerateMask_Dir(MData& trainSet, MData& testSet, Classifier *classifier,
-					string testFileName, string imlabelDir, string outFileName)
-{
-	int		result = 0, dims = trainSet.GetDims(), *trainLabel = trainSet.GetLabels(),
-			numTestObjs = testSet.GetNumObjs();
-
-	float	**test = testSet.GetData(), **train = trainSet.GetData(),
-			*predScore = NULL;
-
-	if( dims != testSet.GetDims() ) {
-		cerr << "Training and test set dimensions do not match" << endl;
-		result = -30;
-	}
-
-	if( result == 0 ) {
-		cout << "Allocating prediction buffer" << endl;
-		predScore = (float*)malloc(numTestObjs * sizeof(float));
-		if( predScore == NULL ) {
-			cerr << "Unable to allocae prediction buffer" << endl;
-			result = -31;
-		}
-	}
-
-	if( result == 0 ) {
-		cout << "Training classifier..." << endl;
-		if( !classifier->Train(train[0], trainLabel, trainSet.GetNumObjs(), dims) ) {
-			cerr << "Classifier training failed" << endl;
-			result = -32;
-		}
-	}
-
-	if( result == 0 ) {
-		cout << "Applying classifier..." << endl;
-		if( ! classifier->ScoreBatch(test, numTestObjs, dims, predScore) ) {
-			cerr << "Applying classifier failed" << endl;
-			result = -33;
-		}
-	}
-
-	cout << "Generating mask..." << endl;
-
-	// get slide name
-	char	**slideNames = testSet.GetSlideNames();
-	// magnification should be provided before this, at this time, we set this to 40x.
-	int mag = 40;
-	int tileSize = 4096;
-	int m_factor = 2;
-	int spixelWidth = 28;
-
-	if( mag == 40 ) {
-		m_factor = 4;
-	}
-
-	int bboxWidth = spixelWidth*m_factor*m_factor;
-	tileSize = tileSize*m_factor;
-
-	if( result == 0 ) {
-			for(int i = 0; i < testSet.GetNumSlides(); i++) {
-
-				int slideObjs, offset = testSet.GetSlideOffset(slideNames[i], slideObjs);
-				float	*slideScores = &predScore[offset];
-
-				// get labeled image from directory
-				DIR *dir = opendir(imlabelDir.c_str());
-
-		    if(dir) {
-		        struct dirent *ent;
-						string slideName = "";
-						Mat im_mask;
-
-				    while((ent = readdir(dir)) != NULL) {
-							slideName= ent->d_name;
-
-							if(strcmp(slideNames[i],slideName.c_str())==0) {
-									// read tile images from one slide
-									string tileDirPath = imlabelDir + "/" + slideName;
-							   	DIR *dir_tile = opendir(tileDirPath.c_str());
-							    if(dir_tile) {
-							        struct dirent *ent_tile;
-
-											vector<string> tile_array;
-
-  								    while((ent_tile = readdir(dir_tile)) != NULL) {
-													string tileName= ent_tile->d_name;
-													// we do not consider . or ..
-													if((strcmp(tileName.c_str(), ".")!=0)&&(strcmp(tileName.c_str(), "..")!=0)) {
-														// add tile image names to a tile array
-														tile_array.push_back(tileName);
-													}
-											}
-											// sort tile array this is to find the last tile numbers
-										  sort (tile_array.begin(), tile_array.end());
-
-											// start finding last image name to get the row and column numbers of tile images
-											char delimiter = '.';
-											vector<string> str_array;
-
-											string::size_type str_i = 0;
-											string::size_type str_j = tile_array.back().find(delimiter);
-
-											 while (str_j != string::npos) {
-											    str_array.push_back(tile_array.back().substr(str_i, str_j-str_i));
-											    str_i = ++str_j;
-											    str_j = tile_array.back().find(delimiter, str_j);
-
-											    if (str_j == string::npos)
-											       str_array.push_back(tile_array.back().substr(str_i, tile_array.back().length()));
-											 }
-											 // end finding function we can make a funtion for this process.
-
-											int num_x = atoi(str_array[2].c_str());
-											int num_y = atoi(str_array[3].c_str());
-
-											// set size of total tiled images, we set im_mask to 8-bit with single channel
-									 		im_mask = Mat::zeros(num_y*tileSize, num_x*tileSize, CV_8UC1);
-
-											// set postive and negative value
-											for (vector<string>::iterator it=tile_array.begin(); it!=tile_array.end(); ++it){
-
-												string tileImageName = *it;
-												string tilePath = tileDirPath + "/" + tileImageName;
-												// cout << "tilePath " << tilePath << endl;
-												// we are going to copy im_pnlabels to im_mask using im_labels
-												Mat im_labels = imread(tilePath, IMREAD_UNCHANGED);
-												Mat im_pnlabels = Mat::zeros(im_labels.rows, im_labels.cols, CV_8UC1);
-
-												// start finding location of tiled slides
-												char delimiter_tile = '.';
-												vector<string> str_array_tile;
-
-												string::size_type str_i_tile = 0;
-												string::size_type str_j_tile = tileImageName.find(delimiter_tile);
-
-												while (str_j_tile != string::npos) {
-													str_array_tile.push_back(tileImageName.substr(str_i_tile, str_j_tile-str_i_tile));
-													str_i_tile = ++str_j_tile;
-													str_j_tile = tileImageName.find(delimiter_tile, str_j_tile);
-
-													if (str_j_tile == string::npos)
-														 str_array_tile.push_back(tileImageName.substr(str_i_tile, tileImageName.length()));
-											 	}
-												// end finding location of tiled slides
-
-												int num_y_tile = atoi(str_array_tile[2].c_str());
-												int num_x_tile = atoi(str_array_tile[3].c_str());
-												int starty = (num_y_tile-1)*tileSize;
-												int startx = (num_x_tile-1)*tileSize;
-												int endy = starty + tileSize - 1;
-												int endx = startx + tileSize - 1;
-
-												// loop all objects in the given dataset
-												for(int obj = 0; obj < slideObjs; obj++) {
-														// get center x, y on an object
-														int ceny = testSet.GetXCentroid(offset+obj);
-														int cenx = testSet.GetYCentroid(offset+obj);
-
-														// check if center x and y is located in the current tile image
-														if (((cenx > startx)&&(cenx < endx))&&((ceny > starty)&&(ceny < endy))) {
-
-																cenx = cenx - startx;
-																ceny = ceny - starty;
-
-																// find current pixel value using center x and y
-																Vec3b c_intensity = im_labels.at<Vec3b>(cenx, ceny);
-
-																uchar c_blue = c_intensity.val[0];
-																uchar c_green = c_intensity.val[1];
-																uchar c_red = c_intensity.val[2];
-
-																// we can use magnitude for RGB, but at this time we will use RGB.
-																//double c_magnitude = norm(c_label, CV_L2);
-
-																Scalar gray_Val = 0;
-
-																if (slideScores[obj] > 0){
-																		// if label is positive
-																		gray_Val = 255;
-																}
-																else{
-																	// if negative
-																		gray_Val = 100;
-																}
-
-																// creating bounding box points
-																// we will just
-																int i_start = cenx - bboxWidth/2;
-																int j_start = ceny - bboxWidth/2;
-																int i_end = cenx + bboxWidth/2 - 1;
-																int j_end = ceny + bboxWidth/2 - 1;
-
-																// loop for slide image size
-																for (int i = i_start; i < i_end; i++ ) {
-																		for (int j = j_start; j < j_end; j++) {
-																				Vec3b intensity = im_labels.at<Vec3b>(i, j);
-																				uchar blue = intensity.val[0];
-																				uchar green = intensity.val[1];
-																				uchar red = intensity.val[2];
-
-																				//double magnitude = norm(temp, CV_L2);
-																				if ((c_blue==blue)&&(c_green==green)&&(c_red==red)) {
-																							im_pnlabels.at<uchar>(i, j) = gray_Val[0];
-																							//im_pnlabels.at<Vec3b>(Point(i, j))[1] = g_Val;
-																				}
-																		}
-																}
-														}
-												} //end object loop
-
-												cout << "Processing " << tile_array.size() << endl;
-												// copy im_pnlabels to im_mask
-												im_pnlabels.copyTo(im_mask(Rect(starty, startx, im_pnlabels.rows, im_pnlabels.cols)));
-
-
-											}
-
-								//Mat gray_image;
-								//cvtColor( im_mask, gray_image, CV_BGR2GRAY );
-								result = imwrite(outFileName.c_str(), im_mask);
-								//waitKey(0);
-
-								closedir (dir_tile);
-						    } else {
-						        cout << "Error opening slide directory" << endl;
-						    }
-						 } //if end
-				 	} // while end
-			 		closedir (dir);
-		    } else {
-		        cout << "Error opening directory" << endl;
-		    }
-			} //for slide names end
-	} // result = 0 end
-
-	if( predScore )
-		free(predScore);
-
-	return result;
-}
-
-
-
 
 
 int main(int argc, char *argv[])
