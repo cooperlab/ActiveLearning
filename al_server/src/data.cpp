@@ -486,6 +486,10 @@ bool MData::Load(string fileName)
 
 	bool is_string = false;
 
+	if(H5Lexists(fileId, "/patch_size", H5P_DEFAULT)) {
+			is_string = true;
+	}
+
 	if( result && slidesExist ) {
 
 		// Read slide names, do this last because we reuse the dims variable
