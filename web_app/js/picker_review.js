@@ -626,11 +626,11 @@ function displayOneslide(sampleArray, slide_num){
 
 		if (application == "region"){
 			if (superpixel_size == "16") {
-				scale_cen = 36;
+				scale_cent = 36;
 				scale_size = 64.0;
 			}
 			else {
-				scale_cen = 64;
+				scale_cent = 64;
 				scale_size = 128.0;
 			}
 		}

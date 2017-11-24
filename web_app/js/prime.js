@@ -508,26 +508,26 @@ function displayThumbNail(){
 
 	if (application == "region") {
 		if (superpixel_size == "16") {
-			scale_cen = 36;
-			scale_size = 64.0;
+			scale_cent = 28;
+			scale_size = 60.0;
 		}
 		else {
-			scale_cen = 64;
+			scale_cent = 64;
 			scale_size = 128.0;
 		}
 	}
+
 
 	for( i =0; i < selectedJSON.length; i++ ) {
 	 		var box = "#box_" + (i + 1), thumbTag = "#thumb_" + (i + 1),
 					labelTag = "#label_" + (i + 1), loc, label;
 
+				centX = (selectedJSON[i]['centX'] - (scale_cen * selectedJSON[i]['scale'])) / selectedJSON[i]['maxX'];
+				centY = (selectedJSON[i]['centY'] - (scale_cen * selectedJSON[i]['scale'])) / selectedJSON[i]['maxY'];
+				sizeX = (scale_size * selectedJSON[i]['scale']) / selectedJSON[i]['maxX'];
+				sizeY = (scale_size * selectedJSON[i]['scale']) / selectedJSON[i]['maxY'];
 
-		centX = (selectedJSON[i]['centX'] - (scale_cen * selectedJSON[i]['scale'])) / selectedJSON[i]['maxX'];
-		centY = (selectedJSON[i]['centY'] - (scale_cen * selectedJSON[i]['scale'])) / selectedJSON[i]['maxY'];
-		sizeX = (scale_size * selectedJSON[i]['scale']) / selectedJSON[i]['maxX'];
-		sizeY = (scale_size * selectedJSON[i]['scale']) / selectedJSON[i]['maxY'];
-
-		loc = centX+","+centY+","+sizeX+","+sizeY;
+			loc = centX+","+centY+","+sizeX+","+sizeY;
 
 		// set pyramids path
 		SlidePathPre = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
