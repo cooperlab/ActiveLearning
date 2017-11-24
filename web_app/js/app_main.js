@@ -30,6 +30,7 @@ var negClass = "";
 var posClass = "";
 var application = "";
 var strlink = "";
+var superpixel_size = 0;
 
 
 //
@@ -116,13 +117,14 @@ $(function() {
 		success: function(data) {
 
 			var	reloadDatasetSel = $("#reloadDatasetSel");
+
 			curDataset = data[0];		// Use first dataset initially
 
 			for( var item in data ) {
 				datasetSel.append(new Option(data[item][0], data[item][0]));
 				reloadDatasetSel.append(new Option(data[item][0], data[item][0]));
 			}
-
+			superpixel_size = curDataset[2];
 			updateTrainingSets(curDataset[0]);
 		}
 	});
