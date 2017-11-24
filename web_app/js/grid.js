@@ -47,6 +47,7 @@ var curX = 0, curY = 0;
 var boundaryOn = true;
 var reloaded = false;
 var application = "";
+var superpixel_size = 0;
 
 //
 //	Initialization
@@ -104,6 +105,21 @@ $(function() {
 		// Display the progress dialog...
 		$('#progDiag').modal('show');
 	}
+
+	$.ajax({
+		type: "POST",
+		url: "db/getdatasets.php",
+		data: { application: application },
+		dataType: "json",
+		success: function(data) {
+
+			for( var item in data ) {
+				if (curDataset == data[item][0]) {
+					superpixel_size = data[item][2];
+				}
+			}
+		}
+	});
 
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
@@ -393,8 +409,14 @@ function updateSamples() {
 			var scale_size = 50.0;
 
 			if (application == "region"){
-				scale_cent = 64;
-				scale_size = 128.0;
+				if (superpixel_size == "16") {
+					scale_cen = 36;
+					scale_size = 64.0;
+				}
+				else {
+					scale_cen = 64;
+					scale_size = 128.0;
+				}
 			}
 			statusObj.iteration(data['iteration']);
 			statusObj.accuracy(data['accuracy']);

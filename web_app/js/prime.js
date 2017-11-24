@@ -55,6 +55,7 @@ var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
 var application = "";
 var scale = 0.5;
+var superpixel_size = 0;
 //
 //	Initialization
 //
@@ -66,7 +67,7 @@ $(function() {
 	document.getElementById("prime").setAttribute("href","prime.html?application="+application);
 
 	// Setup the grid slider relative to the window width
-	width = 0;
+	var width = 0;
 	$('#overflow .slider div').each(function() {
 		width += $(this).outerWidth(true);
 	});
@@ -194,6 +195,20 @@ $(function() {
 		}
 	});
 
+	$.ajax({
+		type: "POST",
+		url: "db/getdatasets.php",
+		data: { application: application },
+		dataType: "json",
+		success: function(data) {
+
+			for( var item in data ) {
+				if (curDataset == data[item][0]) {
+					superpixel_size = data[item][2];
+				}
+			}
+		}
+	});
 
 	// Set the update handler for the slide selector
 	$("#slideSel").change(updateSlide);
@@ -492,8 +507,14 @@ function displayThumbNail(){
 	var scale_size = 50.0;
 
 	if (application == "region") {
-		scale_cen = 64;
-		scale_size = 128.0;
+		if (superpixel_size == "16") {
+			scale_cen = 36;
+			scale_size = 64.0;
+		}
+		else {
+			scale_cen = 64;
+			scale_size = 128.0;
+		}
 	}
 
 	for( i =0; i < selectedJSON.length; i++ ) {
