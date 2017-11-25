@@ -31,7 +31,10 @@
 	$trainSet = '../trainingsets/'.$_POST['trainset'].'.h5';
 	$dataSet = '../datasets/'.$_POST['dataset'];
 	$slide = $_POST['slide'];
-
+	$startx = $_POST['startx'];
+	$starty = $_POST['starty'];
+	$width = $_POST['width'];
+	$height = $_POST['height'];
 
 	// Extract just the file name of the training set
 	$parts = explode("/",$_POST['trainset']);
@@ -50,11 +53,11 @@
 	} else {
 		$dataName = $parts[0];
 	}
-	$outFile = '../trainingsets/tmp/'.$trainName.'_'.$dataName.'_'.$slide.'.tif';
+	$outFile = '../trainingsets/tmp/'.$trainName.'_'.$dataName.'_'.$slide.'.tiff';
 
 	if( file_exists($trainSet) && file_exists($dataSet) ) {
 
-		$cmd = 'validate -d /localdata/labels -t '.$trainSet.' -f '.$dataSet.' -m mask -s '.$slide.' -o '.$outFile;
+		$cmd = 'validate -t '.$trainSet.' -f '.$dataSet.' -x '.$startx.' -y '.$starty.' -w '.$width.' -h '.$height.' -m maskregion -s '.$slide.' -o '.$outFile;
 
 		write_log("INFO","Executing: ".$cmd);
 

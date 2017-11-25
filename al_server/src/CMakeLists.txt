@@ -17,6 +17,16 @@ include_directories(${TIFF_INCLUDE_DIRS})
 set(LIBRARIES ${LIBRARIES} ${TIFF_LIBRARIES})
 
 
+#
+### MYSQL package
+#
+
+set(FULL_PATH_TO_MYSQL_CONNECTOR_CPP_DIR /usr/local)
+include_directories(${FULL_PATH_TO_MYSQL_CONNECTOR_CPP_DIR}/include)
+include_directories(${FULL_PATH_TO_MYSQL_CONNECTOR_CPP_DIR}/include/cppconn)
+link_directories(${FULL_PATH_TO_MYSQL_CONNECTOR_CPP_DIR}/lib)
+#set(LIBRARIES ${LIBRARIES} ${FULL_PATH_TO_MYSQL_CONNECTOR_CPP_DIR}/include)
+#set(LIBRARIES ${LIBRARIES} ${FULL_PATH_TO_MYSQL_CONNECTOR_CPP_DIR}/include/cppconn)
 
 #
 ### HDF5 package
@@ -139,6 +149,6 @@ target_link_libraries(al_server ${LIBRARIES})
 set_target_properties(al_server PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set_target_properties(al_server PROPERTIES OUTPUT_NAME al_serverd${CMAKE_DEBUG_POSTFIX})
 
-target_link_libraries(validate ${LIBRARIES})
+target_link_libraries(validate ${LIBRARIES} mysqlcppconn)
 set_target_properties(validate PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set_target_properties(validate PROPERTIES OUTPUT_NAME validate${CMAKE_DEBUG_POSTFIX})
