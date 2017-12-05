@@ -69,6 +69,264 @@ EvtLogger	*gLogger = NULL;
 #define SUPERPIXEL_SIZE 16
 
 
+int GenerateMaskRegions(MData& trainSet, MData& testSet, Classifier *classifier,
+					string slidesInfo)
+{
+	int		result = 0, dims = trainSet.GetDims(), *trainLabel = trainSet.GetLabels(),
+			numTestObjs = testSet.GetNumObjs(), numSlides = testSet.GetNumSlides();
+
+	float	**test = testSet.GetData(), **train = trainSet.GetData(),
+			*predScore = NULL;
+
+	if( dims != testSet.GetDims() ) {
+		cerr << "Training and test set dimensions do not match" << endl;
+		result = -30;
+	}
+
+	if( result == 0 ) {
+		cout << "Allocating prediction buffer" << endl;
+		predScore = (float*)malloc(numTestObjs * sizeof(float));
+		if( predScore == NULL ) {
+			cerr << "Unable to allocae prediction buffer" << endl;
+			result = -31;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Training classifier..." << endl;
+		if( !classifier->Train(train[0], trainLabel, trainSet.GetNumObjs(), dims) ) {
+			cerr << "Classifier training failed" << endl;
+			result = -32;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Applying classifier..." << endl;
+		if( ! classifier->ScoreBatch(test, numTestObjs, dims, predScore) ) {
+			cerr << "Applying classifier failed" << endl;
+			result = -33;
+		}
+	}
+
+	cout << "Loading test dataset ..." << endl;
+
+	float	*m_xCentroid = testSet.GetXCentroidList();
+	float	*m_yCentroid = testSet.GetYCentroidList();
+
+	cout << "Loading annotation info ..." << endl;
+
+	ifstream  file(slidesInfo);
+
+	vector<vector<string> > dataList;
+	string line = "";
+
+	while(getline(file, line)) {
+			vector<string> vec;
+			boost::algorithm::split(vec, line, boost::is_any_of(","));
+			dataList.push_back(vec);
+	}
+
+	file.close();
+
+	// get slide name from dataset
+	char	**slideNames = testSet.GetSlideNames();
+
+	for(vector<string> vec : dataList) {
+
+			if (vec.size() != 5) {
+					cerr << "Number of column must be 5 ..." << endl;
+					result = -1;
+			}
+
+			if( result == 0 ) {
+
+				string slideName = vec.at(0);
+				int start_x = stoi(vec.at(1));
+				int start_y = stoi(vec.at(2));
+				int width = stoi(vec.at(3));
+				int height = stoi(vec.at(4));
+				bool isSlide = false;
+				// check if the slide exists
+				for(int i = 0; i < testSet.GetNumSlides() - 1; i++) {
+					if (strcmp(slideNames[i], slideName.c_str()) == 0) {
+							isSlide = true;
+							break;
+					}
+				}
+
+				if(isSlide) {
+
+						cout << "Generating masks for " << slideName << endl;
+
+						int slide_width;
+						int slide_height;
+						int slide_scale;
+						string outFileName = slideName + "_" + to_string(start_x)
+																	+ "_" + to_string(start_y)
+																	+ "_" + to_string(width)
+																	+ "_" + to_string(height) + ".tif";
+
+						if( result == 0 ) {
+								int slideObjs, offset = testSet.GetSlideOffset(slideName, slideObjs);
+								float	*m_predScore = &predScore[offset];
+								cout << "Running mysql ..." << endl;
+
+								try {
+									sql::Driver *driver;
+									sql::Connection *con;
+									sql::Statement *stmt;
+									sql::ResultSet *res;
+
+									// Create a connection
+									driver = get_driver_instance();
+									con = driver->connect("tcp://127.0.0.1:3306", "guest", "valsGuets");
+									// Connect to the MySQL test database
+									con->setSchema("nuclei");
+									stmt = con->createStatement();
+									// Query to get slide width, height, scale
+									res = stmt->executeQuery(string("SELECT x_size, y_size, scale FROM slides where name= '"+ slideName + '\'' + " limit 1").c_str());
+									while (res->next()) {
+											 slide_width = res->getInt(1);
+											 slide_height = res->getInt(2);
+											 slide_scale = res->getInt(3);
+									}
+
+									// Set 20x tile size and superpixel size as a default
+									int tile_size = TILE_SIZE*4;
+									int p_size = SUPERPIXEL_SIZE*4;
+									// If 40x, then multiply by 2
+									if (slide_scale == 2) {
+										tile_size = tile_size*2;
+										p_size = p_size*2;
+									}
+
+									// In order to get correct ROI from centroids and boundaries,
+									// we need to make ROI to be bold.
+									// We will get the initaial ROI back at the end.
+
+									int tile_num_y;
+									int tile_num_x;
+
+									// Get total tile numbers
+									tile_num_x = slide_width/tile_size + tile_size;
+									tile_num_y = slide_height/tile_size + tile_size;
+
+									int bold_start_x = start_x;
+
+									if (start_x > p_size)
+										bold_start_x = start_x - p_size;
+
+									int bold_start_y = start_y;
+
+									if (start_y > p_size)
+										bold_start_y = start_y - p_size;
+
+									int bold_end_x = start_x + width + p_size;
+									int bold_end_y = start_y + height + p_size;
+
+									int bold_width = bold_end_x - bold_start_x;
+									int bold_height =  bold_end_y - bold_start_y;
+
+									Mat mask(height, width, CV_32F, Scalar(7.0));
+									Mat bold_mask(bold_height, bold_width, CV_32F, Scalar(7.0));
+
+									for(int i = offset; i < offset+slideObjs; i++) {
+											if ((m_xCentroid[i] >= bold_start_x) && (m_xCentroid[i] <= bold_end_x) && (m_yCentroid[i] >= bold_start_y) && (m_yCentroid[i] <= bold_end_y)) {
+
+												stringstream stream_x;
+												stream_x << fixed << setprecision(1) << m_xCentroid[i];
+												string s_x = stream_x.str();
+
+												stringstream stream_y;
+												stream_y << fixed << setprecision(1) << m_yCentroid[i];
+												string s_y = stream_y.str();
+												res = stmt->executeQuery(string("SELECT boundary FROM sregionboundaries where slide= '"+ slideName + '\''+ \
+												" and centroid_x="+ s_x +" and centroid_y="+ s_y +" limit 1").c_str());
+
+												while (res->next()) {
+
+														string t = res->getString(1);
+														vector<string> strs;
+														boost::split(strs, t ,boost::is_any_of(" "));
+														vector<Point> pts;
+
+														for (size_t i = 0; i < strs.size() - 1; i++) {
+																vector<string> coords;
+																boost::split(coords, strs[i], boost::is_any_of(","));
+																int x = stoi(coords[0])-bold_start_x;
+																int y = stoi(coords[1])-bold_start_y;
+																pts.push_back(Point(x, y));
+														}
+														fillConvexPoly(bold_mask, pts, m_predScore[i - offset]);
+												}
+											}
+									}
+
+									int left = start_x - bold_start_x;
+									int top = start_y - bold_start_y;
+
+									cout << "Writing " << outFileName << " ..." << endl;
+									// copy to the original region
+									bold_mask(Rect(left, top, width, height)).copyTo(mask);
+
+									TIFF* out = TIFFOpen(outFileName.c_str(), "w");
+
+									// float* image = new float[width * height];
+									short int compression = COMPRESSION_LZW;
+
+									TIFFSetField(out, TIFFTAG_IMAGEWIDTH, width);
+									TIFFSetField(out, TIFFTAG_IMAGELENGTH, height);
+									TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);
+									TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, 32);
+									TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
+									TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
+									TIFFSetField(out, TIFFTAG_COMPRESSION, compression);
+									TIFFSetField(out, TIFFTAG_FILLORDER, FILLORDER_MSB2LSB);
+									//TIFFSetField(out, TIFFTAG_PREDICTOR, PREDICTOR_HORIZONTAL);
+									TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
+									TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
+
+									// length in memory of one row of pixel in the image.
+									tsize_t linebytes = width;
+
+									// set the strip size of the file to be size of one row of pixels
+									TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, width*4));
+
+									// writing image to the file one strip at a time
+									for (uint32 row = 0; row < height; row++) {
+											if (TIFFWriteScanline(out, mask.ptr<float>(row), row, 0) < 0)
+											break;
+									}
+
+									TIFFClose(out);
+
+									delete res;
+									delete stmt;
+									delete con;
+
+								} catch (sql::SQLException &e) {
+									cout << " ERR: SQLException in ";
+									cout << " Error code: " << e.getErrorCode();
+									cout << " State: " << e.getSQLState() << endl;
+								}
+
+						} // result = 0 end
+
+				}
+
+			}
+
+	}
+
+	if( predScore ) {
+			free(predScore);
+			predScore = NULL;
+	}
+
+	return result;
+}
+
+
 int GenerateMaskRegion(MData& trainSet, MData& testSet, Classifier *classifier,
 					string testFile, string slideName, int start_x, int start_y, int width, int height,
 					string outFileName)
@@ -966,14 +1224,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if( command.compare("mask") == 0 ) {
-		if( args.slide_given == 0 ) {
-			cerr << "Must specify slide name (-s) for the map command" <<  endl;
-			exit(-1);
-		} else {
-			slide = args.slide_arg;
-		}
-	}
+	// if( command.compare("mask") == 0 ) {
+	// 	if( args.slide_given == 0 ) {
+	// 		cerr << "Must specify slide name (-s) for the map command" <<  endl;
+	// 		exit(-1);
+	// 	} else {
+	// 		slide = args.slide_arg;
+	// 	}
+	// }
 
 	if( command.compare("maskregion") == 0 ) {
 		if( args.slide_given == 0 ) {
@@ -1020,7 +1278,7 @@ int main(int argc, char *argv[])
 		} else if( command.compare("apply") == 0 ) {
 			result = ApplyClassifier(trainSet, testSet, classifier, testFile, outFileName);
 		} else if( command.compare("mask") == 0 ) {
-			result = GenerateMask(trainSet, testSet, classifier, slide, imlabelDir, outFileName);
+			result = GenerateMaskRegions(trainSet, testSet, classifier, outFileName);
 		} else if( command.compare("maskregion") == 0 ) {
 			result = GenerateMaskRegion(trainSet, testSet, classifier, testFile, slide, startx, starty, width, height, outFileName);
 		}
