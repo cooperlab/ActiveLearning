@@ -164,7 +164,7 @@ int GenerateMaskRegions(MData& trainSet, MData& testSet, Classifier *classifier,
 						string outFileName = slideName + "_" + to_string(start_x)
 																	+ "_" + to_string(start_y)
 																	+ "_" + to_string(width)
-																	+ "_" + to_string(height) + ".tif";
+																	+ "_" + to_string(height) + "_.tif";
 
 						if( result == 0 ) {
 								int slideObjs, offset = testSet.GetSlideOffset(slideName, slideObjs);
