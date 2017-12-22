@@ -115,7 +115,7 @@ int GenerateMaskRegions(MData& trainSet, MData& testSet, Classifier *classifier,
 
 	cout << "Loading annotation info ..." << endl;
 
-	ifstream  file(slidesInfo);
+	ifstream file(slidesInfo);
 
 	vector<vector<string> > dataList;
 	string line = "";
@@ -169,7 +169,7 @@ int GenerateMaskRegions(MData& trainSet, MData& testSet, Classifier *classifier,
 						if( result == 0 ) {
 								int slideObjs, offset = testSet.GetSlideOffset(slideName, slideObjs);
 								float	*m_predScore = &predScore[offset];
-								cout << "Running mysql ..." << endl;
+								// cout << "Running mysql ..." << endl;
 
 								try {
 									sql::Driver *driver;
@@ -179,7 +179,7 @@ int GenerateMaskRegions(MData& trainSet, MData& testSet, Classifier *classifier,
 
 									// Create a connection
 									driver = get_driver_instance();
-									con = driver->connect("tcp://127.0.0.1:3306", "guest", "valsGuets");
+									con = driver->connect("tcp://127.0.0.1:3306", "guest", "alsBeGr8!guest");
 									// Connect to the MySQL test database
 									con->setSchema("nuclei");
 									stmt = con->createStatement();
@@ -375,15 +375,30 @@ int GenerateMaskRegion(MData& trainSet, MData& testSet, Classifier *classifier,
 	cout << "Generating mask..." << endl;
 
 	// get slide name
-	//char	**slideNames = testSet.GetSlideNames();
+	char	**slideNames = testSet.GetSlideNames();
+
+	// check if the slide exists
+	bool isSlide = false;
+
+	for(int i = 0; i < testSet.GetNumSlides() - 1; i++) {
+		if (strcmp(slideNames[i], slideName.c_str()) == 0) {
+				isSlide = true;
+				break;
+		}
+	}
+
 	int slide_width;
 	int slide_height;
 	int slide_scale;
+	outFileName = slideName + "_" + to_string(start_x)
+												+ "_" + to_string(start_y)
+												+ "_" + to_string(width)
+												+ "_" + to_string(height) + "_.tif";
 
 	if( result == 0 ) {
 			int slideObjs, offset = testSet.GetSlideOffset(slideName, slideObjs);
 			float	*m_predScore = &predScore[offset];
-			cout << "Running mysql ..." << endl;
+			//cout << "Running mysql ..." << endl;
 
 			try {
 				sql::Driver *driver;
@@ -393,7 +408,7 @@ int GenerateMaskRegion(MData& trainSet, MData& testSet, Classifier *classifier,
 
 				// Create a connection
 				driver = get_driver_instance();
-				con = driver->connect("tcp://127.0.0.1:3306", "guest", "valsGuets");
+				con = driver->connect("tcp://127.0.0.1:3306", "guest", "alsBeGr8!guest");
 				// Connect to the MySQL test database
 				con->setSchema("nuclei");
 				stmt = con->createStatement();
@@ -441,8 +456,6 @@ int GenerateMaskRegion(MData& trainSet, MData& testSet, Classifier *classifier,
 				int bold_width = bold_end_x - bold_start_x;
 				int bold_height =  bold_end_y - bold_start_y;
 
-				// cout << "objects = " << m_numObjs << endl;
-
 				Mat mask(height, width, CV_32F, Scalar(7.0));
 				Mat bold_mask(bold_height, bold_width, CV_32F, Scalar(7.0));
 
@@ -467,8 +480,7 @@ int GenerateMaskRegion(MData& trainSet, MData& testSet, Classifier *classifier,
 									boost::split(strs,t ,boost::is_any_of(" "));
 									vector<Point> pts;
 
-									for (size_t i = 0; i < strs.size(); i++) {
-
+									for (size_t i = 0; i < strs.size() - 1; i++) {
 											vector<string> coords;
 											boost::split(coords,strs[i] ,boost::is_any_of(","));
 											int x = stoi(coords[0])-bold_start_x;
@@ -484,6 +496,7 @@ int GenerateMaskRegion(MData& trainSet, MData& testSet, Classifier *classifier,
 				int left = start_x - bold_start_x;
 				int top = start_y - bold_start_y;
 
+				cout << "Writing " << outFileName << " ..." << endl;
 				// copy to the original region
 				bold_mask(Rect(left, top, width, height)).copyTo(mask);
 
