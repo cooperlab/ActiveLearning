@@ -53,7 +53,7 @@
 	} else {
 		$dataName = $parts[0];
 	}
-	$outFile = '../trainingsets/tmp/'.$trainName.'_'.$dataName.'_'.$slide.'.tiff';
+	$outFile = '../trainingsets/tmp/'.$slide.'_'.$startx.'_'.$starty.'_'.$width.'_'.$height.'_.tiff';
 
 	if( file_exists($trainSet) && file_exists($dataSet) ) {
 
