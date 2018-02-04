@@ -33,11 +33,13 @@ var curClassifier = "none";
 
 var viewer = null;
 var imgHelper = null, osdCanvas = null, viewerHook = null;
-var overlayHidden = false, selectMode = false, segDisplayOn = false;
+var overlayHidden = false, selectMode = false, segDisplayOn = false, paintOn = false;
 var olDiv = null;
 var lastScaleFactor = 0;
 var pyramids, trainingSets;
 var clickCount = 0;
+var isDragged = false;
+var firstPaint = "";
 
 // The following only needed for active sessions
 var uid = null, negClass = "", posClass = "";
@@ -90,7 +92,11 @@ $(function() {
 	viewer = new OpenSeadragon.Viewer({ showNavigator: true, id: "image_zoomer", prefixUrl: "images/", animationTime: 0.1});
 	imgHelper = viewer.activateImagingHelper({onImageViewChanged: onImageViewChanged});
     viewerHook = viewer.addViewerInputHook({ hooks: [
-                    {tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick}
+                    {tracker: 'viewer', handler: 'clickHandler', hookHandler: onMouseClick},
+										{tracker: 'viewer', handler: 'dragHandler', hookHandler: onViewerDrag},
+										{tracker: 'viewer', handler: 'dragEndHandler', hookHandler: onViewerDragEnd},
+										{tracker: 'viewer', handler: 'releaseHandler', hookHandler: onViewerLeave},
+										{tracker: 'viewer', handler: 'exitHandler', hookHandler: onViewerExit}
             ]});
 
 	annoGrpTransformFunc = ko.computed(function() {
@@ -135,7 +141,7 @@ $(function() {
 
 		if( segDisplayOn ) {
 
-			if( statusObj.scaleFactor() > 0.5 ) {
+			if( statusObj.scaleFactor() > 0.2 ) {
 
 				// Zoomed in, show boundaries hide heatmap
 				$('#anno').show();
@@ -146,12 +152,13 @@ $(function() {
 				var centerY = statusObj.dataportTop() +
 							  ((statusObj.dataportBottom() - statusObj.dataportTop()) / 2);
 
-				if( centerX < boundsLeft || centerX > boundsRight ||
-					centerY < boundsTop || centerY > boundsBottom ) {
-
-					// Only update boundaries if we've panned far enough.
-					updateSeg();
-				}
+				updateSeg();
+				// if( centerX < boundsLeft || centerX > boundsRight ||
+				// 	centerY < boundsTop || centerY > boundsBottom ) {
+        //
+				// 	// Only update boundaries if we've panned far enough.
+				// 	updateSeg();
+				// }
 
 			} else {
 
@@ -224,6 +231,9 @@ $(function() {
 
 	// Set update handler for the heatmap radio buttons
 	$('input[name=heatmapOption]').change(updateHeatmap);
+
+	// Set update handler for the heatmap radio buttons
+	$('input[name=paintOption]').change(updatePaint);
 
   // Set filter for numeric input
 	$("#x_pos").keydown(filter);
@@ -561,9 +571,16 @@ function updateSlideSeg() {
 						var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
 
 						if( bound != null ) {
-								bound.setAttribute("fill", "yellow");
-								bound.setAttribute("fill-opacity", "0.2");
+								// check label
+								if( fixes['samples'][cell]['label'] == 1 ) {
+										bound.setAttribute('fill', 'lime');
+										bound.setAttribute("fill-opacity", "0.2");
+								} else if( fixes['samples'][cell]['label'] == -1 ) {
+										bound.setAttribute('fill', 'lightgrey');
+										bound.setAttribute("fill-opacity", "0.2");
+								}
 						}
+
 					}
 				}
 			}
@@ -741,6 +758,13 @@ function updateHeatmap() {
 }
 
 
+function updatePaint() {
+
+	if (application == "region"){
+			isNegPaint = true;
+	}
+}
+
 
 
 //
@@ -791,7 +815,7 @@ function updateSeg() {
 
 	var ele, segGrp, annoGrp;
 
-	if( statusObj.scaleFactor() > 0.5 ) {
+	if( statusObj.scaleFactor() > 0.2 ) {
 
 		var left, right, top, bottom, width, height;
 
@@ -899,8 +923,16 @@ function updateSeg() {
 
 							if( bound != null ) {
 								if (application == "region"){
-									bound.setAttribute("fill", "yellow");
-									bound.setAttribute("fill-opacity", "0.2");
+
+									if( fixes['samples'][cell]['label'] == 1 ) {
+											bound.setAttribute('fill', 'lime');
+											bound.setAttribute("fill-opacity", "0.2");
+									} else if( fixes['samples'][cell]['label'] == -1 ) {
+											bound.setAttribute('fill', 'lightgrey');
+											bound.setAttribute("fill-opacity", "0.2");
+									}
+									// bound.setAttribute("fill", "yellow");
+									// bound.setAttribute("fill-opacity", "0.2");
 								} else{
 									bound.setAttribute('stroke', 'yellow');
 								}
@@ -1003,6 +1035,26 @@ function updateBoundColors(obj) {
 	}
 }
 
+function updateRegionBoundColors(obj) {
+
+	for( cell in fixes['samples'] ) {
+		var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
+
+		if( bound != null ) {
+			if (fixes['samples'][cell]['id'] == obj['id']){
+				if( fixes['samples'][cell]['label'] == 1 ) {
+						bound.setAttribute('fill', 'lime');
+						bound.setAttribute("fill-opacity", "0.2");
+				}
+				if( fixes['samples'][cell]['label'] == -1 ) {
+						bound.setAttribute('fill', 'lightgrey');
+						bound.setAttribute("fill-opacity", "0.2");
+				}
+			}
+		}
+	}
+}
+
 //
 // Undo colors when a sample is deleted
 // Parameters
@@ -1044,6 +1096,28 @@ function undoBoundColors(obj) {
 						bound.setAttribute('stroke', 'lightgrey');
 					}
 
+				}
+			}
+		}
+	}
+}
+
+
+function undoRegionBoundColors(obj) {
+
+	for( cell in fixes['samples'] ) {
+		var bound = document.getElementById("N"+fixes['samples'][cell]['id']);
+
+		if( bound != null ) {
+			// check id
+			if (fixes['samples'][cell]['id'] == obj['id']){
+				// check label
+				if( fixes['samples'][cell]['label'] == -1 ) {
+						bound.setAttribute('fill', 'lime');
+						bound.setAttribute("fill-opacity", "0.2");
+				} else if( fixes['samples'][cell]['label'] == 1 ) {
+						bound.setAttribute('fill', 'lightgrey');
+						bound.setAttribute("fill-opacity", "0.2");
 				}
 			}
 		}
@@ -1144,7 +1218,112 @@ function nucleiSelect() {
 }
 
 
+function nucleiPaint() {
 
+	if( classifierSession == false ) {
+		$.ajax({
+		    type:   "POST",
+		    url:    "db/getsingle.php",
+		    dataType: "json",
+		    data:   { slide:    curSlide,
+		              cellX:    Math.round(statusObj.mouseImgX()),
+		              cellY:    Math.round(statusObj.mouseImgY()),
+									application: application,
+		            },
+		    success: function(data) {
+		            if( data !== null ) {
+
+						if( curClassifier === "none" ) {
+							// No classifier applied, just log results
+			                console.log(curSlide+","+data[2]+","+data[3]+", id: "+data[1]);
+            }
+						else {
+	          	// We're adding an object, make sure the retrain button is enabled.
+	          	$('#retrainBtn').removeAttr('disabled');
+
+							var	obj = {slide: curSlide, centX: data[2], centY: data[3], label: 0, id: data[1]};
+	          	var cell = document.getElementById("N"+obj['id']);
+							// initializes a flag to check the status of undo
+							var undo = false;
+							var flip = false;
+							// Flip the label here. lime indicates the positive class, so we
+							// want to change the label to -1. Change to 1 for lightgrey. If
+							// the color is niether, the sample has been picked already so
+							// ignore.
+							//
+							if (firstPaint == "") {
+
+								if (cell.getAttribute('fill') === "lightgrey" ) {
+									firstPaint = "lime";
+								}
+								else if (cell.getAttribute('fill') === "lime" ) {
+									firstPaint = "lightgrey";
+								}
+
+								for( cell in fixes['samples'] ) {
+									if (fixes['samples'][cell]['id'] == obj['id']){
+										obj['label'] = fixes['samples'][cell]['label'];
+										if (obj['label'] === -1 ) {
+											firstPaint = "lime";
+										}
+										else if (obj['label'] === 1 ) {
+											firstPaint = "lightgrey";
+										}
+										undo = true;
+									}
+								}
+							}
+
+							if ((firstPaint == "lime")&&(cell.getAttribute('fill') === "lightgrey" )) {
+								obj['label'] = 1;
+								flip = true;
+								// find a cell with the same id
+								for( cell in fixes['samples'] ) {
+									if (fixes['samples'][cell]['id'] == obj['id']){
+										obj['label'] = fixes['samples'][cell]['label'];
+										undo = true;
+									}
+								}
+							}
+							else if ((firstPaint == "lightgrey")&&(cell.getAttribute('fill') === "lime" )) {
+								obj['label'] = -1;
+								flip = true;
+								// find a cell with the same id
+								for( cell in fixes['samples'] ) {
+									if (fixes['samples'][cell]['id'] == obj['id']){
+										obj['label'] = fixes['samples'][cell]['label'];
+										undo = true;
+									}
+								}
+							}
+							if (flip){
+								// if the cell is already selected
+								if (undo){
+									// call undoBoundColrs to undo the color
+									undoRegionBoundColors(obj);
+									for( cell in fixes['samples'] ) {
+										if (fixes['samples'][cell]['id'] == obj['id']){
+											fixes['samples'].splice(cell, 1);
+										}
+									}
+									statusObj.samplesToFix(statusObj.samplesToFix()-1);
+									undo = false;
+								}
+								// else if the cell is labeled to -1 or 1
+								// else if( (obj['label'] == -1) || (obj['label'] == 1) ) {
+								else {
+	                fixes['samples'].push(obj);
+									// call updateBoundColors to update to color
+									updateRegionBoundColors(obj);
+	                statusObj.samplesToFix(statusObj.samplesToFix()+1);
+	          		}
+	          	}
+						}
+          }
+        }
+		});
+	}
+}
 
 
 function retrain() {
@@ -1232,25 +1411,65 @@ function onMouseLeave(event) {
 function onMouseClick(event) {
 		if (application == "region"){
 			event.preventDefaultAction = true;
-
 		}
-    clickCount++;
-    if( clickCount === 1 ) {
-        // If no click within 250ms, treat it as a single click
-        singleClickTimer = setTimeout(function() {
-                    // Single click
-                    clickCount = 0;
-                }, 250);
-    } else if( clickCount >= 2 ) {
-        // Double click
-        clearTimeout(singleClickTimer);
-				if( segDisplayOn ) {
-        clickCount = 0;
-        nucleiSelect();
-			}
-    }
+		else{
+	    clickCount++;
+	    if( clickCount === 1 ) {
+	        // If no click within 250ms, treat it as a single click
+	        singleClickTimer = setTimeout(function() {
+	                    // Single click
+	                    clickCount = 0;
+	                }, 250);
+	    } else if( clickCount >= 2 ) {
+	        // Double click
+	        clearTimeout(singleClickTimer);
+					if( segDisplayOn ) {
+	        clickCount = 0;
+	        nucleiSelect();
+				}
+	    }
+		}
+		isDragged = false;
 }
 
+function onViewerDrag(event) {
+	isDragged = true;
+	if (application == "region"){
+		if (paintOn == true) {
+			event.preventDefaultAction = true;
+			nucleiPaint();
+			// if (firstPaint == "") {
+			// 	getFirstnucleiPaint();
+			// }
+			// else{
+			// 	nucleiPaint();
+			// }
+			// if (isNegPaint == false) {
+			// 	nucleiPosPaint();
+			// }
+			// else {
+			// 	nucleiNegPaint();
+			// }
+		}
+		else{
+			event.preventDefaultAction = false;
+		}
+	}
+}
+
+function onViewerDragEnd(event) {
+		// firstPaint = "";
+}
+
+function onViewerExit(event) {
+		// firstPaint = "";
+}
+
+function onViewerLeave(event) {
+		event.preventDefaultAction = false;
+		isDragged = false;
+		firstPaint = "";
+}
 
 
 //
@@ -1278,13 +1497,33 @@ function viewSegmentation() {
 		$('.overlaySvg').css('visibility', 'visible');
 		segDisplayOn = true;
 
+		// updateHeatmap();
 		updateSeg();
-		if (application == "region"){
-			updateHeatmap();
-		}
+		// if (application == "region"){
+		// 	updateHeatmap();
+		// }
 	}
 }
 
+function paintMode() {
+
+	var	segBtn = $('#btn_paint');
+
+	if( paintOn ) {
+		segBtn.val("Paint On");
+		if (segDisplayOn == true) {
+			viewSegmentation();
+		}
+		paintOn = false;
+	} else {
+		segBtn.val("Paint Off");
+		if (segDisplayOn == false) {
+			viewSegmentation();
+		}
+		paintOn = true;
+
+	}
+}
 
 
 
