@@ -543,7 +543,7 @@ function updateSlideSeg() {
 					ele.setAttribute('points', data[cell][0]);
 					ele.setAttribute('id', 'N' + data[cell][1]);
 					ele.setAttribute('stroke', 'aqua');
-					ele.setAttribute('stroke-width', 4);
+					// ele.setAttribute('stroke-width', 4);
 					ele.setAttribute("stroke-dasharray", "5,5");
 					ele.setAttribute('fill', data[cell][2]);
 					ele.setAttribute("fill-opacity", "0.2");
@@ -889,9 +889,9 @@ function updateSeg() {
 							ele.setAttribute('id', 'N' + data[cell][1]);
 							if (application == "region"){
 								ele.setAttribute('stroke', 'aqua');
+								// ele.setAttribute('stroke-width', '2');
 								ele.setAttribute('fill', data[cell][2]);
 								ele.setAttribute("fill-opacity", "0.2");
-								ele.setAttribute('stroke-width', 4);
 								ele.setAttribute("stroke-dasharray", "5,5");
 							} else{
 								ele.setAttribute('stroke', data[cell][2]);

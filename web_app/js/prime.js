@@ -404,7 +404,7 @@ function updateSeg() {
 							ele.setAttribute('id', 'N' + data[cell][1]);
 							ele.setAttribute('stroke', 'aqua');
 							if (application == "region") {
-								ele.setAttribute('stroke-width', 4);
+								// ele.setAttribute('stroke-width', 4);
 								ele.setAttribute("stroke-dasharray", "5,5");
 							}
 							ele.setAttribute('fill', 'none');
