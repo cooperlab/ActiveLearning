@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -199,8 +199,8 @@ $(function() {
 				// No active session, don;t allow navigation to select & visualize
 				$('#nav_select').hide();
 				$('#nav_heatmaps').hide();
-				// the review section also should be hided
 				$('#nav_review').hide();
+				$('#nav_survival').hide();
 
 				document.getElementById("index").setAttribute("href","index.html");
 
