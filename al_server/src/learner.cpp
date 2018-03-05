@@ -2237,11 +2237,13 @@ bool Learner::GenHeatmap(const int sock, json_t *obj)
 
 
 
-#define KERN_SIZE	(ceil(3.5f * 11))
+// #define KERN_SIZE	(ceil(3.5f * 11))
+#define KERN_SIZE	(ceil(7.0f * 11))
 #define GRID_SIZE	40
 #define HIST_BINS	20
 #define UNCERT_PERCENTILE	0.90f
-#define SREGION_GRID_SIZE	40
+// #define SREGION_GRID_SIZE	40
+#define SREGION_GRID_SIZE	80
 
 
 
@@ -2922,8 +2924,10 @@ void Learner::HeatmapWorkerSRegion(float *slideScores, float *centX, float *cent
 		}
 
 		Size2i kernel(KERN_SIZE, KERN_SIZE);
-		GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5f);
-		GaussianBlur(classMap, classMap, kernel, 3.5f);
+		// GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5f);
+		// GaussianBlur(classMap, classMap, kernel, 3.5f);
+		GaussianBlur(uncertainMap, uncertainMap, kernel, 7.0f);
+		GaussianBlur(classMap, classMap, kernel, 7.0f);
 
 		Mat		img, classImg;
 
