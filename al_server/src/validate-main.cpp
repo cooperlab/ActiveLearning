@@ -405,18 +405,43 @@ int GenerateLabelRegions(MData& trainSet, MData& testSet, Classifier *classifier
 }
 
 
-int GenerateLabelRegion(MData& testSet, string testFile, string slideName, int start_x, int start_y, int width, int height,
-					string outFileName)
+int GenerateLabelRegion(MData& trainSet, MData& testSet, Classifier *classifier,
+					string slideName, string outFileName)
 {
-	int		result = 0, dims = testSet.GetDims(),
+	int		result = 0, offset, slideObjs, dims = trainSet.GetDims(), *trainLabel = trainSet.GetLabels(),
 			numTestObjs = testSet.GetNumObjs(), numSlides = testSet.GetNumSlides();
 
-	float	**test = testSet.GetData(),
-		*predScore = NULL;
+	float	**test = testSet.GetData(), **train = trainSet.GetData(),
+			*predScore = NULL;
 
 	if( dims != testSet.GetDims() ) {
 		cerr << "Training and test set dimensions do not match" << endl;
 		result = -30;
+	}
+
+	if( result == 0 ) {
+		cout << "Allocating prediction buffer" << endl;
+		predScore = (float*)malloc(numTestObjs * sizeof(float));
+		if( predScore == NULL ) {
+			cerr << "Unable to allocae prediction buffer" << endl;
+			result = -31;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Training classifier..." << endl;
+		if( !classifier->Train(train[0], trainLabel, trainSet.GetNumObjs(), dims) ) {
+			cerr << "Classifier training failed" << endl;
+			result = -32;
+		}
+	}
+
+	if( result == 0 ) {
+		cout << "Applying classifier..." << endl;
+		if( ! classifier->ScoreBatch(test, numTestObjs, dims, predScore) ) {
+			cerr << "Applying classifier failed" << endl;
+			result = -33;
+		}
 	}
 
 	cout << "Loading test dataset ..." << endl;
@@ -424,238 +449,251 @@ int GenerateLabelRegion(MData& testSet, string testFile, string slideName, int s
 	float	*m_xCentroid = testSet.GetXCentroidList();
 	float	*m_yCentroid = testSet.GetYCentroidList();
 
-	cout << "Generating mask..." << endl;
-
-	// get slide name
+	// get slide name from dataset
 	char	**slideNames = testSet.GetSlideNames();
 
-	// check if the slide exists
-	bool isSlide = false;
-
-	for(int i = 0; i < testSet.GetNumSlides() - 1; i++) {
-		if (strcmp(slideNames[i], slideName.c_str()) == 0) {
-				isSlide = true;
-				break;
+	if( result == 0 ) {
+		result = -34;
+		// check if the slide exists
+		for(int i = 0; i < numSlides; i++) {
+			if (strcmp(slideNames[i], slideName.c_str()) == 0) {
+					result = 0;
+					break;
+			}
+		}
+		if (result < 0) {
+			cerr << "Slide name doesn't exist" << endl;
 		}
 	}
 
-	int slide_width;
-	int slide_height;
-	int slide_scale;
-	outFileName = slideName + "_" + to_string(start_x)
-												+ "_" + to_string(start_y)
-												+ "_" + to_string(width)
-												+ "_" + to_string(height) + "_.tif";
-
-	string outFileName_h5 = slideName + "_" + to_string(start_x)
-												+ "_" + to_string(start_y)
-												+ "_" + to_string(width)
-												+ "_" + to_string(height) + "_.h5";
-
 	if( result == 0 ) {
-				int slideObjs, offset = testSet.GetSlideOffset(slideName, slideObjs);
-				//cout << "Running mysql ..." << endl;
 
-				try {
-					sql::Driver *driver;
-					sql::Connection *con;
-					sql::Statement *stmt;
-					sql::ResultSet *res;
+				int slide_width;
+				int slide_height;
+				int slide_scale;
+				string outFileName_tiff = "../trainingsets/tmp/" + slideName + ".tif";
+				string outFileName_h5 = "../trainingsets/tmp/" + slideName +  ".h5";
 
-					// Create a connection
-					driver = get_driver_instance();
-					con = driver->connect("tcp://127.0.0.1:3306", "guest", "valsGuets");
-					// Connect to the MySQL test database
-					con->setSchema("nuclei");
-					stmt = con->createStatement();
-					// Query to get slide width, height, scale
-					res = stmt->executeQuery(string("SELECT x_size, y_size, scale FROM slides where name= '"+ slideName + '\'' + " limit 1").c_str());
-					while (res->next()) {
-							 slide_width = res->getInt(1);
-							 slide_height = res->getInt(2);
-							 slide_scale = res->getInt(3);
-					}
+				if( result == 0 ) {
+						int slideObjs, offset = testSet.GetSlideOffset(slideName, slideObjs);
+						float	*m_predScore = &predScore[offset];
 
-					// Set 20x tile size and superpixel size as a default
-					int tile_size = TILE_SIZE*4;
-					int p_size = SUPERPIXEL_SIZE*4;
-					// If 40x, then multiply by 2
-					if (slide_scale == 2) {
-						tile_size = tile_size*2;
-						p_size = p_size*2;
-					}
+						try {
+							sql::Driver *driver;
+							sql::Connection *con;
+							sql::Statement *stmt;
+							sql::ResultSet *res;
 
-					// In order to get correct ROI from centroids and boundaries,
-					// we need to make ROI to be bold.
-					// We will get the initaial ROI back at the end.
-
-					int tile_num_y;
-					int tile_num_x;
-
-					// Get total tile numbers
-					tile_num_x = slide_width/tile_size + tile_size;
-					tile_num_y = slide_height/tile_size + tile_size;
-
-					int bold_start_x = start_x;
-
-					if (start_x > p_size)
-						bold_start_x = start_x - p_size;
-
-					int bold_start_y = start_y;
-
-					if (start_y > p_size)
-						bold_start_y = start_y - p_size;
-
-					int bold_end_x = start_x + width + p_size;
-					int bold_end_y = start_y + height + p_size;
-
-					int bold_width = bold_end_x - bold_start_x;
-					int bold_height =  bold_end_y - bold_start_y;
-
-					// Mat mask(height, width, CV_32F, Scalar(0.0));
-					// Mat bold_mask(bold_height, bold_width, CV_32F, Scalar(0.0));
-					Mat mask(height, width, CV_32F);
-					Mat bold_mask(bold_height, bold_width, CV_32F);
-
-					// ready to create H5
-					hid_t	fileId;
-					hsize_t	dims[2];
-					herr_t	status;
-
-					fileId = H5Fcreate(outFileName_h5.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-					if( fileId < 0 ) {
-						cerr << "Unable to create HDF5 file " << outFileName_h5 << endl;
-						result = -30;
-					}
-
-					vector<Cent>	centroids;
-					vector<int>		labels;
-					int label_num = 1;
-
-					for(int i = offset; i < offset+slideObjs; i++) {
-							if ((m_xCentroid[i] >= bold_start_x) && (m_xCentroid[i] <= bold_end_x) && (m_yCentroid[i] >= bold_start_y) && (m_yCentroid[i] <= bold_end_y)) {
-
-								Cent	sample;
-								sample.x = m_xCentroid[i];
-								sample.y = m_yCentroid[i];
-								centroids.push_back(sample);
-								labels.push_back(label_num);
-
-								stringstream stream_x;
-								stream_x << fixed << setprecision(1) << m_xCentroid[i];
-								string s_x = stream_x.str();
-
-								stringstream stream_y;
-								stream_y << fixed << setprecision(1) << m_yCentroid[i];
-								string s_y = stream_y.str();
-
-								res = stmt->executeQuery(string("SELECT boundary FROM sregionboundaries where slide= '"+ slideName + '\''+ \
-								" and centroid_x="+ s_x +" and centroid_y="+ s_y +" limit 1").c_str());
-
-								while (res->next()) {
-
-										string t = res->getString(1);
-										vector<string> strs;
-										boost::split(strs,t ,boost::is_any_of(" "));
-										vector<Point> pts;
-
-										for (size_t i = 0; i < strs.size() - 1; i++) {
-												vector<string> coords;
-												boost::split(coords,strs[i] ,boost::is_any_of(","));
-												int x = stoi(coords[0])-bold_start_x;
-												int y = stoi(coords[1])-bold_start_y;
-												pts.push_back(Point(x, y));
-										}
-
-										vector<vector<Point>> ptsAll;
-										ptsAll.push_back(pts);
-										// fillConvexPoly(bold_mask, pts, m_predScore[i - offset]);
-										fillPoly(bold_mask, ptsAll, label_num);
-								}
-
-								label_num = label_num + 1;
+							// Create a connection
+							driver = get_driver_instance();
+							con = driver->connect("tcp://127.0.0.1:3306", "guest", "alsBeGr8!guest");
+							// Connect to the MySQL test database
+							con->setSchema("nuclei");
+							stmt = con->createStatement();
+							// Query to get slide width, height, scale
+							res = stmt->executeQuery(string("SELECT x_size, y_size, scale FROM slides where name= '"+ slideName + '\'' + " limit 1").c_str());
+							while (res->next()) {
+									 slide_width = res->getInt(1);
+									 slide_height = res->getInt(2);
+									 slide_scale = res->getInt(3);
 							}
-					}
 
-					if( result == 0 ) {
-						Cent	*centroidData = centroids.data();
+							int p_size = SUPERPIXEL_SIZE*4;
+							int t_size = TILE_SIZE*4;
 
-						dims[0] = centroids.size();
-						dims[1] = 2;
-						status = H5LTmake_dataset(fileId, "/centroids", 2, dims, H5T_NATIVE_FLOAT, centroidData);
-						if( status < 0 ) {
-							cerr << "Unable to create centroid dataset" << endl;
-							result = -32;
+							// If 40x, then multiply by 2
+							if (slide_scale == 2) {
+								p_size = p_size*2;
+								t_size = t_size*2;
+							}
+
+							int tile_num_y;
+							int tile_num_x;
+
+							// Get total tile numbers
+							tile_num_x = slide_width/t_size + 1;
+							tile_num_y = slide_height/t_size + 1;
+
+							// ready to create H5
+							hid_t	fileId;
+							hsize_t	dims[2];
+							herr_t	status;
+
+							fileId = H5Fcreate(outFileName_h5.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+							if( fileId < 0 ) {
+								cerr << "Unable to create HDF5 file " << outFileName_h5 << endl;
+								result = -30;
+							}
+
+							vector<Cent>	centroids;
+							vector<int>		labels;
+							vector<float>		predScore;
+							int label_num = 1;
+
+							TIFF* out = TIFFOpen(outFileName_tiff.c_str(), "w");
+							// set for tile image compression
+							int tiff_width, tiff_height;
+							tiff_width = t_size*tile_num_x;
+							tiff_height = t_size*tile_num_y;
+
+							short int compression = COMPRESSION_LZW;
+							ttile_t index_tile;
+
+							TIFFSetField(out, TIFFTAG_IMAGEWIDTH, tiff_width);
+							TIFFSetField(out, TIFFTAG_IMAGELENGTH, tiff_height);
+							TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);
+							TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, 32);
+							TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
+							TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
+							TIFFSetField(out, TIFFTAG_COMPRESSION, compression);
+							TIFFSetField(out, TIFFTAG_FILLORDER, FILLORDER_MSB2LSB);
+							TIFFSetField(out, TIFFTAG_TILEWIDTH, t_size);
+							TIFFSetField(out, TIFFTAG_TILELENGTH, t_size);
+							//TIFFSetField(out, TIFFTAG_PREDICTOR, PREDICTOR_HORIZONTAL);
+							TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
+							TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
+
+							float* chunk32 = new float[t_size * t_size];
+
+							// set postive and negative value
+							for(int x = 0; x < tile_num_x; x++){
+								for(int y = 0; y < tile_num_y; y++){
+
+									int startx = x*t_size;
+									int starty = y*t_size;
+									int endx = startx + t_size;
+									int endy = starty + t_size;
+
+									Mat mask(t_size, t_size, CV_32F);
+
+									index_tile = TIFFComputeTile(out, startx, starty, 0, 0);
+
+									float *ptr_copy = chunk32;
+
+									for(int i = offset; i < offset+slideObjs; i++) {
+											if ((m_xCentroid[i] >= startx) && (m_xCentroid[i] <= endx) && (m_yCentroid[i] >= starty) && (m_yCentroid[i] <= endy)) {
+												stringstream stream_x;
+												stream_x << fixed << setprecision(1) << m_xCentroid[i];
+												string s_x = stream_x.str();
+
+												stringstream stream_y;
+												stream_y << fixed << setprecision(1) << m_yCentroid[i];
+												string s_y = stream_y.str();
+												res = stmt->executeQuery(string("SELECT boundary FROM sregionboundaries where slide= '"+ slideName + '\''+ \
+												" and centroid_x="+ s_x +" and centroid_y="+ s_y +" limit 1").c_str());
+
+												while (res->next()) {
+
+														Cent	sample;
+														sample.x = m_xCentroid[i];
+														sample.y = m_yCentroid[i];
+														centroids.push_back(sample);
+														labels.push_back(label_num);
+														predScore.push_back(m_predScore[i-offset]);
+
+														string t = res->getString(1);
+														vector<string> strs;
+														boost::split(strs, t ,boost::is_any_of(" "));
+														vector<Point> pts;
+
+														for (size_t k = 0; k < strs.size() - 1; k++) {
+																vector<string> coords;
+																boost::split(coords, strs[k], boost::is_any_of(","));
+																int x = stoi(coords[0])-startx;
+																int y = stoi(coords[1])-starty;
+																pts.push_back(Point(x, y));
+														}
+														vector<vector<Point>> ptsAll;
+														ptsAll.push_back(pts);
+														// fillConvexPoly(bold_mask, pts, m_predScore[i - offset]);
+														fillPoly(mask, ptsAll, label_num);
+														label_num = label_num + 1;
+												}
+
+											}
+									}
+
+									int index = 0;
+
+									for (int j = 0; j < t_size; ++j)	{
+											float* row_ptr = mask.ptr<float>(j);
+											for (int i = 0; i < t_size; ++i)	{
+												ptr_copy[index] = row_ptr[i];
+												index = index + 1;
+
+											}
+									}
+
+									TIFFWriteEncodedTile(out, index_tile, ptr_copy, t_size*t_size*sizeof(float));
+
+							}
 						}
-					}
 
-					if( result == 0 ) {
+						delete[] chunk32;
 
-						dims[0] = labels.size();
-						dims[1] = 1;
-						status = H5LTmake_dataset(fileId, "/labels", 2, dims, H5T_NATIVE_INT, labels.data());
-						if( status < 0 ) {
-							cerr << "Unable to create labels dataset" << endl;
-							result = -33;
+						TIFFWriteDirectory(out);
+
+						TIFFClose(out);
+
+						if( result == 0 ) {
+							Cent	*centroidData = centroids.data();
+
+							dims[0] = centroids.size();
+							dims[1] = 2;
+							status = H5LTmake_dataset(fileId, "/centroids", 2, dims, H5T_NATIVE_FLOAT, centroidData);
+							if( status < 0 ) {
+								cerr << "Unable to create centroid dataset" << endl;
+								result = -32;
+							}
 						}
-					}
 
-					if( fileId >= 0 ) {
-						H5Fclose(fileId);
-					}
+						if( result == 0 ) {
 
-					int left = start_x - bold_start_x;
-					int top = start_y - bold_start_y;
+							dims[0] = labels.size();
+							dims[1] = 1;
+							status = H5LTmake_dataset(fileId, "/labels", 2, dims, H5T_NATIVE_INT, labels.data());
+							if( status < 0 ) {
+								cerr << "Unable to create labels dataset" << endl;
+								result = -33;
+							}
+						}
 
-					cout << "Writing " << outFileName << " ..." << endl;
-					// copy to the original region
-					bold_mask(Rect(left, top, width, height)).copyTo(mask);
+						if( result == 0 ) {
+							dims[0] = predScore.size();
+							dims[1] = 1;
 
-					TIFF* out = TIFFOpen(outFileName.c_str(), "w");
+							status = H5LTmake_dataset(fileId, "/pred_score", 2, dims,
+														H5T_NATIVE_FLOAT, predScore.data());
+							if( status < 0 ) {
+								cerr << "Unable to write score data" << endl;
+								result = -34;
+							}
+						}
 
-					// float* image = new float[width * height];
-					short int compression = COMPRESSION_LZW;
+						if( fileId >= 0 ) {
+							H5Fclose(fileId);
+						}
 
-					TIFFSetField(out, TIFFTAG_IMAGEWIDTH, width);
-					TIFFSetField(out, TIFFTAG_IMAGELENGTH, height);
-					TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);
-					TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, 32);
-					TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
-					TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
-					TIFFSetField(out, TIFFTAG_COMPRESSION, compression);
-					TIFFSetField(out, TIFFTAG_FILLORDER, FILLORDER_MSB2LSB);
-					//TIFFSetField(out, TIFFTAG_PREDICTOR, PREDICTOR_HORIZONTAL);
-					TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
-					TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
+							delete res;
+							delete stmt;
+							delete con;
 
-					// length in memory of one row of pixel in the image.
-					tsize_t linebytes = width;
+						} catch (sql::SQLException &e) {
+							cout << " ERR: SQLException in ";
+							cout << " Error code: " << e.getErrorCode();
+							cout << " State: " << e.getSQLState() << endl;
+						}
 
-					// set the strip size of the file to be size of one row of pixels
-					TIFFSetField(out, TIFFTAG_ROWSPERSTRIP, TIFFDefaultStripSize(out, width*4));
+				} // result = 0 end
 
-					// writing image to the file one strip at a time
-					for (uint32 row = 0; row < height; row++) {
-							if (TIFFWriteScanline(out, mask.ptr<float>(row), row, 0) < 0)
-							break;
-					}
+			}
 
-					TIFFClose(out);
-
-					delete res;
-					delete stmt;
-					delete con;
-
-				} catch (sql::SQLException &e) {
-					cout << " ERR: SQLException in ";
-					cout << " Error code: " << e.getErrorCode();
-					cout << " State: " << e.getSQLState() << endl;
-				}
-
-		} // result = 0 end
+	if( predScore )
+		free(predScore);
 
 	return result;
 }
+
 
 int GenerateMaskRegions(MData& trainSet, MData& testSet, Classifier *classifier,
 					string slidesInfo)
@@ -1605,7 +1643,7 @@ int main(int argc, char *argv[])
 		} else if( command.compare("maskregion") == 0 ) {
 			// result = GenerateMaskRegion(trainSet, testSet, classifier, testFile, slide, startx, starty, width, height, outFileName);
 			// result = GenerateLabelRegion(trainSet, testSet, classifier, testFile, slide, startx, starty, width, height, outFileName);
-			result = GenerateLabelRegion(testSet, testFile, slide, startx, starty, width, height, outFileName);
+			result = GenerateLabelRegion(trainSet, testSet, classifier, slide, outFileName);
 		}
 	}
 
