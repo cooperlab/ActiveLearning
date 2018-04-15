@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -189,6 +189,13 @@ function updateTrainingSet() {
 
 function updateTrainingsetInfo(trainSet) {
 
+	// initialize training set infomation before updating
+	document.getElementById('reloadNeg').innerHTML = "";
+	document.getElementById('reloadPos').innerHTML = "";
+	// document.getElementById('reloadIter').innerHTML = data.iterations;
+	document.getElementById('reloadNegCount').innerHTML = "";
+	document.getElementById('reloadPosCount').innerHTML = "";
+
 	$.ajax({
 		type: "POST",
 		url: "db/getTrainsetInfo.php",
@@ -198,7 +205,7 @@ function updateTrainingsetInfo(trainSet) {
 
 			document.getElementById('reloadNeg').innerHTML = data.labels[0];
 			document.getElementById('reloadPos').innerHTML = data.labels[1];
-			document.getElementById('reloadIter').innerHTML = data.iterations;
+			// document.getElementById('reloadIter').innerHTML = data.iterations;
 			document.getElementById('reloadNegCount').innerHTML = data.counts[0];
 			document.getElementById('reloadPosCount').innerHTML = data.counts[1];
 		}
