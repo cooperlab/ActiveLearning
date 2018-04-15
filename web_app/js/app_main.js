@@ -180,13 +180,6 @@ function updateTrainingSet() {
 
 	var trainSet = reloadTrainSetSel.options[reloadTrainSetSel.selectedIndex].label;
 
-	// initialize training set infomation before updating
-	document.getElementById('reloadNeg').innerHTML = "";
-	document.getElementById('reloadPos').innerHTML = "";
-	// document.getElementById('reloadIter').innerHTML = data.iterations;
-	document.getElementById('reloadNegCount').innerHTML = "";
-	document.getElementById('reloadPosCount').innerHTML = "";
-
 	updateTrainingsetInfo(trainSet);
 }
 
@@ -195,6 +188,13 @@ function updateTrainingSet() {
 
 
 function updateTrainingsetInfo(trainSet) {
+
+	// initialize training set infomation before updating
+	document.getElementById('reloadNeg').innerHTML = "";
+	document.getElementById('reloadPos').innerHTML = "";
+	// document.getElementById('reloadIter').innerHTML = data.iterations;
+	document.getElementById('reloadNegCount').innerHTML = "";
+	document.getElementById('reloadPosCount').innerHTML = "";
 
 	$.ajax({
 		type: "POST",
