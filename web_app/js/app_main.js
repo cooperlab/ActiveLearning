@@ -30,7 +30,7 @@ var negClass = "";
 var posClass = "";
 var application = "";
 var strlink = "";
-var superpixel_size = 0;
+var superpixelSize = 0;
 
 
 //
@@ -58,6 +58,7 @@ $(function() {
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
+			superpixelSize = data['superpixelSize'];
 
 			if( uid === null ) {
 				$('#nav_select').hide();
@@ -124,7 +125,6 @@ $(function() {
 				datasetSel.append(new Option(data[item][0], data[item][0]));
 				reloadDatasetSel.append(new Option(data[item][0], data[item][0]));
 			}
-			superpixel_size = curDataset[2];
 			updateTrainingSets(curDataset[0]);
 		}
 	});

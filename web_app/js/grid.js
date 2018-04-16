@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -47,7 +47,7 @@ var curX = 0, curY = 0;
 var boundaryOn = true;
 var reloaded = false;
 var application = "";
-var superpixel_size = 0;
+var superpixelSize = 0;
 
 //
 //	Initialization
@@ -89,6 +89,7 @@ $(function() {
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
 			reloaded = data['reloaded'];
+			superpixelSize = data['superpixelSize'];
 
 			if( reloaded == true ) {
 				statusObj.iteration(data['iteration'])
@@ -105,21 +106,6 @@ $(function() {
 		// Display the progress dialog...
 		$('#progDiag').modal('show');
 	}
-
-	$.ajax({
-		type: "POST",
-		url: "db/getdatasets.php",
-		data: { application: application },
-		dataType: "json",
-		success: function(data) {
-
-			for( var item in data ) {
-				if (curDataset == data[item][0]) {
-					superpixel_size = data[item][2];
-				}
-			}
-		}
-	});
 
 	// Create the slide zoomer, update slide count etc...
 	// We will load the tile pyramid after the slide list is loaded
@@ -409,7 +395,7 @@ function updateSamples() {
 			var scale_size = 50.0;
 
 			if (application == "region"){
-				if (superpixel_size == "16") {
+				if (superpixelSize == "16") {
 					scale_cent = 36;
 					scale_size = 64.0;
 				}

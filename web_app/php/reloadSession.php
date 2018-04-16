@@ -1,7 +1,7 @@
 <?php
 
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -46,7 +46,7 @@
 		log_error("Unable to get training set from the database");
 	}
 
-	$sql = 'SELECT features_file FROM datasets WHERE name="'.$_POST["reloadDataset"].'"';
+	$sql = 'SELECT features_file, superpixel_size FROM datasets WHERE name="'.$_POST["reloadDataset"].'"';
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
 		$featureFile = mysqli_fetch_row($result);
@@ -107,6 +107,7 @@
 		$_SESSION['negClass'] = $response['negName'];
 		$_SESSION['iteration'] = (int)$response['iteration'];
 		$_SESSION['reloaded'] = true;
+		$_SESSION['superpixelSize'] = $featureFile[1];
 		header("Location: ../grid.html?application=".$_POST['applicationreload']);
 	} else {
 		echo "Unable to init session<br>";

@@ -1,7 +1,7 @@
 <?php
 
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -10,7 +10,7 @@
 //	1. Redistributions of source code must retain the above copyright notice, this list of
 //	conditions and the following disclaimer.
 //
-//	2. Redistributions in binary form must reproduce the above copyright notice, this list 
+//	2. Redistributions in binary form must reproduce the above copyright notice, this list
 // 	of conditions and the following disclaimer in the documentation and/or other materials
 //	provided with the distribution.
 //
@@ -18,7 +18,7 @@
 //	EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 //	OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
 //	SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED 
+//	INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
 //	TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 //	BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 //	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
@@ -29,17 +29,18 @@
 
 	require 'hostspecs.php';
 	session_start();
-	
-	
+
+
 	$sessionInfo = array();
-	
+
 	if( isset($_SESSION['uid']) ) {
 		$sessionInfo['uid'] = $_SESSION['uid'];
 		$sessionInfo['classname'] = $_SESSION['classifier'];
 		$sessionInfo['posClass'] = $_SESSION['posClass'];
 		$sessionInfo['negClass'] = $_SESSION['negClass'];
-		$sessionInfo['dataset'] = $_SESSION['dataset'];	
+		$sessionInfo['dataset'] = $_SESSION['dataset'];
 		$sessionInfo['reloaded'] = $_SESSION['reloaded'];
+		$sessionInfo['superpixelSize'] = $_SESSION['superpixelSize'];
 	} else {
 		$sessionInfo['uid'] = null;
 		$sessionInfo['dataset'] = null;
@@ -48,6 +49,6 @@
 	$sessionInfo['alServer'] = $host;
 	$sessionInfo['alServerPort'] = $port;
 	$sessionInfo['IIPServer'] = $IIPServer;
-	
+
 	echo json_encode($sessionInfo);
 ?>
