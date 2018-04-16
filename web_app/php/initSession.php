@@ -1,7 +1,7 @@
 <?php
 
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -94,7 +94,7 @@
 	// Get the dataset file from the database
 	//
 	$dbConn = guestConnect();
-	$sql = 'SELECT features_file FROM datasets WHERE name="'.$_POST["dataset"].'"';
+	$sql = 'SELECT features_file, superpixel_size FROM datasets WHERE name="'.$_POST["dataset"].'"';
 
 	if( $result = mysqli_query($dbConn, $sql) ) {
 
@@ -148,6 +148,7 @@
 		$_SESSION['iteration'] = 0;
 		$_SESSION['dataset'] = $_POST["dataset"];
 		$_SESSION['reloaded'] = false;
+		$_SESSION['superpixelSize'] = $featureFile[1];
 		header("Location: ../prime.html?application=".$_POST['application']);
 	} else {
 
