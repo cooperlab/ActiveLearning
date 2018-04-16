@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -55,7 +55,7 @@ var boundsLeft = 0, boundsRight = 0, boundsTop = 0, boundsBottom = 0;
 var	boxes = ["box_1", "box_2", "box_3", "box_4", "box_5", "box_6","box_7", "box_8"];
 var application = "";
 var scale = 0.5;
-var superpixel_size = 0;
+var superpixelSize = 0;
 //
 //	Initialization
 //
@@ -183,6 +183,7 @@ $(function() {
 			negClass = data['negClass'];
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
+			superpixelSize = data['superpixelSize'];
 
 			if( uid == null ) {
 				window.alert("No session active");
@@ -191,21 +192,6 @@ $(function() {
 				updateSlideList();
 				$('#posLabel').text(posClass);
 				$('#negLabel').text(negClass);
-			}
-		}
-	});
-
-	$.ajax({
-		type: "POST",
-		url: "db/getdatasets.php",
-		data: { application: application },
-		dataType: "json",
-		success: function(data) {
-
-			for( var item in data ) {
-				if (curDataset == data[item][0]) {
-					superpixel_size = data[item][2];
-				}
 			}
 		}
 	});
@@ -507,7 +493,7 @@ function displayThumbNail(){
 	var scale_size = 50.0;
 
 	if (application == "region") {
-		if (superpixel_size == "16") {
+		if (superpixelSize == "16") {
 			scale_cent = 28;
 			scale_size = 60.0;
 		}

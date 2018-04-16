@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -56,7 +56,7 @@ var reloaded = false;
 var application = "";
 var scale = 0.5;
 
-var superpixel_size = 0;
+var superpixelSize = 0;
 
 //
 //	Initialization
@@ -166,6 +166,7 @@ $(function() {
 			curDataset = data['dataset'];
 			IIPServer = data['IIPServer'];
 			reloaded = data['reloaded'];
+			superpixelSize = data['superpixelSize'];
 
 
 			if( uid == null ) {
@@ -183,20 +184,6 @@ $(function() {
 		}
 	});
 
-	$.ajax({
-		type: "POST",
-		url: "db/getdatasets.php",
-		data: { application: application },
-		dataType: "json",
-		success: function(data) {
-
-			for( var item in data ) {
-				if (curDataset == data[item][0]) {
-					superpixel_size = data[item][2];
-				}
-			}
-		}
-	});
 
 	// Get number of objects added to test set already
 	//
@@ -597,7 +584,7 @@ function nucleiSelect() {
 						var scale_size = 50.0;
 
 						if (application == "region"){
-							if (superpixel_size == "16") {
+							if (superpixelSize == "16") {
 								scale_cent = 36;
 								scale_size = 64.0;
 							}
