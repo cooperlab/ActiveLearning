@@ -493,7 +493,11 @@ function displayThumbNail(){
 	var scale_size = 50.0;
 
 	if (application == "region") {
-		if (superpixelSize == "16") {
+		if (superpixelSize == "8") {
+			scale_cent = 18;
+			scale_size = 32.0;
+		}
+		else if (superpixelSize == "16") {
 			scale_cent = 28;
 			scale_size = 60.0;
 		}

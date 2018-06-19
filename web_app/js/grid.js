@@ -395,7 +395,11 @@ function updateSamples() {
 			var scale_size = 50.0;
 
 			if (application == "region"){
-				if (superpixelSize == "16") {
+				if (superpixelSize == "8") {
+					scale_cent = 18;
+					scale_size = 32.0;
+				}
+				else if (superpixelSize == "16") {
 					scale_cent = 36;
 					scale_size = 64.0;
 				}
