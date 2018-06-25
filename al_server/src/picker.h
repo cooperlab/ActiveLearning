@@ -35,6 +35,7 @@
 #include "data.h"
 #include "ocvsvm.h"
 #include "ocvrandforest.h"
+#include "ocvnn.h"
 #include "sampler.h"
 #include "sessionClient.h"
 

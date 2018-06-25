@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -35,6 +35,7 @@
 #include "data.h"
 #include "ocvsvm.h"
 #include "ocvrandforest.h"
+#include "ocvnn.h"
 #include "sampler.h"
 #include "sessionClient.h"
 
@@ -80,6 +81,7 @@ protected:
 	string	m_heatmapPath;
 
 	string	m_classifierName;
+	string	m_classifierType;
 	string	m_curDatasetName;
 	vector<string> m_classNames;
 
@@ -107,6 +109,8 @@ protected:
 	float		*m_yClick;
 
 	int			m_iteration;
+	int			m_superpixelSize;
+	int			m_dimension;
 	bool		m_heatmapReload;
 	vector<SlideStat*> 	m_statList;
 	float		*m_scores;				// Used for heatmap generation

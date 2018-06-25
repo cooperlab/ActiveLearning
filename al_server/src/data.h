@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2015, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -80,6 +80,7 @@ public:
 		float	*GetYClickList(void) { return m_yClick; }
 		int		GetIteration(int index) { return m_iteration ? m_iteration[index] : 0;  }
 		int		*GetIterationList(void) { return m_iteration; }
+		int		GetSuperpixelSize(void) { return m_superpixelSize ? m_superpixelSize[0] : 28;  }
 		float	*GetMeans(void) { return m_means; }
 		float	*GetStdDevs(void)  { return m_stdDevs; }
 		int		*GetIdList(void)  { return m_dbIds;  }
@@ -101,6 +102,7 @@ protected:
 
 		bool	m_haveIters;
 		int		*m_iteration;
+		int		*m_superpixelSize;
 
 		bool	m_haveLabels;
 		int		m_numClasses;
@@ -126,7 +128,7 @@ protected:
 		hid_t	m_slideMemType;
 		hid_t	m_classNameSpace;
 		hid_t	m_classNameMemType;
-	
+
 		bool	ReadFeatureData(hid_t fileId);
 		void 	Cleanup(void);
 		bool	SaveProvenance(hid_t fileId);
