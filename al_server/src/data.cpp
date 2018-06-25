@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2016, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -62,7 +62,8 @@ m_classNames(NULL),
 m_numClasses(0),
 m_created(false),
 m_xClick(NULL),
-m_yClick(NULL)
+m_yClick(NULL),
+m_superpixelSize(NULL)
 {
 
 }
@@ -128,6 +129,11 @@ void MData::Cleanup(void)
 	if( m_stdDevs ) {
 		free(m_stdDevs);
 		m_stdDevs = NULL;
+	}
+
+	if( m_superpixelSize ) {
+		free(m_superpixelSize);
+		m_superpixelSize = NULL;
 	}
 
 	// If data was loaded from an existing file, HDF5 will allocate the
@@ -486,9 +492,20 @@ bool MData::Load(string fileName)
 
 	bool is_string = false;
 
-	if(H5Lexists(fileId, "/patch_size", H5P_DEFAULT)) {
-			is_string = true;
+	if( result && H5Lexists(fileId, "/patch_size", H5P_DEFAULT) ) {
+		is_string = true;
+		m_superpixelSize = (int*)malloc(sizeof(int));
+		if( m_superpixelSize ) {
+			status = H5LTread_dataset_int(fileId, "/patch_size", m_superpixelSize);
+			if( status < 0 ) {
+				result = false;
+			}
+		} else {
+			result = false;
+		}
 	}
+
+
 
 	if( result && slidesExist ) {
 

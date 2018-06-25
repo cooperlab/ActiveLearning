@@ -1,5 +1,5 @@
 //
-//	Copyright (c) 2014-2017, Emory University
+//	Copyright (c) 2014-2018, Emory University
 //	All rights reserved.
 //
 //	Redistribution and use in source and binary forms, with or without modification, are
@@ -301,7 +301,7 @@ bool Learner::StartSession(const int sock, json_t *obj)
 {
 	bool	result = true, uidUpdated = false;
 	json_t	*jsonObj;
-	const char *fileName, *uid, *classifierName;
+	const char *fileName, *uid, *classifierName, *classifierType;
 
 	// m_UID's length is 1 greater than UID_LENGTH, So we can
 	// always write a 0 there to make strlen safe.
@@ -350,6 +350,20 @@ bool Learner::StartSession(const int sock, json_t *obj)
 		}
 	}
 
+	// set classifier type to Neural Network
+	m_classifierType = "NN";
+	// m_classifierType = "RF";
+
+	// if( result ) {
+	// 	jsonObj = json_object_get(obj, "type");
+	// 	classifierType = json_string_value(jsonObj);
+	// 	if( classifierType != NULL ) {
+	// 		m_classifierType = classifierType;
+	// 	} else {
+	// 		result = false;
+	// 	}
+	// }
+
 	if( result ) {
 		jsonObj = json_object_get(obj, "negClass");
 		classifierName = json_string_value(jsonObj);
@@ -380,14 +394,25 @@ bool Learner::StartSession(const int sock, json_t *obj)
 
 	}
 
+	// if( result ) {
+	// 		m_superpixelSize = m_dataset->GetSuperpixelSize();
+	// }
+	gLogger->LogMsg(EvtLogger::Evt_INFO, "Loading took %f");
+
 	// Create classifier and sampling objects
 	//
 	if( result ) {
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loaded... %d objects of %d dimensions",
 							m_dataset->GetNumObjs(), m_dataset->GetDims());
 
- 		m_classifier = new OCVBinaryRF();
+		m_dimension = m_dataset->GetDims();
 
+		if (m_classifierType.compare("RF") == 0 ) {
+			m_classifier = new OCVBinaryRF();
+		}
+		else {
+			m_classifier = new OCVBinaryNN();
+		}
 		if( m_classifier == NULL ) {
 			result = false;
 		}
@@ -433,7 +458,7 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 {
 	bool	result = true, uidUpdated = false;
 	json_t	*jsonObj;
-	const char *featureFileName, *uid, *classifierName, *trainingFileName;
+	const char *featureFileName, *uid, *classifierName, *classifierType, *trainingFileName;
 
 	// m_UID's length is 1 greater than UID_LENGTH, So we can
 	// always write a 0 there to make strlen safe.
@@ -481,6 +506,18 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 		}
 	}
 
+	m_classifierType = "NN";
+	// m_classifierType = "RF";
+	// if( result ) {
+	// 	jsonObj = json_object_get(obj, "type");
+	// 	classifierType = json_string_value(jsonObj);
+	// 	if( classifierType != NULL ) {
+	// 		m_classifierType = classifierType;
+	// 	} else {
+	// 		result = false;
+	// 	}
+	// }
+
 	if( result ) {
 		strncpy(m_UID, uid, UID_LENGTH);
 		uidUpdated = true;
@@ -516,6 +553,8 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "Loaded dataset... %d objects of %d dimensions",
 							m_dataset->GetNumObjs(), m_dataset->GetDims());
 
+		m_dimension = m_dataset->GetDims();
+
 		result = RestoreSessionData(trainingData);
 	}
 
@@ -524,8 +563,14 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 	if( result ) {
 		gLogger->LogMsg(EvtLogger::Evt_INFO, "ReLoaded trainingset %s, %d objects",
 							trainingFileName, trainingData.GetNumObjs());
+		gLogger->LogMsg(EvtLogger::Evt_INFO, "Classifier: %s", m_classifierType.c_str());
+		if (m_classifierType.compare("RF") == 0 ) {
+		  m_classifier = new OCVBinaryRF();
+		}
+		else {
+		  m_classifier = new OCVBinaryNN();
 
- 		m_classifier = new OCVBinaryRF();
+		}
 
 		if( m_classifier == NULL ) {
 			result = false;
@@ -549,7 +594,6 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 	}
 
 	if( result ) {
-
 		int	*ptr = &m_samples[0];
 		result  = m_sampler->Init(m_samples.size(), ptr);
 
@@ -583,9 +627,13 @@ bool Learner::ReloadSession(const int sock, json_t *obj)
 	json_t 	*root = json_object(), *value = NULL;
 	size_t 	bytesWritten;
 
+	gLogger->LogMsg(EvtLogger::Evt_INFO, "Reloaded posClass  %s", m_classNames[0].c_str());
+
 	if( root != NULL ) {
 		json_object_set(root, "negName", json_string(m_classNames[0].c_str()));
 		json_object_set(root, "posName", json_string(m_classNames[1].c_str()));
+		json_object_set(root, "type", json_string(m_classifierType.c_str()));
+		// json_object_set(root, "superpixelSize", json_integer(m_superpixelSize));
 		json_object_set(root, "iteration", json_integer(m_iteration));
 		json_object_set(root, "result", json_string("PASS"));
 
@@ -1709,7 +1757,15 @@ bool Learner::ApplyGeneralClassifier(const int sock, int xMin, int xMax,
 {
 	bool	result = true;
 	json_t	*value;
-	Classifier *classifier = new OCVBinaryRF();
+
+	Classifier *classifier;
+
+	if (m_classifierType.compare("RF") == 0 ) {
+		classifier = new OCVBinaryRF();
+	}
+	else {
+		classifier = new OCVBinaryNN();
+	}
 
 	int		*predClass = NULL, *labels = NULL;
 
@@ -2030,7 +2086,15 @@ bool Learner::LoadTrainingSet(string trainingSetName)
 float Learner::CalcAccuracy(void)
 {
 	float		result = -1.0f;
-	Classifier	*classifier = new OCVBinaryRF();
+
+	Classifier	*classifier;
+
+	if (m_classifierType.compare("RF") == 0 ) {
+		classifier = new OCVBinaryRF();
+	}
+	else {
+		classifier = new OCVBinaryNN();
+	}
 
 	if( classifier ) {
 		vector<int>::iterator  it;
