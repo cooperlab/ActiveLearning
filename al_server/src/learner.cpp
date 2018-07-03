@@ -2988,10 +2988,10 @@ void Learner::HeatmapWorkerSRegion(float *slideScores, float *centX, float *cent
 		}
 
 		Size2i kernel(KERN_SIZE, KERN_SIZE);
-		// GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5f);
-		// GaussianBlur(classMap, classMap, kernel, 3.5f);
-		GaussianBlur(uncertainMap, uncertainMap, kernel, 7.0f);
-		GaussianBlur(classMap, classMap, kernel, 7.0f);
+		GaussianBlur(uncertainMap, uncertainMap, kernel, 3.5f);
+		GaussianBlur(classMap, classMap, kernel, 3.5f);
+		// GaussianBlur(uncertainMap, uncertainMap, kernel, 7.0f);
+		// GaussianBlur(classMap, classMap, kernel, 7.0f);
 
 		Mat		img, classImg;
 

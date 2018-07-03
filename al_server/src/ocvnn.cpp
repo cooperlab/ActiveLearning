@@ -162,24 +162,24 @@ int OCVBinaryNN::Classify(float *obj, int numDims)
 
 	if( m_trained ) {
 		Mat 	sample(1, numDims, CV_32F, obj);
-		Mat responseMat(1, 1, CV_32F);
+		Mat responseMat(1, 2, CV_32F);
 
 		pthread_mutex_lock(&m_mtx);
 		m_NN.predict(sample, responseMat);
 		pthread_mutex_unlock(&m_mtx);
 
-		result = responseMat.at<float>(0, 0) > 0 ? 1 : -1;
+		//result = responseMat.at<float>(0, 0) > 0 ? 1 : -1;
 
-		// float max = -1000000000000.0f;
-		// int cls = -1;
-		// for(int j = 0 ; j < 2 ; j++) {
-		// 		float value = responseMat.at<float>(0,j);
-		// 		if(value > max) {
-		// 				max = value;
-		// 				cls = j;
-		// 		}
-		// }
-		// result = (cls == 1) ? 1 : -1;
+		float max = -1000000000000.0f;
+		int cls = -1;
+		for(int j = 0 ; j < 2 ; j++) {
+				float value = responseMat.at<float>(0,j);
+				if(value > max) {
+						max = value;
+						cls = j;
+				}
+		}
+		result = (cls == 1) ? 1 : -1;
 
 	}
 
@@ -243,22 +243,22 @@ void OCVBinaryNN::ClassifyWorker(float **data, int offset, int numObjs, int numD
 	if( m_trained && results != NULL ) {
 		for(int i = offset; i < (offset + numObjs); i++) {
 			Mat	object(1, numDims, CV_32F, data[i]);
-			Mat responseMat(1, 1, CV_32F);
+			Mat responseMat(1, 2, CV_32F);
 
 			m_NN.predict(object, responseMat);
 
-			results[i] = responseMat.at<float>(0, 0) > 0 ? 1 : -1;
+			// results[i] = responseMat.at<float>(0, 0) > 0 ? 1 : -1;
 
-			// float max = -1000000000000.0f;
-      // int cls = -1;
-      // for(int j = 0 ; j < 2 ; j++) {
-      //     float value = responseMat.at<float>(0, j);
-      //     if(value > max) {
-      //         max = value;
-      //         cls = j;
-      //     }
-      // }
-			// results[i] = (cls == 1) ? 1 : -1;
+			float max = -1000000000000.0f;
+      int cls = -1;
+      for(int j = 0 ; j < 2 ; j++) {
+          float value = responseMat.at<float>(0, j);
+          if(value > max) {
+              max = value;
+              cls = j;
+          }
+      }
+			results[i] = (cls == 1) ? 1 : -1;
  		}
 	}
 }
@@ -275,13 +275,14 @@ float OCVBinaryNN::Score(float *obj, int numDims)
 
 	if( m_trained ) {
 		Mat sample(1, numDims, CV_32F, obj);
-	  Mat responseMat(1, 1, CV_32F);
+		Mat responseMat(1, 2, CV_32F);
 
 		pthread_mutex_lock(&m_mtx);
 		m_NN.predict(sample, responseMat);
 		pthread_mutex_unlock(&m_mtx);
 
-		score = responseMat.at<float>(0, 0) / max_score;
+		score = responseMat.at<float>(0, 1) / max_score;
+
 		// // Returned a probability, center 50% at 0 and set range to -1 to 1
 		// // score = (max * 2.0f) - 1.0f;
 		// score = responseMat.at<float>(0, 1);
@@ -350,37 +351,25 @@ void OCVBinaryNN::ScoreWorker(float **data, int offset, int numObjs, int numDims
 
 			m_NN.predict(object, responseMat);
 
-			// float max = -1000000000000.0f;
-      // int cls = -1;
-      // for(int j = 0 ; j < 2 ; j++) {
-      //     float value = responseMat.at<float>(0, j);
-      //     if(value > max) {
-      //         max = value;
-      //         cls = j;
-      //     }
-      // }
+			float max = -1000000000000.0f;
+      int cls = -1;
+      for(int j = 0 ; j < 2 ; j++) {
+          float value = responseMat.at<float>(0, j);
+          if(value > max) {
+              max = value;
+              cls = j;
+          }
+      }
 			// results[i] = (cls == 1) ? 1 : -1;
 
-			// float max = -1000000000000.0f;
-			// int cls = -1;
-			// for(int j = 0 ; j < 2 ; j++) {
-			// 		float value = responseMat.at<float>(0, j);
-			// 		if(value > max) {
-			// 				max = value;
-			// 				cls = j;
-			// 		}
-			// }
-			//
-			results[i] = responseMat.at<float>(0, 1) / max_score;
-
+			// results[i] = responseMat.at<float>(0, 1) / max_score;
+			if (cls == 1)
+				results[i] = responseMat.at<float>(0, 1) / max_score;
+			else
+				// results[i] = (responseMat.at<float>(0, 0) / max_score) - 1.0f;
+				results[i] = (1.0f - (((responseMat.at<float>(0, 0) / max_score) + 1.0f) / 2.0f))*2.0f - 1.0f;
 			// max = max / max_score;
 
-			// // Returned a probability, center 50% at 0 and set range to -1 to 1
-			// // score = (max * 2.0f) - 1.0f;
-			// results[i] = responseMat.at<float>(0, 1);
-			// results[i] = (cls == 1) ? 1 : -1;
-			// results[i] = responseMat.at<float>(0,0);
-			//
 			// Returned a probability, center 50% at 0 and set range to -1 to 1. This way
 			// any object with a negative score is in the negative class and a positive
 			// score indicates the positive class.
